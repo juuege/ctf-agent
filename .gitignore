@@ -42,3 +42,15 @@ yarn-error.log*
 *.zip
 *.tar.gz
 *.rar
+
+# CTFPilot runtime data
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+**/trajectories.sqlite
+**/challs_incoming/
+**/_ctfpilot_trace.json
+**/_ctfpilot_step.py
+
+# Smoke-test fixture (needed by selftest)
+!ctfpilot/CTFPilot-v0.1/tests/challs/**/*.zip

@@ -1,0 +1,18 @@
+{
+  "name": "可曾听闻一键日卫星Q1",
+  "category": "misc",
+  "technique": "IQ signal demodulation (BPSK/MFSK, self-describing bootstrap, Viterbi)",
+  "when_to_use": "challenge looks like misc; recall from writeup '可曾听闻一键日卫星Q1'",
+  "commands": [
+    "SPACECTF-Q1 SELF-DESCRIBING SIGNAL",
+    "FORMAT=CF32-IQ-INTERLEAVED;FS=1024000;SPS=64;MOD=BPSK;CFO=+200HZ",
+    "MAINPN=1ACFFC1D;FEC=CONV-R12-K7-G171-133-OCT;INTERLEAVER=5X5-ROW-WRITE-COL-READ",
+    "SCRAMBLER=X8+X7+X2+X+1;INIT=FF;FRAME=LEN1B+UTF8+CRC16-CCITT",
+    "BOOTSTRAP-END",
+    "SCI_TELEMETRY V1",
+    "SAT: MISSION-07  EPOCH: 2026-08-25T00:00:00Z",
+    "MODE: DEEP_SURVEY  CHANNEL: X-BAND",
+    "GROUND_CONTACT: YAMCS-05",
+    "CryptoLib_update_v1.3.3_pending"
+  ]
+}

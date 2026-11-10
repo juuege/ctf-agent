@@ -1,0 +1,7 @@
+{
+  "name": "anote_2024CCB",
+  "category": "reverse",
+  "technique": "static decompilation review",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'anote_2024CCB'",
+  "commands": []
+}

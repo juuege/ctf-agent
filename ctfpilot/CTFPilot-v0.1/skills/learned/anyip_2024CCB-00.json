@@ -1,0 +1,7 @@
+{
+  "name": "anyip_2024CCB",
+  "category": "pwn",
+  "technique": "format string leak",
+  "when_to_use": "challenge looks like pwn; recall from writeup 'anyip_2024CCB'",
+  "commands": []
+}

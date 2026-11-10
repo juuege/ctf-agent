@@ -1,0 +1,18 @@
+{
+  "name": "rsa-fermat-sample",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'rsa-fermat-sample'",
+  "commands": [
+    "from math import isqrt",
+    "def fermat(n):",
+    "a = isqrt(n)",
+    "if a*a < n: a += 1",
+    "while True:",
+    "b2 = a*a - n",
+    "if gmpy2.is_square(b2):",
+    "b = gmpy2.isqrt(b2)",
+    "return a-b, a+b",
+    "a += 1"
+  ]
+}
