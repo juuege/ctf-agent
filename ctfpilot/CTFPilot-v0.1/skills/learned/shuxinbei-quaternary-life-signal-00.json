@@ -1,0 +1,7 @@
+{
+  "name": "shuxinbei-quaternary-life-signal",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'shuxinbei-quaternary-life-signal'",
+  "commands": []
+}
