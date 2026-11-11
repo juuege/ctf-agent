@@ -14,19 +14,22 @@
 
 ## 1. RSI 双环总览
 
-- **记忆环（知识层）**：解题 `--write-trace` 留痕 → 写 writeup → `learn-writeup` 落库 → 下题 `recall` 检索。经验第一次出现是知识。
-- **固化环（代码层）**：高频、可判定的经验编译为快通道确定性检测器/工具脚本。经验第二次出现就该是工具（对应 SpecPilot"记忆条目 → 新部署初始系统"，也对应 CTF 专家赛前固化的 quickcheck 脚本）。
+- **记忆环（知识层）**：解题 `--write-trace` 留痕（成功与失败都写）→ 写 writeup → `learn-writeup` 落库（自动解析模板字段与标签，入 lesson 的 tags/evidence 列）→ 下题 `recall` 检索（每次命中 hit_count+1）。经验第一次出现是知识。
+- **固化环（代码层）**：高频、可判定的经验编译为快通道确定性检测器/工具脚本。经验第二次出现就该是工具（对应 SpecPilot“记忆条目 → 新部署初始系统”，也对应 CTF 专家赛前固化的 quickcheck 脚本）。**触发读数用 `fixations --min 3`**（hits+successes 来自轨迹库），不靠记忆。
 
 防污染纪律（对应 SpecPilot 的 Token Forcing 与密封终测）：
 
 - flag 未验证通过的结论不落库、不固化。
+- **flag 必须是推导产物**：与原始题目文件逐字相同的 flag 视为 raw-echo，不计成功、不写经验（`config.flagcheck.require_derived`，默认 true）；题目自带 flag 文件/示例 flag 由此被拦下。
 - 看图类结论必须经用户确认后才写成经验。
-- 经验不适用时新写版本化条目，不删旧记录；固化脚本升级同理。
+- 经验不适用时新写版本化条目，不删旧记录；固化脚本升级同理（learn-writeup 卡片自动 -vN 版本化，旧卡保留）。
 - lessons 按（category, technique, 来源指纹）upsert，recall 按 technique 去重——同技术反复成功只刷新时间戳（频率本身是信号），重复不挤占 top_k。
 - 标签与"一得"必须来自实测证据（flag 验证/脚本输出），不许凭题面想象。
 - 复用记忆/固化工具解出的题，收益不计入"新发现"。
 
 ## 2. 落库 writeup 模板
+
+（`learn-writeup` 会自动解析以下字段入卡片与 lesson：题型优先覆盖分类、题面特征作为 when_to_use、失败路径/适用限制作为 evidence、标签四维入 tags 列；无模板字段的旧式 writeup 以步骤纲要作 evidence 兑底。）
 
 ```markdown
 # <题名> writeup
@@ -43,7 +46,7 @@
 
 ## 3. 固化跃迁 SOP（六步）
 
-1. **触发判定**：`recall` 同一技术被反复取用 / trace 同类 detector 反复 miss / 补位分析发现确定性特征。频率信号不足时只落库、不固化。
+1. **触发判定**：`fixations --min 3` 列出的技术（hits+successes 达标）/ trace 同类 detector 反复 miss / 补位分析发现确定性特征。频率信号不足时只落库、不固化。
 2. **写规格**："特征检测条件 + 确定性判定逻辑"——什么字节/字符集特征触发、判定规则、失败时自动降级行为。
 3. **实现（≥2 候选对比）**：同一固化目标至少实现 2 种候选（如独立子命令 vs 挂检测器链 vs 改 triage 判定），同题计时 A/B 选最快；纯 Python 标准库优先，实测可用，单源失败自动降级不炸链；临时依赖装 `.temp` 勿动全局；放入 CTFPilot 工程合适目录。
 4. **回归验证**：原题重放必须解出同一 flag；典型负样本（无该特征的题）不误报。

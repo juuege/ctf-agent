@@ -442,7 +442,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
         <p>双通道 CTF 解题工作流：快通道用确定性检测器秒解编码链、古典密码、XOR 与压缩解包；模型探索通道基于 recall 与 references 自主补位信号、取证与逆向题。全程本机离线，零第三方依赖。</p>
         <div class="chips">
           <span class="chip"><svg class="ic"><use href="#i-target"/></svg>#ctfpilot</span>
-          <span class="chip"><svg class="ic"><use href="#i-box"/></svg>v0.1</span>
+          <span class="chip"><svg class="ic"><use href="#i-box"/></svg>v0.2</span>
           <span class="chip green"><svg class="ic"><use href="#i-check"/></svg>自检 6/6</span>
           <span class="chip"><svg class="ic"><use href="#i-lock"/></svg>纯离线</span>
           <span class="chip"><svg class="ic"><use href="#i-cpu"/></svg>零 LLM 后端</span>
@@ -548,7 +548,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
       <article class="flow-step card">
         <span class="step-no">STEP 04</span>
         <h3><svg class="ic"><use href="#i-refresh"/></svg>RSI 闭环</h3>
-        <p>trace 留痕 → writeup 入库 → 同类反复命中 → 固化为确定性检测器，让下一题更快。</p>
+        <p>trace 成败都留痕 → writeup 模板字段入库 → fixations 频次达标 → 固化为确定性检测器，让下一题更快。</p>
       </article>
     </div>
 
@@ -581,7 +581,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
           <span class="badge purple">无后端依赖</span>
         </div>
         <ul>
-          <li><b>知识预热：</b>先 recall 同题型经验，再读 CLI / RSI / 检索 / 信号 playbook。</li>
+          <li><b>知识预热：</b>先 recall 同题型经验（为空则直接 grep <span class="mono">skills/learned/*.json</span> 历史卡），再读 CLI / RSI / 检索 / 信号 playbook。</li>
           <li><b>脚本验证：</b>临时依赖装 <span class="mono">.temp/</span>，不污染全局；每步打印可读证据。</li>
           <li><b>信号题：</b>先采样级相位定调制，再找自描述引导头读参数，避免先入为主。</li>
           <li><b>卡壳策略：</b>15 分钟无进展或同一策略连败 2 次，立即按 extsearch 检索。</li>
@@ -593,6 +593,11 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
     <div class="callout">
       <svg class="ic"><use href="#i-gauge"/></svg>
       <div><b>可选兜底：</b><span class="mono">--mode deep --brain mock</span> 提供 12 步离线确定性策略梯（读文件 → 可见串 → 熵启发 → 解包 → 轮转），不抢主路径；LLM 后端已从 config 移除，模型探索由当前模型直接完成。</div>
+    </div>
+
+    <div class="callout">
+      <svg class="ic"><use href="#i-sparkles"/></svg>
+      <div><b>v0.2 升级（2026-11-11）：</b>flag 来源门控（raw-echo 不计功）· 失败也写 trace · <span class="mono">fixations</span> 固化触发读数 · selftest 独立记忆库 · 学习卡版本化。同日实测：数信杯 BB.q1.iq，引擎 5.1s 未解出 → 模型补位 BPSK/Viterbi 解出，writeup 四维标签入库、recall 闭环命中。</div>
     </div>
   </section>
 
@@ -667,10 +672,11 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
           <span class="note">北极星：更快解题</span>
         </div>
         <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px">
-          <li style="display:flex;gap:10px"><span class="badge blue">留痕</span><div style="font-size:12px;color:#405570">每题默认 <span class="mono">--write-trace</span>，题型、flag、全部尝试入库，作为复盘原材料。</div></li>
-          <li style="display:flex;gap:10px"><span class="badge blue">入库</span><div style="font-size:12px;color:#405570">writeup 学习生成技能卡 + 检查点 + 经验，按题型与技术标签索引。</div></li>
-          <li style="display:flex;gap:10px"><span class="badge blue">复用</span><div style="font-size:12px;color:#405570">recall 命中相似路径直接套用并验证，不从零开始。</div></li>
-          <li style="display:flex;gap:10px"><span class="badge blue">固化</span><div style="font-size:12px;color:#405570">同一技术反复取用或检测器反复 miss，即编译为快通道代码资产。</div></li>
+          <li style="display:flex;gap:10px"><span class="badge blue">留痕</span><div style="font-size:12px;color:#405570">每题默认 <span class="mono">--write-trace</span>，成功与失败都写入题型、flag、来源（provenance）与全部尝试。</div></li>
+          <li style="display:flex;gap:10px"><span class="badge blue">入库</span><div style="font-size:12px;color:#405570">writeup 自动解析题型 / 信号 / 失败路径 / 标签，生成技能卡 + 检查点 + 经验；卡片 <span class="mono">-vN</span> 版本化不覆盖。</div></li>
+          <li style="display:flex;gap:10px"><span class="badge blue">复用</span><div style="font-size:12px;color:#405570">recall 仅返回带证据的经验，命中即计数；相似路径直接套用并验证。</div></li>
+          <li style="display:flex;gap:10px"><span class="badge blue">固化</span><div style="font-size:12px;color:#405570"><span class="mono">fixations</span> 读数（hits + successes）达标或检测器反复 miss，即编译为快通道代码资产。</div></li>
+          <li style="display:flex;gap:10px"><span class="badge blue">来源</span><div style="font-size:12px;color:#405570">与原始题目文件逐字相同的 flag 视为 raw-echo，不计成功、不写经验（<span class="mono">require_derived</span>）。</div></li>
           <li style="display:flex;gap:10px"><span class="badge amber">纪律</span><div style="font-size:12px;color:#405570">每题必有一得；同一策略连败 2 次强制换路；每 5 题做一次 A/B 复盘。</div></li>
         </ul>
       </div>
@@ -692,8 +698,8 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
     <div class="grid-2">
       <div class="card panel">
         <div class="panel-head">
-          <h3><svg class="ic"><use href="#i-flag"/></svg>flag 判定正则</h3>
-          <span class="note">9 条</span>
+        <h3><svg class="ic"><use href="#i-flag"/></svg>flag 判定正则</h3>
+        <span class="note">10 条</span>
         </div>
         <div class="patterns" id="patternList"></div>
         <div class="tree-note">可用 <span class="mono">--flag-regex</span> 追加比赛专属格式，或直接修改 config.json 的 <span class="mono">flag_patterns</span>。</div>
@@ -701,12 +707,14 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
 
       <div class="card safety">
         <h3><svg class="ic"><use href="#i-shield"/></svg>合规与安全边界</h3>
-        <p>仅用于授权比赛与本地靶场；题目数据不出本机，网络命令一律拒绝。</p>
+        <p>仅用于授权比赛与本地靶场；题目数据不出本机，默认离线，网络命令按模式拦截（静态校验）。</p>
         <div class="safety-list">
           <div class="safety-item"><svg class="ic"><use href="#i-check"/></svg><div>沙箱默认离线，13 条网络命令模式拦截</div></div>
           <div class="safety-item"><svg class="ic"><use href="#i-check"/></svg><div>可执行白名单仅 <b>python</b>，单步 60 秒超时</div></div>
           <div class="safety-item"><svg class="ic"><use href="#i-check"/></svg><div>pwn / web / osint 只产出 exp 源码与 payload 清单</div></div>
           <div class="safety-item"><svg class="ic"><use href="#i-check"/></svg><div>输出上限 20,000 字符，避免上下文污染</div></div>
+          <div class="safety-item"><svg class="ic"><use href="#i-check"/></svg><div>flag 来源门控：题目自带 flag 不计功（raw-echo 拦截）</div></div>
+          <div class="safety-item"><svg class="ic"><use href="#i-check"/></svg><div>selftest 独立记忆库，不污染生产经验</div></div>
         </div>
         <div class="budget">
           <div><span>深通道步数</span><b>12</b></div>
@@ -722,7 +730,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
     <div class="section-head">
       <div>
         <h2><svg class="ic"><use href="#i-database"/></svg>运行台账</h2>
-        <p>默认去重视图；同一题重放（含 selftest）会累加记录，可切换查看全部。</p>
+        <p>默认去重视图；同一题重放会累加记录，可切换查看全部。selftest 使用独立记忆库，不写入台账。</p>
       </div>
       <span class="note" id="ledgerSummary">--</span>
     </div>
@@ -768,14 +776,14 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
       <div class="card status"><span class="status-dot"></span><div><b>引擎自检通过</b><span>6 / 6 道冒烟题</span></div></div>
       <div class="card status"><span class="status-dot blue"></span><div><b>数据快照就绪</b><span id="statusSnap">--</span></div></div>
       <div class="card status"><span class="status-dot"></span><div><b>Skill 文件完整</b><span>SKILL.md + 4 references</span></div></div>
-      <div class="card status"><span class="status-dot amber"></span><div><b>离线模式</b><span>13 条网络命令拦截</span></div></div>
+      <div class="card status"><span class="status-dot amber"></span><div><b>离线模式</b><span>13 条模式拦截</span></div></div>
     </div>
 
     <div class="grid-2">
       <div class="card panel">
         <div class="panel-head">
           <h3><svg class="ic"><use href="#i-check"/></svg>自检明细</h3>
-          <span class="pass">PASS 6/6 · 2.3s</span>
+          <span class="pass">PASS 6/6 · 2.7s</span>
         </div>
         <div class="selftest-list" id="selftestList"></div>
       </div>
@@ -846,10 +854,10 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
 <script>
 const DATA = {
  "meta": {
-  "snapshot": "2026-11-10 17:02",
-  "snapshotShort": "11-10 17:02",
-  "skillKB": 33.1,
-  "engineKB": 89.9
+  "snapshot": "2026-11-11 19:00",
+  "snapshotShort": "11-11 19:00",
+  "skillKB": 37.2,
+  "engineKB": 94.5
  },
  "stats": {
   "challenges": 67,
@@ -1809,9 +1817,15 @@ const DATA = {
   },
   {
    "k": "flag 判定",
-   "v": "9 条正则",
+   "v": "10 条正则",
    "note": "可追加比赛专属格式",
    "ic": "i-flag"
+  },
+  {
+   "k": "flag 来源门控",
+   "v": "raw-echo 拦截",
+   "note": "require_derived = true",
+   "ic": "i-shield"
   },
   {
    "k": "深通道预算",
@@ -1851,6 +1865,7 @@ const DATA = {
   }
  ],
  "patterns": [
+  "flag:[^\\s{}]{4,128}:",
   "flag\\{[^\\s{}]{4,256}\\}",
   "FLAG\\{[^\\s{}]{4,256}\\}",
   "ctf\\{[^\\s{}]{4,256}\\}",
@@ -1862,7 +1877,7 @@ const DATA = {
   "hgame\\{[^\\s{}]{4,256}\\}"
  ],
  "selftest": {
-  "total": 2.3,
+  "total": 2.7,
   "items": [
    {
     "name": "01_b64chain",
@@ -1886,7 +1901,7 @@ const DATA = {
    },
    {
     "name": "06_zip_nested",
-    "time": "1.1"
+    "time": "1.5"
    }
   ]
  },
@@ -1894,19 +1909,19 @@ const DATA = {
   {
    "name": "skill/ctfpilot/SKILL.md",
    "parts": "1 文件",
-   "size": "11.1 KB",
+   "size": "12.5 KB",
    "role": "主工作流与决策点"
   },
   {
    "name": "skill/ctfpilot/references",
    "parts": "4 文件",
-   "size": "22.0 KB",
+   "size": "24.9 KB",
    "role": "CLI / RSI / 检索 / 信号"
   },
   {
    "name": "CTFPilot-v0.1 引擎源码",
    "parts": "46 文件",
-   "size": "89.9 KB",
+   "size": "94.5 KB",
    "role": "ctfpilot.py + core/fastpath/deep/learn"
   },
   {
@@ -1918,7 +1933,7 @@ const DATA = {
   {
    "name": "tests/challs 冒烟题",
    "parts": "12 文件",
-   "size": "12.0 KB",
+   "size": "1.9 KB",
    "role": "selftest 输入"
   },
   {
@@ -1960,6 +1975,10 @@ const DATA = {
    "cmd": "& $py -X utf8 .\\ctfpilot.py recall --category misc"
   },
   {
+   "label": "查固化候选（hits+successes 达标的技术）",
+   "cmd": "& $py -X utf8 .\\ctfpilot.py fixations --min 3"
+  },
+  {
    "label": "从题解学习技术卡与检查点",
    "cmd": "& $py -X utf8 .\\ctfpilot.py learn-writeup <writeup.md> --name <题名>"
   },
@@ -1968,7 +1987,7 @@ const DATA = {
    "cmd": "& $py -X utf8 .\\ctfpilot.py stats"
   },
   {
-   "label": "验证引擎可用（6 道冒烟题）",
+   "label": "验证引擎可用（6 道冒烟题 · 独立记忆库）",
    "cmd": "& $py -X utf8 .\\ctfpilot.py selftest"
   },
   {

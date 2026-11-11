@@ -29,8 +29,22 @@ def log(msg):
 
 
 def get_stores(cfg):
-    db = path_under_project(cfg["memory"]["db_path"])
+    # CTFPILOT_DB env override: selftest runs on an isolated DB so smoke runs
+    # never pollute production memory (lessons/stats/recall).
+    db = os.environ.get("CTFPILOT_DB") or path_under_project(cfg["memory"]["db_path"])
     return TrajStore(db)
+
+
+def _derived_ok(cfg, chall_dir, flag):
+    """Provenance gate: a flag that appears verbatim in the original files is
+    a raw echo, not a derived solve. Returns (ok, rel_path_or_None)."""
+    if not flag:
+        return True, None
+    if not bool(cfg.get("flagcheck", {}).get("require_derived", True)):
+        return True, None
+    from core.flagcheck import flag_in_raw
+    hit, src = flag_in_raw(chall_dir, flag)
+    return (not hit), src
 
 
 def do_solve(args, cfg):
@@ -56,14 +70,35 @@ def do_solve(args, cfg):
 
     flag = None
     attempts = []
+    provenance = {"require_derived": bool(cfg.get("flagcheck", {}).get("require_derived", True)),
+                  "status": "none", "raw_file": None}
 
     from fastpath.detectors import Attempt, run_fast_path
+
+    def _reject_raw_echo(f):
+        ok, src = _derived_ok(cfg, chall_dir, f)
+        if ok:
+            return False
+        log("[flagcheck] raw-echo: flag appears verbatim in original file %s;"
+            " not counting as a derived solve" % src)
+        store.log_attempt(cid, "verify", "provenance", "raw-echo in %s" % src,
+                          False, f, error_class="raw-echo")
+        attempts.append(Attempt("provenance", "raw-echo in %s" % src, False))
+        provenance.update(status="raw-echo", raw_file=src)
+        # retract the echoing attempt so the auto-lesson/trace do not credit it
+        for a in attempts:
+            if a.flag == f:
+                a.success = False
+                a.flag = None
+        return True
 
     if args.mode in ("fast", "auto"):
         log("[fast] running offline detectors...")
         flag = run_fast_path(chall_dir, routing["files"], checker, attempts)
         for a in attempts:
             store.log_attempt(cid, "fast", a.detector, a.detail, a.success, a.flag)
+        if flag and _reject_raw_echo(flag):
+            flag = None
 
     if flag is None and args.mode in ("deep", "auto"):
         log("[deep] entering hypothesis loop...")
@@ -73,32 +108,40 @@ def do_solve(args, cfg):
                                             sandbox, llm, store, cid, cfg, log,
                                             brain=args.brain)
         attempts.extend(deep_attempts)
+        if flag and _reject_raw_echo(flag):
+            flag = None
 
     dt = time.time() - t0
     if flag:
+        provenance["status"] = "derived"
         log("[result] SOLVED in %.1fs" % dt)
         log("[result] FLAG: %s" % flag)
         store.finish_challenge(cid, True, flag)
-        # auto-lesson: what worked here
+        # auto-lesson: what worked here (kept for counting via fixations;
+        # excluded from recall because snippet stays empty)
         winner = next((a for a in attempts if a.success and a.flag), None)
         if winner:
             store.add_lesson(cid, routing["category"], winner.detector,
                              "worked on '%s' (%s)" % (name, winner.detail[:120]),
                              "")
-        if args.write_trace:
-            trace_path = os.path.join(chall_dir, "_ctfpilot_trace.json")
-            _dump_trace(trace_path, name, routing, attempts, flag)
+            store.bump_success(routing["category"], winner.detector)
     else:
         log("[result] NOT SOLVED in %.1fs (%d attempts)" % (dt, len(attempts)))
         store.finish_challenge(cid, False, "")
+    # trace on BOTH success and failure: failed traces are the raw material
+    # for retrospection (失败路径/踩坑归因), previously they were never written.
+    if args.write_trace:
+        trace_path = os.path.join(chall_dir, "_ctfpilot_trace.json")
+        _dump_trace(trace_path, name, routing, attempts, flag, provenance)
     return 0 if flag else 1
 
 
-def _dump_trace(path, name, routing, attempts, flag):
+def _dump_trace(path, name, routing, attempts, flag, provenance=None):
     trace = {
         "challenge": name,
         "category": routing["category"],
         "flag": flag,
+        "provenance": provenance or {},
         "attempts": [vars(a) for a in attempts],
     }
     with open(path, "w", encoding="utf-8") as f:
@@ -124,27 +167,69 @@ def do_learn_writeup(args, cfg):
     steps = parsed["steps"] or [t for _c, t in parsed["techniques"]]
     if steps:
         store.add_checkpoints(cid, "writeup:" + name, steps[:15])
+    # lesson carries the structured fields as evidence, so recall is actually
+    # useful (signals / pitfalls / transferable pattern / failure paths).
+    f_ = parsed.get("fields", {})
+    tags = parsed.get("tags", {})
+    evidence = " | ".join(filter(None, [
+        ("信号: " + f_["题面特征"]) if f_.get("题面特征") else "",
+        ("坑: " + tags["陷阱类型"]) if tags.get("陷阱类型") else "",
+        ("迁移: " + tags["可迁移模式"]) if tags.get("可迁移模式") else "",
+        ("失败: " + f_["失败路径"]) if f_.get("失败路径") else "",
+        ("限制: " + f_["适用限制"]) if f_.get("适用限制") else "",
+    ]))
+    if not evidence:
+        # writeups without template fields still carry their step outline so
+        # recall keeps them (otherwise the empty-snippet filter would drop them)
+        evidence = "from writeup '%s'; steps: %s" % (
+            name, "; ".join(parsed["steps"][:3])[:200])
+    tags_json = json.dumps(tags, ensure_ascii=False) if tags else ""
     for cat, tech in parsed["techniques"]:
-        store.add_lesson(cid, cat, tech, "from writeup '%s'" % name, "")
+        wtu = parsed.get("signals") or "challenge looks like %s; recall from writeup '%s'" % (cat, name)
+        store.add_lesson(cid, cat, tech, wtu, evidence, tags=tags_json)
 
     log("[learn] category=%s" % parsed["category"])
     log("[learn] techniques: %s" % (", ".join(t for _c, t in parsed["techniques"]) or "(none)"))
     log("[learn] checkpoints stored: %d" % len(steps[:15]))
+    log("[learn] tags: %s" % (", ".join("%s=%s" % kv for kv in tags.items()) or "(none)"))
     log("[learn] skill cards: %s" % ", ".join(os.path.basename(c) for c in cards))
     return 0
 
 
 def do_recall(args, cfg):
     store = get_stores(cfg)
-    lessons = store.recall_lessons(args.category or "misc", 20)
-    print("== lessons for %s ==" % (args.category or "misc"))
+    cat = args.category or "misc"
+    lessons = store.recall_lessons(cat, 20)
+    print("== lessons for %s ==" % cat)
+    if not lessons:
+        print("  (no writeup-quality lessons yet; bare auto solve records are "
+              "excluded from recall -- count them with `fixations`)")
     for l in lessons:
-        print("- %s | %s" % (l["technique"], l["when_to_use"]))
+        extra = ""
+        if l.get("snippet"):
+            extra += " | evidence: %s" % l["snippet"][:120]
+        if l.get("tags"):
+            extra += " | tags: %s" % str(l["tags"])[:120]
+        print("- %s | %s%s" % (l["technique"], l["when_to_use"], extra))
     rows = store.conn.execute(
         "SELECT id,name,category,solved FROM challenges ORDER BY id DESC LIMIT 20").fetchall()
     print("== recent challenges ==")
     for r in rows:
         print("- [%s] %-4s %-30s solved=%s" % (r[0], r[2], r[1], bool(r[3])))
+    return 0
+
+
+def do_fixations(args, cfg):
+    """Data-driven trigger for the 固化环: which techniques have been recalled
+    or solved-with often enough to deserve compilation into a fast detector."""
+    store = get_stores(cfg)
+    rows = store.fixation_candidates(args.min)
+    log("[fixations] techniques with hits+successes >= %d" % args.min)
+    if not rows:
+        log("  (none yet)")
+    for r in rows:
+        log("- [%s] %s hits=%d solved=%d rows=%d" %
+            (r["category"], r["technique"], r["hits"], r["successes"], r["rows"]))
     return 0
 
 
@@ -155,7 +240,17 @@ def do_stats(args, cfg):
 
 
 def do_selftest(args, cfg):
-    """Run the bundled smoke-test challenges end to end."""
+    """Run the bundled smoke-test challenges end to end.
+
+    Memory isolation: selftest runs on .temp/selftest.sqlite so smoke runs
+    never write lessons/challenges into the production trajectory store
+    (that pollution previously drowned out real writeup lessons in recall)."""
+    tmp_db = os.path.join(PROJECT_ROOT, ".temp", "selftest.sqlite")
+    os.makedirs(os.path.dirname(tmp_db), exist_ok=True)
+    if os.path.exists(tmp_db):
+        os.remove(tmp_db)
+    os.environ["CTFPILOT_DB"] = tmp_db
+    log("[selftest] isolated memory db: %s" % tmp_db)
     base = os.path.join(PROJECT_ROOT, "tests", "challs")
     results = []
     for name in sorted(os.listdir(base)):
@@ -200,6 +295,9 @@ def main():
     p = sub.add_parser("recall")
     p.add_argument("--category")
 
+    p = sub.add_parser("fixations")
+    p.add_argument("--min", type=int, default=3)
+
     sub.add_parser("stats")
     sub.add_parser("selftest")
 
@@ -211,6 +309,8 @@ def main():
         sys.exit(do_learn_writeup(args, cfg))
     elif args.cmd == "recall":
         sys.exit(do_recall(args, cfg))
+    elif args.cmd == "fixations":
+        sys.exit(do_fixations(args, cfg))
     elif args.cmd == "stats":
         sys.exit(do_stats(args, cfg))
     elif args.cmd == "selftest":

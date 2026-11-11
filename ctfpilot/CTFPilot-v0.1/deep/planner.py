@@ -33,38 +33,68 @@ def load_skill_card(category):
 
 
 def load_learned_cards(category, top_k=3):
+    """Relevance-aware selection: read ALL learned cards of the category,
+    keep only the newest version per writeup name (created_at/version), then
+    take the k most recent. Previously this took the first 3 files in
+    alphabetical order, which let stale or unrelated cards crowd out useful
+    ones as the library grew."""
     cards = []
     learned_dir = os.path.join(SKILL_DIR, "learned")
     if not os.path.isdir(learned_dir):
         return cards
-    for name in sorted(os.listdir(learned_dir)):
+    by_name = {}
+    for name in os.listdir(learned_dir):
         if not name.endswith(".json"):
             continue
         try:
             with open(os.path.join(learned_dir, name), "r", encoding="utf-8") as f:
                 card = json.load(f)
-            if card.get("category", category) == category:
-                cards.append(card)
         except (OSError, ValueError):
             continue
-        if len(cards) >= top_k:
-            break
-    return cards
+        if card.get("category") != category:
+            continue
+        nm = card.get("name") or name
+        key = (float(card.get("created_at", 0) or 0), int(card.get("version", 1) or 1))
+        prev = by_name.get(nm)
+        if prev is None or key > prev[0]:
+            by_name[nm] = (key, card)
+    cards = [c for _k, c in by_name.values()]
+    cards.sort(key=lambda c: -(float(c.get("created_at", 0) or 0)))
+    return cards[:top_k]
+
+
+def _short_tags(tags):
+    """tags may be a JSON string (from SQLite lessons) or a dict (from cards)."""
+    if isinstance(tags, str) and tags.strip():
+        try:
+            tags = json.loads(tags)
+        except ValueError:
+            return tags[:80]
+    if isinstance(tags, dict):
+        return "; ".join("%s=%s" % (k, str(v)[:40]) for k, v in tags.items() if v)
+    return ""
 
 
 def build_context(chall_name, routing, tried_summary, lessons, checker_hint):
     skill = load_skill_card(routing["category"])
     learned = load_learned_cards(routing["category"])
     learned_txt = "\n".join(
-        "- technique: %s | when: %s" % (c.get("technique", "?"), c.get("when_to_use", "?"))
+        "- technique: %s | when: %s%s%s" % (
+            c.get("technique", "?"),
+            c.get("when_to_use", "?"),
+            (" | signals: %s" % str(c.get("signals", ""))[:100]) if c.get("signals") else "",
+            (" | pitfalls: %s" % str(c.get("failure_paths", ""))[:100]) if c.get("failure_paths") else "")
         for c in learned) or "(none)"
     lessons_txt = "\n".join(
-        "- %s: %s" % (l["technique"], l["when_to_use"]) for l in lessons) or "(none)"
+        "- %s: %s%s%s" % (
+            l["technique"], l["when_to_use"],
+            (" | tags: %s" % _short_tags(l.get("tags"))) if l.get("tags") else "",
+            (" | evidence: %s" % str(l.get("snippet", ""))[:140]) if l.get("snippet") else "")
+        for l in lessons) or "(none)"
     return (
         "CHALLENGE: %s\nCATEGORY: %s (confidence %.2f)\n"
         "FLAG FORMAT HINT: %s\n\nFILES AND PREVIEWS:\n%s\n\n"
-        "SKILL CARD (%s):\n%s\n\n"
-        "LEARNED FROM WRITEUPS:\n%s\n\n"
+        "SKILL CARD (%s):\n%s\n\nLEARNED FROM WRITEUPS:\n%s\n\n"
         "PAST LESSONS (own trajectories):\n%s\n\n"
         "ALREADY TRIED (do not repeat):\n%s\n"
     ) % (chall_name, routing["category"], routing["confidence"], checker_hint,
@@ -140,6 +170,12 @@ def _mock_strategy(category, routing, step_no, sandbox, files, chall_dir):
         ("unpack archives (zip/tar, incl. token passwords)",
          "import zipfile,tarfile,glob,os,itertools\n"
          "words=['flag','ctf','password','admin','123456','0000']\n"
+         "def _peek(outdir):\n"
+         "    for rf in glob.glob(outdir+'/**/*', recursive=True):\n"
+         "        if os.path.isfile(rf):\n"
+         "            dd=open(rf,'rb').read()\n"
+         "            print('EXTRACTED', rf, len(dd))\n"
+         "            print(dd[:4000].decode('utf-8','replace'))\n"
          "for p in glob.glob('" + d + "/**/*', recursive=True):\n"
          "    if not os.path.isfile(p): continue\n"
          "    out=os.path.dirname(p)+'/_extracted'\n"
@@ -149,13 +185,15 @@ def _mock_strategy(category, routing, step_no, sandbox, files, chall_dir):
          "            toks=set()\n"
          "            for q in glob.glob(os.path.dirname(p)+'/*.txt'):\n"
          "                toks|={w.strip() for w in open(q,encoding='utf-8',errors='replace').read().split()}\n"
+         "            ok=False\n"
          "            for w in itertools.chain(words,sorted(toks)):\n"
          "                try:\n"
-         "                    z.extractall(out,pwd=w.encode()); print('ZIP OK',p,'pwd=',w); break\n"
+         "                    z.extractall(out,pwd=w.encode()); ok=True; print('ZIP OK',p,'pwd=',w); break\n"
          "                except RuntimeError: continue\n"
          "                except Exception: break\n"
+         "            if ok: _peek(out)\n"
          "        elif p.endswith('.tar'):\n"
-         "            tarfile.open(p).extractall(out); print('TAR OK',p)\n"
+         "            tarfile.open(p).extractall(out); print('TAR OK',p); _peek(out)\n"
          "    except Exception as e: print('unpack err',p,e)\n"
          "print('unpack pass done')\n"),
         ("byte-frequency / xor-report for crypto blobs",

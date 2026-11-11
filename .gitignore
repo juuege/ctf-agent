@@ -54,3 +54,5 @@ yarn-error.log*
 
 # Smoke-test fixture (needed by selftest)
 !ctfpilot/CTFPilot-v0.1/tests/challs/**/*.zip
+# Engine extraction scratch
+**/_extracted/

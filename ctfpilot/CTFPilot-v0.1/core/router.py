@@ -71,9 +71,13 @@ def sniff_magic(path):
 
 
 def inventory(chall_dir, max_files=50):
-    """Return list of file records with basic typing info."""
+    """Return list of file records with basic typing info.
+
+    Engine scratch spaces (_extracted/, .temp/, __pycache__/) are pruned so a
+    rerun does not "solve" by reading its own previous extraction residue."""
     files = []
-    for root, _dirs, names in os.walk(chall_dir):
+    for root, dirs, names in os.walk(chall_dir):
+        dirs[:] = [d for d in dirs if d not in ("_extracted", ".temp", "__pycache__")]
         for name in names:
             if name.startswith("_ctfpilot") or name == "flag.txt":
                 continue

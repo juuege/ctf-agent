@@ -37,13 +37,14 @@ cd CTFPilot-v0.1
 & $py -X utf8 .\ctfpilot.py selftest
 & $py -X utf8 .\ctfpilot.py solve <题目目录> --mode auto --write-trace
 & $py -X utf8 .\ctfpilot.py recall --category misc
+& $py -X utf8 .\ctfpilot.py fixations --min 3
 & $py -X utf8 .\ctfpilot.py learn-writeup <writeup.md> --name <题名>
 & $py -X utf8 .\ctfpilot.py stats
 ```
 
 - `--mode fast`：只跑快通道，适合编码链 / 凯撒 / XOR / 压缩解包类。
 - `--mode auto`：先快后慢，未命中时进入模型探索。
-- `--write-trace`：生成 `_ctfpilot_trace.json`，用于复盘与经验固化。
+- `--write-trace`：生成 `_ctfpilot_trace.json`（成功与失败都写，含 provenance），用于复盘与经验固化。
 
 ## 状态看板
 
@@ -63,13 +64,15 @@ cd CTFPilot-v0.1
 
 ## 近期更新
 
+- v0.2：flag 来源门控（raw-echo 不计功）、失败也写 trace、`fixations` 固化读数、selftest 独立记忆库、学习卡 `-vN` 版本化。
+- 2026-11-11 实测数信杯 BB.q1.iq：引擎 5.1s 未解出，模型补位 BPSK/Viterbi 解出并入库，recall 闭环命中。
 - 快通道新增 PNG LSB 多通道扫描、`flag:...:` 冒号格式与诱饵 flag 过滤。
 - 新增本次 44 篇复盘对应的技能卡，`skills/learned/` 持续增厚。
 
 ## 安全边界
 
 - 仅用于授权比赛与本地靶场。
-- 沙箱默认离线，网络命令一律拒绝。
+- 沙箱默认离线，网络命令按模式拦截（静态校验）。
 - pwn / web / osint 只产出 exp 源码与 payload 清单，不实际发包。
 - 题目数据不出本机；轨迹库与题库原始数据不进入版本库。
 

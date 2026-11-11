@@ -25,6 +25,7 @@ def load_config(config_path=None):
     # Safe defaults for anything missing
     cfg.setdefault("llm", {"backends": [], "mock_fallback": True})
     cfg.setdefault("sandbox", {})
+    cfg.setdefault("flagcheck", {"require_derived": True})
     cfg.setdefault("flag_patterns", DEFAULT_FLAG_PATTERNS)
     cfg.setdefault("budget", {"max_deep_steps": 12,
                              "max_llm_calls_per_solve": 24,

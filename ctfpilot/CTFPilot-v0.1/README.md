@@ -20,9 +20,10 @@ cd <项目目录>
 # 学习一篇题解（生成技能卡 + 检查点 + 经验）
 & $py -X utf8 .\ctfpilot.py learn-writeup <writeup.md> --name <题名>
 
-# 检索记忆 / 统计 / 自测
+# 检索记忆 / 统计 / 自测 / 固化候选
 & $py -X utf8 .\ctfpilot.py recall --category crypto
 & $py -X utf8 .\ctfpilot.py stats
+& $py -X utf8 .\ctfpilot.py fixations --min 3
 & $py -X utf8 .\ctfpilot.py selftest
 ```
 
@@ -80,7 +81,8 @@ cd <项目目录>
 - pwn/交互服务题：Windows 沙箱不能跑 ELF，只产出 exp 源码与偏移计算（见 skills/pwn.md 约定）。
 - 慢通道 mock 大脑只有 5 个策略；如需接入外部模型，可在调用方完成规划，引擎保持离线。
 - web/osint 类默认离线，只产出 payload/检索清单，不实际发包。
-- flag 判定用严格正则（config.json 可加比赛专属格式如 `NSSCTF{}`、`hgame{}`）。
+- flag 判定用严格正则（config.json 可加比赛专属格式如 `NSSCTF{}`、`hgame{}`）；默认开启来源门控：与原始题目文件逐字相同的 flag 视为 raw-echo，不计成功（`flagcheck.require_derived` 可关，用于“答案藏文件里”题型）。
+- selftest 使用 `.temp/selftest.sqlite` 独立记忆库，冒烟运行不写入生产经验库。
 - 复杂逆向/堆题需要后续在策略梯和技能卡里继续加料（框架已就位）。
 
 ## 目录说明

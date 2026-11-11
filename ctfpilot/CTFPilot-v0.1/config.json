@@ -26,6 +26,9 @@
     "shell_timeout_s": 60,
     "max_output_chars": 20000
   },
+  "flagcheck": {
+    "require_derived": true
+  },
   "flag_patterns": [
     "flag:[^\\s{}]{4,128}:",
     "flag\\{(?!flag_not_here\\}|test_flag\\})[^\\s{}]{4,256}\\}",

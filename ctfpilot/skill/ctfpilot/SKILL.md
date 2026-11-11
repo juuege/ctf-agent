@@ -29,7 +29,7 @@ create_source: super-agent-skill-creator
 ## 单题解题工作流（核心）
 
 1. **确认题目输入**：拿到题目目录或题目文件（编码文本、密文、压缩包等）。若只有题面文本，先在工程下建一个临时题目目录放入题面，再解题。
-2. **知识预热（先查再动手）**：`recall` 同题型 + 匹配 writeup 标签（识别信号/技术链）+ 读相关 `references/`（信号类先读 playbook）；已有相似解答路径时直接套用并验证，不从零开始。
+2. **知识预热（先查再动手）**：`recall` 同题型 + 匹配 writeup 标签（识别信号/技术链）+ 读相关 `references/`（信号类先读 playbook）；**recall 为空或太泛时，立即用关键词（题型/协议名/引导头字样）直接检索工程 `skills\learned\*.json`——历史经验卡在文件里而不在 lessons 库，同赛事同类题常在此直接命中全参数**；已有相似解答路径时直接套用并验证，不从零开始。
 3. **定位工程 + Python**（见"前置"）。
 4. **运行解题**：
    ```powershell
@@ -38,7 +38,8 @@ create_source: super-agent-skill-creator
 5. **解析结果**：
    - `[result] SOLVED ... FLAG: <flag>` → 成功，把 flag 回给用户。
    - `[result] NOT SOLVED ...` → 未解出，进入调优（下节）。
-6. **默认留痕**：加 `--write-trace` 生成 `_ctfpilot_trace.json`（题型、flag、全部尝试），它是复盘与固化的原材料；有题解文本时用 `learn-writeup` 入库，后续 `recall` 检索。
+   - 出现 `[flagcheck] raw-echo` 提示 → flag 与原始题目文件逐字相同（题目自带的），不算解出，引擎已自动换路，不要把它记成技术经验。
+6. **默认留痕**：`--write-trace` 成功与未解出**都会**生成 `_ctfpilot_trace.json`（题型、flag、provenance、全部尝试）——失败 trace 是归因复盘的主要原料；有题解文本时用 `learn-writeup` 入库（自动解析模板字段与标签），后续 `recall` 检索。
 7. **复盘（成功与否都要）**：按"自主元认知与 skill 自审"一节执行，不等用户提醒。
 
 ## 命令选择
@@ -46,16 +47,18 @@ create_source: super-agent-skill-creator
 | 用户意图 | 用这个 |
 |---|---|
 | 解一道题 | `solve <题目目录> [--mode] [--brain]` |
-| 从一篇题解学技术/检查点 | `learn-writeup <writeup.md> --name <题名>` |
-| 检索某题型历史经验 | `recall --category <crypto/web/reverse/misc/...>` |
+| 从一篇题解学技术/检查点（自动解析题型/信号/失败路径/标签，卡片版本化不覆盖） | `learn-writeup <writeup.md> --name <题名>` |
+| 检索某题型历史经验（仅含带证据的 writeup 经验，空壳自动记录不进） | `recall --category <crypto/web/reverse/misc/...>` |
+| 查固化候选（哪些技术被反复取用/反复成功，频次来自轨迹库） | `fixations --min 3` |
 | 看整体统计 | `stats` |
-| 验证引擎可用 | `selftest` |
+| 验证引擎可用（用独立记忆库，不污染生产经验） | `selftest` |
 
 ## 模式与边界（决策点）
 
 - **通道选择**：编码链/凯撒/XOR/解压类 → `--mode fast`（秒级，`auto` 同类）。fast 未解出 → 进入模型探索通道（"补位分析"节），可选先让 `--mode deep --brain mock` 策略梯跑一轮再接手。
 - **无 LLM 后端**：skill 与引擎均不依赖 LLM 服务；`--brain mock` 即纯离线确定性。模型探索由你直接完成，不必调用任何外部模型。
 - **比赛专属 flag**：用 `--flag-regex '<正则>'` 追加匹配，或改 `config.json` 的 `flag_patterns`。
+- **flag 来源门控**：`config.json` 的 `flagcheck.require_derived`（默认 true）——与原始题目文件逐字相同的 flag 视为 raw-echo，不入库、不计成功；题目自带 flag 文件/示例 flag 不会被误记为技术经验。遇到“答案就藏在文件里”的题可临时改 false，但经验不落库。
 - **合规边界（务必告知用户）**：沙箱**默认离线**，网络命令一律拒绝（保证 clean solve）；pwn/交互服务题只产出 exp 源码与偏移计算；web/osint 只产出 payload 清单，不发包。
 
 ## 看图规则（重要）
