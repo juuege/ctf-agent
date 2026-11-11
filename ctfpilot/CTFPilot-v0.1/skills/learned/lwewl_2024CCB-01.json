@@ -1,0 +1,7 @@
+{
+  "name": "lwewl_2024CCB",
+  "category": "web",
+  "technique": "insecure deserialization",
+  "when_to_use": "challenge looks like web; recall from writeup 'lwewl_2024CCB'",
+  "commands": []
+}

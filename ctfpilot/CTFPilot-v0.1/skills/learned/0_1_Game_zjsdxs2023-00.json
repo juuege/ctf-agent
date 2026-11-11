@@ -1,0 +1,7 @@
+{
+  "name": "0_1_Game_zjsdxs2023",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup '0_1_Game_zjsdxs2023'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "GY10-泵站异常写寄存器排查",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'GY10-泵站异常写寄存器排查'",
+  "commands": []
+}

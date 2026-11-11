@@ -1,0 +1,7 @@
+{
+  "name": "ezCsky",
+  "category": "misc",
+  "technique": "archive password recovery / crc collision",
+  "when_to_use": "challenge looks like misc; recall from writeup 'ezCsky'",
+  "commands": []
+}

@@ -22,6 +22,7 @@ import gzip
 import os
 import re
 import string
+import struct
 import zlib
 
 MAX_CHAIN_DEPTH = 8
@@ -266,6 +267,95 @@ def chain_decode(checker, text, max_depth=MAX_CHAIN_DEPTH):
             break
     return None, "no flag in %d-depth chain" % max_depth
 
+def _png_pixels(data):
+    """Decode 8-bit PNG (color type 0/2/4/6, non-interlaced) -> (w,h,channels,bytearray)."""
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+    pos, idat, ihdr = 8, b"", None
+    while pos + 8 <= len(data):
+        ln = int.from_bytes(data[pos:pos + 4], "big")
+        typ = data[pos + 4:pos + 8]
+        body = data[pos + 8:pos + 8 + ln]
+        if typ == b"IHDR":
+            ihdr = body
+        elif typ == b"IDAT":
+            idat += body
+        elif typ == b"IEND":
+            break
+        pos += 12 + ln
+    if not ihdr or not idat:
+        return None
+    w, h, bitd, ct, _, _, inter = struct.unpack(">IIBBBBB", ihdr[:13])
+    if bitd != 8 or inter != 0 or ct not in (0, 2, 4, 6):
+        return None
+    ch = {0: 1, 2: 3, 4: 2, 6: 4}[ct]
+    try:
+        raw = zlib.decompress(idat)
+    except Exception:
+        return None
+    stride, bpp = w * ch, ch
+    if len(raw) < h * (stride + 1):
+        return None
+    out, prev, p = bytearray(), bytearray(stride), 0
+    for _ in range(h):
+        f = raw[p]; p += 1
+        line = bytearray(raw[p:p + stride]); p += stride
+        if f == 1:
+            for i in range(bpp, stride):
+                line[i] = (line[i] + line[i - bpp]) & 255
+        elif f == 2:
+            for i in range(stride):
+                line[i] = (line[i] + prev[i]) & 255
+        elif f == 3:
+            for i in range(stride):
+                a = line[i - bpp] if i >= bpp else 0
+                line[i] = (line[i] + ((a + prev[i]) >> 1)) & 255
+        elif f == 4:
+            for i in range(stride):
+                a = line[i - bpp] if i >= bpp else 0
+                c = prev[i - bpp] if i >= bpp else 0
+                b = prev[i]
+                pp = a + b - c
+                pa, pb, pc = abs(pp - a), abs(pp - b), abs(pp - c)
+                pr = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                line[i] = (line[i] + pr) & 255
+        out += line
+        prev = line
+    return w, h, ch, out
+
+
+def _bits_to_bytes(bits):
+    out = bytearray()
+    for i in range(0, len(bits) - 7, 8):
+        v = 0
+        for b in bits[i:i + 8]:
+            v = (v << 1) | b
+        out.append(v)
+    return bytes(out)
+
+
+def png_lsb_scan(checker, data, max_bits=8000):
+    """Extract bit0 of each channel / interleaved RGB streams, look for ASCII flag."""
+    dec = _png_pixels(data)
+    if not dec:
+        return None, "not a plain 8-bit PNG"
+    w, h, ch, px = dec
+    names = {1: ["gray"], 2: ["gray", "A"], 3: ["R", "G", "B"], 4: ["R", "G", "B", "A"]}[ch]
+    streams = [(n, list(px[i::ch])) for i, n in enumerate(names)]
+    if ch >= 3:
+        r, g, b = px[0::ch], px[1::ch], px[2::ch]
+        streams.append(("RGB", [v for t in zip(r, g, b) for v in t]))
+        streams.append(("BGR", [v for t in zip(b, g, r) for v in t]))
+    for name, vals in streams:
+        for bit in range(3):
+            bits = [(v >> bit) & 1 for v in vals[:max_bits]]
+            text = _bits_to_bytes(bits).decode("latin-1")
+            found = _flag_text(checker, text)
+            if found:
+                return found, "PNG %dx%d %s bit%d LSB" % (w, h, name, bit)
+    return None, "PNG %dx%d %d streams x3 bits no flag" % (w, h, len(streams))
+
+
 def run_fast_path(chall_dir, files, checker, attempts):
     """Run all fast detectors. Returns flag or None. Appends Attempt records."""
     flag = None
@@ -330,6 +420,16 @@ def run_fast_path(chall_dir, files, checker, attempts):
                 attempts.append(Attempt("decompress+chain", "%s: %s" % (src, note), True, found))
                 return found
         attempts.append(Attempt("decompress", "%s: no" % src, False))
+
+    # 6) PNG LSB stego (channels' bit0..2, interleaved RGB/BGR)
+    for src, data in inputs:
+        if not isinstance(data, bytes) or b"\x89PNG\r\n\x1a\n" not in data[:16]:
+            continue
+        found, note = png_lsb_scan(checker, data)
+        if found:
+            attempts.append(Attempt("png-lsb", "%s: %s" % (src, note), True, found))
+            return found
+        attempts.append(Attempt("png-lsb", "%s: %s" % (src, note), False))
 
     return flag
 

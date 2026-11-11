@@ -1,0 +1,7 @@
+{
+  "name": "jksn2026-彩虹密语",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'jksn2026-彩虹密语'",
+  "commands": []
+}

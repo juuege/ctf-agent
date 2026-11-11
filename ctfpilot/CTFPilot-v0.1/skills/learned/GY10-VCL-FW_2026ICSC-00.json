@@ -1,0 +1,7 @@
+{
+  "name": "GY10-VCL-FW_2026ICSC",
+  "category": "crypto",
+  "technique": "constraint solving with z3",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'GY10-VCL-FW_2026ICSC'",
+  "commands": []
+}

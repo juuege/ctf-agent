@@ -1,0 +1,7 @@
+{
+  "name": "EW_陇剑杯2023",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'EW_陇剑杯2023'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "PLC网关异常响应排查_2026ICSC",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'PLC网关异常响应排查_2026ICSC'",
+  "commands": []
+}

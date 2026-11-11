@@ -1,0 +1,7 @@
+{
+  "name": "jksn2026-UDP漂流记",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'jksn2026-UDP漂流记'",
+  "commands": []
+}

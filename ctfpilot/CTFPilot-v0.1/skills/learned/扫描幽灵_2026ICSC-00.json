@@ -1,0 +1,7 @@
+{
+  "name": "扫描幽灵_2026ICSC",
+  "category": "reverse",
+  "technique": "unpacking packed binary",
+  "when_to_use": "challenge looks like reverse; recall from writeup '扫描幽灵_2026ICSC'",
+  "commands": []
+}

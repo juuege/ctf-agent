@@ -1,0 +1,7 @@
+{
+  "name": "工控协议流量迷局_2026ICSC",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "challenge looks like misc; recall from writeup '工控协议流量迷局_2026ICSC'",
+  "commands": []
+}

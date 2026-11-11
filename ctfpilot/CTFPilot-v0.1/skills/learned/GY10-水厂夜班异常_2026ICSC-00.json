@@ -1,0 +1,7 @@
+{
+  "name": "GY10-水厂夜班异常_2026ICSC",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'GY10-水厂夜班异常_2026ICSC'",
+  "commands": []
+}

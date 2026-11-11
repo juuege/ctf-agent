@@ -1,0 +1,7 @@
+{
+  "name": "GY10-VCL-FW_2026ICSC",
+  "category": "reverse",
+  "technique": "firmware unpacking (layer peel gzip->squashfs, stdlib superblock walk)",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'GY10-VCL-FW_2026ICSC'",
+  "commands": []
+}

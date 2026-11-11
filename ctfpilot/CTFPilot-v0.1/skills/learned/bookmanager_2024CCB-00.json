@@ -1,0 +1,7 @@
+{
+  "name": "bookmanager_2024CCB",
+  "category": "pwn",
+  "technique": "ROP / ret2* chain",
+  "when_to_use": "challenge looks like pwn; recall from writeup 'bookmanager_2024CCB'",
+  "commands": []
+}

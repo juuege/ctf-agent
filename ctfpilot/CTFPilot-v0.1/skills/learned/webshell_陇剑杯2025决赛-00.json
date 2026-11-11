@@ -1,0 +1,7 @@
+{
+  "name": "webshell_陇剑杯2025决赛",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'webshell_陇剑杯2025决赛'",
+  "commands": []
+}

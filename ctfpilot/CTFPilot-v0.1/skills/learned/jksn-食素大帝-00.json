@@ -1,0 +1,7 @@
+{
+  "name": "jksn-食素大帝",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'jksn-食素大帝'",
+  "commands": []
+}

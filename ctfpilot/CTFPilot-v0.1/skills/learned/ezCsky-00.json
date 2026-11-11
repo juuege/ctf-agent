@@ -1,0 +1,7 @@
+{
+  "name": "ezCsky",
+  "category": "reverse",
+  "technique": "static decompilation review",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'ezCsky'",
+  "commands": []
+}

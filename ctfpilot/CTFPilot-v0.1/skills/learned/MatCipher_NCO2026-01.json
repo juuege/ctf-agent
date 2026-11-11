@@ -1,0 +1,7 @@
+{
+  "name": "MatCipher_NCO2026",
+  "category": "misc",
+  "technique": "archive password recovery / crc collision",
+  "when_to_use": "challenge looks like misc; recall from writeup 'MatCipher_NCO2026'",
+  "commands": []
+}

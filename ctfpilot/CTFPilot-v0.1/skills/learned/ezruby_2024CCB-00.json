@@ -1,0 +1,7 @@
+{
+  "name": "ezruby_2024CCB",
+  "category": "web",
+  "technique": "SSRF scheme abuse",
+  "when_to_use": "challenge looks like web; recall from writeup 'ezruby_2024CCB'",
+  "commands": []
+}

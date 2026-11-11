@@ -19,6 +19,7 @@ ctfpilot/
 ├── skill/ctfpilot/             TeleAgent Skill
 │   ├── SKILL.md                工作流与决策点
 │   └── references/             CLI / RSI / 检索 / 信号 playbook
+├── writeups/                   题解复盘（按日期归档）
 ├── CTFPilot-技能看板.html      单文件状态看板
 ├── 一键打包CTFPilot.bat        标准包一键打包
 └── README.md
@@ -51,6 +52,19 @@ cd CTFPilot-v0.1
 ## 一键打包
 
 双击 `一键打包CTFPilot.bat`：脚本会自动定位 `skill/ctfpilot`、`CTFPilot-v0.1` 与看板，生成带时间戳的 ZIP，内含 `manifest.json`（逐文件 SHA256）与 `打包说明.txt`。默认排除 `__pycache__`、轨迹库与 `challs_incoming` 题目原始数据。
+
+## 题解复盘
+
+[`writeups/`](writeups/) 按日期归档 2026-11-10 至 2026-11-11 的 43 篇复盘：解出 24 篇、部分 3 篇、未解 15 篇、跳过 1 篇。
+
+- 每篇保留题目结构、解法链、七维标签与失败原因。
+- 题解保留真实 flag，仅用于已结束赛事的复盘与个人记录。
+- 入口：[`writeups/README.md`](writeups/README.md)
+
+## 近期更新
+
+- 快通道新增 PNG LSB 多通道扫描、`flag:...:` 冒号格式与诱饵 flag 过滤。
+- 新增本次 43 篇复盘对应的技能卡，`skills/learned/` 持续增厚。
 
 ## 安全边界
 

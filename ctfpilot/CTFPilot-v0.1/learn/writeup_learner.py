@@ -22,12 +22,14 @@ TECH_PATTERNS = [
     (r"rop|ret2|stack\s*overflow|gadget", "pwn", "ROP / ret2* chain"),
     (r"format\s*string|%p|printf", "pwn", "format string leak"),
     (r"heap|tcache|fastbin|double\s*free", "pwn", "heap exploitation (glibc bins)"),
-    (r"ghidra|ida|decompil| pseudocode ", "reverse", "static decompilation review"),
+    (r"ghidra|\bida\b|decompil| pseudocode ", "reverse", "static decompilation review"),
     (r"upx|unpack|esp\b", "reverse", "unpacking packed binary"),
     (r"steg(hide|solve|solved)?\b|lsb|隐写", "forensics", "steganography extraction"),
     (r"wireshark|pcap|tshark|流量", "forensics", "pcap traffic analysis"),
     (r"volatility|mem(map|dump)|内存取证", "forensics", "memory forensics"),
     (r"foremost|binwalk|文件分离|修复", "misc", "file carving / repair"),
+    (r"aes.{0,4}(cbc|128|192|256)|硬编码|hardcoded.?key|嵌入式.?key", "crypto", "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)"),
+    (r"squashfs|unsquash|固件|firmware", "reverse", "firmware unpacking (layer peel gzip->squashfs, stdlib superblock walk)"),
     (r"zip(密码|password)|crc(32)?\s*(碰撞|collid)|known.?plaintext", "misc", "archive password recovery / crc collision"),
 ]
 

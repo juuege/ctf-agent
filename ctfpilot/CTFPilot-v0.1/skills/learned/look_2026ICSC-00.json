@@ -1,0 +1,7 @@
+{
+  "name": "look_2026ICSC",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'look_2026ICSC'",
+  "commands": []
+}

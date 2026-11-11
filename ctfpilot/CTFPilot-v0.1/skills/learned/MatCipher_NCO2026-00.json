@@ -1,0 +1,7 @@
+{
+  "name": "MatCipher_NCO2026",
+  "category": "crypto",
+  "technique": "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'MatCipher_NCO2026'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "GY10-TwinModuli",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'GY10-TwinModuli'",
+  "commands": []
+}

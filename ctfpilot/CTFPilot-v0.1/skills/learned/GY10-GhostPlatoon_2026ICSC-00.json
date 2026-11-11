@@ -1,0 +1,7 @@
+{
+  "name": "GY10-GhostPlatoon_2026ICSC",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'GY10-GhostPlatoon_2026ICSC'",
+  "commands": []
+}
