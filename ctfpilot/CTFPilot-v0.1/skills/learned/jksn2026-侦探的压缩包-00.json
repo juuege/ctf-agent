@@ -1,0 +1,7 @@
+{
+  "name": "jksn2026-侦探的压缩包",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "challenge looks like misc; recall from writeup 'jksn2026-侦探的压缩包'",
+  "commands": []
+}
