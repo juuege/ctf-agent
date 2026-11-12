@@ -1,0 +1,7 @@
+{
+  "name": "jksn2025-小学组ZIP",
+  "category": "misc",
+  "technique": "archive password recovery / crc collision",
+  "when_to_use": "challenge looks like misc; recall from writeup 'jksn2025-小学组ZIP'",
+  "commands": []
+}

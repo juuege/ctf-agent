@@ -1,0 +1,7 @@
+{
+  "name": "jksn-quals-笔记系统",
+  "category": "pwn",
+  "technique": "format string leak",
+  "when_to_use": "challenge looks like pwn; recall from writeup 'jksn-quals-笔记系统'",
+  "commands": []
+}

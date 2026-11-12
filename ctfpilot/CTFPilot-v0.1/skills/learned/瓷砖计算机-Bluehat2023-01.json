@@ -1,0 +1,7 @@
+{
+  "name": "瓷砖计算机-Bluehat2023",
+  "category": "reverse",
+  "technique": "TileGX challenge3 (59KB) needs bundle decoder: fetch qemu disas/tilegx.c opcode tables via jsDelivr, write pure-stdlib X0/X1/Y-slot decoder; direct 6bit unpack, xor-with-luck_num and symbol-level add/xor all ruled out as bypass; flag likely 42-43 chars (32B check = 256bit)",
+  "when_to_use": "continuation of Bluehat2023 tilegx reverse; planning next-round decode strategy; verifying bypass hypotheses before wasting time",
+  "commands": []
+}

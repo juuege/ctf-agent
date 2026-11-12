@@ -1,0 +1,7 @@
+{
+  "name": "机床故障排查-qwqsncx2024",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup '机床故障排查-qwqsncx2024'",
+  "commands": []
+}

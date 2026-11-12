@@ -1,0 +1,7 @@
+{
+  "name": "食堂点餐系统-NCO2026",
+  "category": "pwn",
+  "technique": "ROP / ret2* chain",
+  "when_to_use": "challenge looks like pwn; recall from writeup '食堂点餐系统-NCO2026'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "2026-NCO-Quals__EasyRSA",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup '2026-NCO-Quals__EasyRSA'",
+  "commands": []
+}

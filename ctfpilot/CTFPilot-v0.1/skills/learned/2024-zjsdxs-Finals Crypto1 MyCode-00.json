@@ -1,0 +1,7 @@
+{
+  "name": "2024-zjsdxs-Finals Crypto1 MyCode",
+  "category": "crypto",
+  "technique": "single-byte XOR key derivation (known-plaintext flag{ prefix, full-key scan fallback)",
+  "when_to_use": "challenge looks like crypto; recall from writeup '2024-zjsdxs-Finals Crypto1 MyCode'",
+  "commands": []
+}

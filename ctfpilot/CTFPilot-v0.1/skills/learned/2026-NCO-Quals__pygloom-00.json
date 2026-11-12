@@ -1,0 +1,12 @@
+{
+  "name": "2026-NCO-Quals__pygloom",
+  "category": "crypto",
+  "technique": "single-byte XOR key derivation (known-plaintext flag{ prefix, full-key scan fallback)",
+  "when_to_use": "challenge looks like crypto; recall from writeup '2026-NCO-Quals__pygloom'",
+  "commands": [
+    "key = b'pygloom'",
+    "dec = bytes(v ^ key[i % 7] ^ ((i*13+37) & 255) for i, v in enumerate(flat))",
+    "src = zlib.decompress(base64.b85decode(dec)).decode('utf-8')",
+    "flag = ''.join(chr(((t - i*7) & 0xFF) ^ 0x33) for i, t in enumerate(TARGET))"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "签到漫画-qwbqsnxbs2024",
+  "category": "misc",
+  "technique": "QR decode and partial-QR quadrant stitching",
+  "when_to_use": "challenge looks like misc; recall from writeup '签到漫画-qwbqsnxbs2024'",
+  "commands": [
+    "def load(p): return cv2.imdecode(np.frombuffer(open(p,'rb').read(), np.uint8), cv2.IMREAD_COLOR)",
+    "tl, tr = load('1guanzhu.png'), load('2weixin.png')",
+    "bl, br = load('3chunqiu.png'), load('4gama.png')",
+    "full = np.vstack([np.hstack([tl,tr]), np.hstack([bl,br])])",
+    "data, pts, _ = cv2.QRCodeDetector().detectAndDecode(full)"
+  ]
+}

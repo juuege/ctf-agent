@@ -1,0 +1,7 @@
+{
+  "name": "WQB2025-new_trick",
+  "category": "crypto",
+  "technique": "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'WQB2025-new_trick'",
+  "commands": []
+}

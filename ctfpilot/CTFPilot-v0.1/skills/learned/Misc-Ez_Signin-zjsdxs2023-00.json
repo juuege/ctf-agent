@@ -1,0 +1,7 @@
+{
+  "name": "Misc-Ez_Signin-zjsdxs2023",
+  "category": "web",
+  "technique": "insecure deserialization",
+  "when_to_use": "challenge looks like web; recall from writeup 'Misc-Ez_Signin-zjsdxs2023'",
+  "commands": []
+}

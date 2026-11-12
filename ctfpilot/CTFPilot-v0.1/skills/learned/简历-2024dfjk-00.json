@@ -1,0 +1,10 @@
+{
+ "name": "简历-2024dfjk",
+ "category": "misc",
+ "technique": "repeating-key XOR recovery via known-plaintext crib (PE MZ/DOS stub) — extract key stream, detect period via autocorrelation, then full-decrypt and verify magic",
+ "when_to_use": "binary blob with no magic; few high-freq bytes clustered in adjacent 0x60-0x7f band; long periodic background runs (= plaintext zero-padding showing key)",
+ "commands": [
+  "crib=MZ\\\\x90\\\\x00\\\\x03..., key=data[0:len(crib)]^crib, period=autocorr(key)",
+  "python: plain=bytes(b^key[i%period] for i,b in enumerate(data))"
+ ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "jksn2025-小学组MORSE",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'jksn2025-小学组MORSE'",
+  "commands": []
+}

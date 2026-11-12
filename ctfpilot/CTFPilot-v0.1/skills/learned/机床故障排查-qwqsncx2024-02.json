@@ -1,0 +1,7 @@
+{
+  "name": "机床故障排查-qwqsncx2024",
+  "category": "crypto",
+  "technique": "single-byte XOR key derivation (known-plaintext flag{ prefix, full-key scan fallback)",
+  "when_to_use": "challenge looks like crypto; recall from writeup '机床故障排查-qwqsncx2024'",
+  "commands": []
+}

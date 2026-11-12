@@ -1,0 +1,7 @@
+{
+  "name": "个性签名生成器-NCO2026",
+  "category": "web",
+  "technique": "Jinja2 SSTI blacklist bypass (attr/getitem chain, lipsum globals os, string concat / request.args)",
+  "when_to_use": "challenge looks like web; recall from writeup '个性签名生成器-NCO2026'",
+  "commands": []
+}

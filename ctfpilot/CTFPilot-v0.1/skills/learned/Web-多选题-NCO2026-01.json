@@ -1,0 +1,7 @@
+{
+  "name": "Web-多选题-NCO2026",
+  "category": "web",
+  "technique": "SSRF scheme abuse",
+  "when_to_use": "challenge looks like web; recall from writeup 'Web-多选题-NCO2026'",
+  "commands": []
+}

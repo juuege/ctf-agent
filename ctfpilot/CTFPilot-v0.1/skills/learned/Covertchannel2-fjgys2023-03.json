@@ -1,0 +1,7 @@
+{
+  "name": "Covertchannel2-fjgys2023",
+  "category": "misc",
+  "technique": "archive password recovery / crc collision",
+  "when_to_use": "challenge looks like misc; recall from writeup 'Covertchannel2-fjgys2023'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "unzip-NCO2026",
+  "category": "reverse",
+  "technique": "unpacking packed binary",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'unzip-NCO2026'",
+  "commands": []
+}

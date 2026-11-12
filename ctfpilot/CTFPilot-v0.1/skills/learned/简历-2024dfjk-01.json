@@ -1,0 +1,9 @@
+{
+ "name": "简历-2024dfjk",
+ "category": "misc",
+ "technique": "malware sample static triage in memory only (never write PE to disk — Defender quarantines it); identify RAT family from strings fingerprint",
+ "when_to_use": "CTF malware/real-sample challenge; file distribution archive of a downloader/implant; C2 config hunting",
+ "commands": [
+  "strings+PE-section parse in single process; fingerprints: pupy/reflective_inject_dll/python27.dll/.xzdata"
+ ]
+}

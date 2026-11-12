@@ -1,0 +1,7 @@
+{
+  "name": "signal-WQB2025",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'signal-WQB2025'",
+  "commands": []
+}

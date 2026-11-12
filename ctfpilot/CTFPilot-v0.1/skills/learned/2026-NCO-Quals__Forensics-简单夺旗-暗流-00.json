@@ -1,0 +1,7 @@
+{
+  "name": "2026-NCO-Quals__Forensics-简单夺旗-暗流",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup '2026-NCO-Quals__Forensics-简单夺旗-暗流'",
+  "commands": []
+}

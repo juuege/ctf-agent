@@ -1,0 +1,9 @@
+{
+  "name": "TinyNTRU-WQB2026",
+  "category": "crypto",
+  "technique": "NTRU lattice attack (LLL on [qI 0; H I], recover sparse f=e0+3F and g=3G)",
+  "when_to_use": "NTRU-like public key with small N/q and very sparse ternary private polynomial; public_key.txt + output.txt gives h and ciphertexts",
+  "commands": [
+    "wsl: PYTHONPATH=/tmp/ctfpy python3 -X utf8 solve_final.py  (fpylll LLL; row order [qI 0; H I] is critical)"
+  ]
+}

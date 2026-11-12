@@ -1,0 +1,7 @@
+{
+  "name": "瓷砖计算机-Bluehat2023",
+  "category": "reverse",
+  "technique": "TileGX cold-arch reverse: check ELF not stripped -> symtab gives main/challenge1/2/3 layout; single-byte XOR 0xff over .data high-entropy block reveals ordered charset table; 66-char custom permutation table in rodata; 6bit-index packing hypothesis (chars -> packed -> challenge3 transform -> compare check[32])",
+  "when_to_use": "cold/exotic architecture reverse with custom charset tables and sentinel magic (deadbeef/baadf00d/cafebabe) after ciphertext",
+  "commands": []
+}

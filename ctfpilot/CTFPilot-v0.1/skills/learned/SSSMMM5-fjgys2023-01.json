@@ -1,0 +1,7 @@
+{
+  "name": "SSSMMM5-fjgys2023",
+  "category": "crypto",
+  "technique": "AES ECB deterministic encryption / codebook-commitment dictionary lookup",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'SSSMMM5-fjgys2023'",
+  "commands": []
+}

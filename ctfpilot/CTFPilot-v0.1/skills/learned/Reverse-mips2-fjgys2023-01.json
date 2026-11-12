@@ -1,0 +1,7 @@
+{
+  "name": "Reverse-mips2-fjgys2023",
+  "category": "reverse",
+  "technique": "encoded grid puzzle: digit-pair input -> sudoku solve -> hash flag",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'Reverse-mips2-fjgys2023'",
+  "commands": []
+}

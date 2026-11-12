@@ -1,0 +1,7 @@
+{
+  "name": "bitdance-NCO2026",
+  "category": "reverse",
+  "technique": "static decompilation review",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'bitdance-NCO2026'",
+  "commands": []
+}

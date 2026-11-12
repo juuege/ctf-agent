@@ -1,0 +1,7 @@
+{
+  "name": "Crypto-多选题-NCO2026",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'Crypto-多选题-NCO2026'",
+  "commands": []
+}

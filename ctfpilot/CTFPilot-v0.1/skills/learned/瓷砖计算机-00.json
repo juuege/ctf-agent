@@ -1,0 +1,7 @@
+{
+  "name": "瓷砖计算机",
+  "category": "reverse",
+  "technique": "cold-arch ELF (TileGX): dump full symtab FIRST (FUNC/OBJECT + sizes) before any disassembly; symbol sizes correct data-region attribution (check=32B not 36B); magic qword statics (deadbeef/baadf00d/c0ffee/B16B00B5/FACEB00C) = key material of transform stage",
+  "when_to_use": "unstripped exotic-arch reverse challenge; adjacent-symbol misread suspected; static-local key material in .data",
+  "commands": []
+}

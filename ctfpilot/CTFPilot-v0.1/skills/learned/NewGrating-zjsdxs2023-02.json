@@ -1,0 +1,7 @@
+{
+  "name": "NewGrating-zjsdxs2023",
+  "category": "crypto",
+  "technique": "AES ECB deterministic encryption / codebook-commitment dictionary lookup",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'NewGrating-zjsdxs2023'",
+  "commands": []
+}

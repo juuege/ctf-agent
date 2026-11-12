@@ -1,0 +1,7 @@
+{
+ "name": "简历-2024dfjk",
+ "category": "misc",
+ "technique": "RAT payload config location: Pupy bundles encrypted python payload in custom .xzdata section (not standard xz header) — decrypt routine is in .text, compare with official n1nj4sec/pupy packer source",
+ "when_to_use": "after PE decrypt, C2 IP hidden in packed payload section; flag=c2 ip md5",
+ "commands": []
+}

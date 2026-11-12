@@ -1,0 +1,7 @@
+{
+  "name": "odd_factor-2023zjsdxs",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'odd_factor-2023zjsdxs'",
+  "commands": []
+}

@@ -9,7 +9,7 @@ ctf-agent/
 ├── .gitignore
 ├── README.md
 └── ctfpilot/                   CTFPilot 双通道 CTF 解题智能体
-    └── writeups/               题解复盘（2026-11，44 篇）
+    └── writeups/               题解复盘（2026-11，121 篇）
 ```
 
 ## Projects

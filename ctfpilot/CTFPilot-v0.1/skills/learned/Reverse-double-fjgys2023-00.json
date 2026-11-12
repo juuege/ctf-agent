@@ -1,0 +1,7 @@
+{
+  "name": "Reverse-double-fjgys2023",
+  "category": "crypto",
+  "technique": "single-byte XOR key derivation (known-plaintext flag{ prefix, full-key scan fallback)",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'Reverse-double-fjgys2023'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "traceweaver-NCO2026",
+  "category": "reverse",
+  "technique": "static ELF disasm: recognize inlined RC4 (KSA div+swap loop, PRGA xor loop) and extract key/ciphertext; watch ABI register-residue implicit args across calls",
+  "when_to_use": "small static ELF with ptrace anti-debug + memcmp + scanf, no flag plaintext; a function that seems to clobber input may actually load the RC4 key into live registers consumed by the next call",
+  "commands": ["objdump -d -M intel; track rsi/rdx/rcx residue at call sites; RC4 decrypt with stdlib python"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "jksn-quals-Web1-图书搜索",
+  "category": "web",
+  "technique": "SQL injection (union-based)",
+  "when_to_use": "challenge looks like web; recall from writeup 'jksn-quals-Web1-图书搜索'",
+  "commands": []
+}
