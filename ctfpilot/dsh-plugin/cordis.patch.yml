@@ -1,0 +1,23 @@
+# ============================================================================
+# dsh-ctfpilot —— DSH bundle patch
+# ============================================================================
+# 插件挂载声明：DSH 启动时把本插件插进 profile 的配置树。
+#
+# 安装（本地包）：
+#   dsh plugin --profile desktop add "file:C:/dsh-plugins/dsh-ctfpilot"
+#
+# ⚠️ `name:` 必须与包名完全一致（dsh-ctfpilot）。
+#
+# config 说明：
+#   engineDir —— CTFPilot 引擎目录（含 ctfpilot.py），本机为 CTFPilot-v0.1 仓库
+#   python    —— Python 3.10+ 解释器（引擎为纯标准库，无需第三方依赖）
+# ============================================================================
+
+- insert:
+    - id: ctfpilot
+      name: dsh-ctfpilot
+      config:
+        engineDir: 'C:/Users/Administrator/.local/share/TeleAgent/TeleAgent的工作空间/CTFPilot-v0.1'
+        python: 'C:/Users/Administrator/.local/share/TeleAgent/runtimes/python/python.exe'
+        timeoutSeconds: 300
+        maxOutputChars: 8000

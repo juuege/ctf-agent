@@ -14,10 +14,20 @@ const engineDir = existsSync(join(here, '..', 'CTFPilot-v0.1'))
 
 assert.ok(existsSync(join(engineDir, 'ctfpilot.py')), `engine dir not found: ${engineDir}`)
 
+// Windows desktop deployments usually pass an explicit python via config
+// (see cordis.patch.yml). Prefer CTFPILOT_PYTHON, else the TeleAgent-bundled
+// interpreter, else fall back to PATH probing inside the plugin.
+const candidates = [
+  process.env.CTFPILOT_PYTHON,
+  'C:/Users/Administrator/.local/share/TeleAgent/runtimes/python/python.exe',
+]
+const explicitPython = candidates.find(p => p && existsSync(p))
+const cfg = { engineDir, ...(explicitPython ? { python: explicitPython } : {}) }
+
 // 1. apply() registers exactly one model-facing tool on a mock ctx.
 let def = null
 const ctx = { tools: { register(d) { def = d } } }
-plugin.apply(ctx, { engineDir })
+plugin.apply(ctx, cfg)
 
 assert.equal(def.name, 'ctfpilot')
 for (const field of ['description', 'parameters', 'output', 'execute', 'presentCall', 'presentResult']) {

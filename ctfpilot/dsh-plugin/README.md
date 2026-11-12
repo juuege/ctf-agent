@@ -23,7 +23,7 @@ ctfpilot(command, ...)
 
 ## 安装与挂载
 
-前提：已安装 dsh 0.2.1-rc.x，且已 clone 本仓库：
+前提：已安装 DSH（≥0.2，含桌面端或 CLI），系统有 Python 3.10+，且已 clone 本仓库：
 
 ```bash
 git clone https://github.com/juuege/ctf-agent.git
@@ -31,7 +31,21 @@ git clone https://github.com/juuege/ctf-agent.git
 
 本仓库布局即默认解析路径（`ctfpilot/{CTFPilot-v0.1, dsh-plugin}` 互为兄弟目录，插件按相对位置自动找到引擎，无需配置）。
 
-**方式 A：patch overlay（推荐，临时可用）**
+**方式 A：DSH 桌面端 / 任意 profile（标准）**
+
+把插件目录复制（或软链）到任意本地路径，然后用 `dsh plugin` 安装——声明了 `dsh.bundle.patch` 的包会被 **reconcile 自动启用**（自动写入 profile 的 `dsh.profile.bundles`），包内 `cordis.patch.yml` 随 profile 启动自动挂载：
+
+```bash
+dsh plugin --profile desktop add "file:C:/dsh-plugins/dsh-ctfpilot"
+# 然后完全退出并重启 DSH（托盘右键退出，node 不热重载磁盘模块）
+```
+
+桌面端默认配置（引擎路径 / Python 路径）已写在包内 `cordis.patch.yml`，按需修改后重装。
+
+> pnpm 多 TeleAgent 用户共用一台机时可能报 `ERR_PNPM_UNEXPECTED_STORE`，追加
+> `--config.store-dir=<旧store父目录>`（不带 v11 后缀）复用原 store 即可。
+
+**方式 B：patch overlay（临时，不动 profile）**
 
 ```yaml
 # ctfpilot-overlay.yml
@@ -46,7 +60,7 @@ dsh tui --patch ctfpilot-overlay.yml
 
 注意：本地目录挂载须指到 `lib/index.js` 入口文件——目录路径不被 dsh 的 ESM 解析支持。
 
-**方式 B：preset 插件行**（standard preset 的 `config.plugins` 列表追加）
+**方式 C：preset 插件行**（standard preset 的 `config.plugins` 列表追加）
 
 ```yaml
 - id: ctfpilot
@@ -55,7 +69,7 @@ dsh tui --patch ctfpilot-overlay.yml
     timeoutSeconds: 300
 ```
 
-**方式 C：npm**（若发布后）
+**方式 D：npm**（若发布后）
 
 ```yaml
 - id: ctfpilot
