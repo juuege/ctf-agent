@@ -14,7 +14,7 @@
 
 ## 1. RSI 双环总览
 
-- **记忆环（知识层）**：解题 `--write-trace` 留痕（成功与失败都写）→ 写 writeup → `learn-writeup` 落库（自动解析模板字段与标签，入 lesson 的 tags/evidence 列）→ 下题 `recall` 检索（每次命中 hit_count+1）。经验第一次出现是知识。
+- **记忆环（知识层）**：解题 `--write-trace` 留痕（成功与失败都写）→ 写 writeup → `learn-writeup` 落库（自动解析模板字段与标签，入 lesson 的 tags/evidence 列）→ 下题 `recall` 检索（每次命中 hit_count+1）。经验第一次出现是知识。写库批量经 `rebuild-knowledge` 变成案例卡（`skills/knowledge/cases.jsonl`，含证据指针）+ 案例经验；`recall` 与深通道检索按题面信号相关度排序（词法重叠打分），不再只按时间。
 - **固化环（代码层）**：高频、可判定的经验编译为快通道确定性检测器/工具脚本。经验第二次出现就该是工具（对应 SpecPilot“记忆条目 → 新部署初始系统”，也对应 CTF 专家赛前固化的 quickcheck 脚本）。**触发读数用 `fixations --min 3`**（hits+successes 来自轨迹库），不靠记忆。
 
 防污染纪律（对应 SpecPilot 的 Token Forcing 与密封终测）：
@@ -29,7 +29,7 @@
 
 ## 2. 落库 writeup 模板
 
-（`learn-writeup` 会自动解析以下字段入卡片与 lesson：题型优先覆盖分类、题面特征作为 when_to_use、失败路径/适用限制作为 evidence、标签四维入 tags 列；无模板字段的旧式 writeup 以步骤纲要作 evidence 兑底。）
+（`learn-writeup` / `rebuild-knowledge` 会自动解析字段入卡片与 lesson：题型优先覆盖分类、识别信号作为 when_to_use、失败原因/适用限制/一得/尝试路径作为 evidence、标签四维入 tags 列。兼容四种写库格式：本模板（- 题面特征: …）／冒号式（- 识别信号: …）／数字七维（1. 题型: …）／加粗｜分隔式（- **结果**：… ｜ **分类**：…，含 ## 样本特征 表格与 ## 尝试路径 段落）；无任何字段的纯散文 writeup 以步骤纲要作 evidence 兑底。）
 
 ```markdown
 # <题名> writeup
@@ -117,6 +117,8 @@
 **举一反三检验**：解出后自问"这题若变形（换编码层/加一层加密/换载体），流程还能解吗？"把答案写进"变体预测"；同类变体下次出现时先查标签再动手。
 
 **模式卡**：每题至少产出一条"可迁移模式"（识别条件→技术组合的一句话规则），learn-writeup 时并入 technique/when_to_use，使其可被 recall 检索。
+
+**卡片描述三句式（Skill++ 法，防路由干扰）**：写案例/技能卡的 when_to_use 用三句话——支持什么（识别信号→技术链）、与最近邻案例区别在哪、明确排除什么；近义卡堆叠时检索质量不塌（2026 实测：731 技能库仅重写描述，必需技能选中率 36.4%→76.3%，arXiv 2611.00544）。
 
 ## 7. 框架级进化（A/B 测试，防自嗨）
 

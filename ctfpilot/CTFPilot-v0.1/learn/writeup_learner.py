@@ -47,12 +47,40 @@ CMD_LINE = re.compile(r"^\s*(?:\$|>|#)?\s*([a-z][\w.\-]*(?:\s+[^\n]*)?)$",
 STEP_LINE = re.compile(r"^\s*(?:step|步骤)\s*[:：]?\s*(.+)$", re.MULTILINE | re.IGNORECASE)
 HEADING = re.compile(r"^#{1,4}\s+(.+)$", re.MULTILINE)
 
-# SKILL.md writeup template fields (references/ctfpilot-rsi.md §2)
+# Writeup label formats supported (SOTA ingestion, 2026-11):
+#   A. SKILL.md template:   "- 题面特征: ..." / "标签: 识别信号=...；陷阱类型=..."
+#   B. "## 标签" colon style:      "- 识别信号: ..." "- 核心技术链: ..."
+#   C. "## 标签（七维）" numbered: "1. 题型: ..." "3. 识别信号: ..."
+FIELD_ALIASES = [
+    ("题型", "题型"),
+    ("分类", "题型"),
+    ("题目", "题目"),
+    (r"载体(?:\s*/\s*格式)?", "载体"),
+    (r"识别信号|题面特征|样本特征", "识别信号"),
+    (r"核心技术链|技术链|解题路径", "核心技术链"),
+    ("有效技术", "有效技术"),
+    (r"陷阱(?:类型)?", "陷阱类型"),
+    (r"可迁移(?:模式)?", "可迁移模式"),
+    (r"变体(?:预测)?", "变体预测"),
+    (r"失败原因(?:\s*/\s*边界)?|失败路径", "失败原因"),
+    ("适用限制", "适用限制"),
+    ("未测试", "未测试"),
+    ("可固化性", "可固化性"),
+    (r"结果|判定", "结果"),
+    ("[Ff][Ll][Aa][Gg]", "flag"),
+]
 FIELD_RE = re.compile(
-    r"^\s*[-*]?\s*(题型|题面特征|解题路径|有效技术|失败路径|适用限制|未测试|可固化性)\s*[:：]\s*(.+?)\s*$",
+    r"^[ \t]*(?:[-*•]\s*)?(?:\*\*)?(?:\d+[.、)]\s*)?(%s)(?:\*\*)?\s*[:：]\s*(.+?)\s*$" %
+    "|".join(a for a, _ in FIELD_ALIASES),
     re.MULTILINE)
-TAG_LINE_RE = re.compile(r"^\s*[-*]?\s*标签\s*[:：]\s*(.+)$", re.MULTILINE)
+SECTION_RE = re.compile(
+    r"^#{1,4}\s*(一得|失败原因(?:\s*/\s*边界)?|题解学习(?:要点)?|样本特征|尝试路径)[^\n]*$\n(.+?)(?=\n#{1,4}\s|\Z)",
+    re.MULTILINE | re.DOTALL)
 TAG_KV_RE = re.compile(r"(识别信号|陷阱类型|可迁移模式|变体预测)\s*[=＝]\s*([^；;]+)")
+
+
+def _clean(v):
+    return re.sub(r"[*`]+", "", (v or "")).strip()
 
 CAT_MAP = {"misc": "misc", "crypto": "crypto", "web": "web", "pwn": "pwn",
            "reverse": "reverse", "forensics": "forensics", "osint": "osint",
@@ -71,15 +99,46 @@ def parse_writeup(text):
         if re.search(pat, text, re.IGNORECASE):
             techniques.append((cat, name))
 
-    # --- structured template fields (SKILL.md 落库模板) ---
+    # --- structured fields: four label formats (A/B/C/D above) ---
+    # D (循环任务报告) packs several fields per line separated by the
+    # full-width bar ｜ and bolds labels: "- **分类**：Reverse ｜ **结果**：NOT SOLVED"
+    norm = text.replace("｜", "\n")
     fields = {}
-    for m in FIELD_RE.finditer(text):
-        fields[m.group(1)] = m.group(2).strip()
+    for m in FIELD_RE.finditer(norm):
+        raw = m.group(1)
+        for pat, cname in FIELD_ALIASES:
+            if re.fullmatch(pat, raw):
+                fields[cname] = _clean(m.group(2))
+                break
+    # --- section blocks without labels (一得 / 失败原因 / 样本特征 / 尝试路径) ---
+    for m in SECTION_RE.finditer(text):
+        head = m.group(1)
+        key = ("失败原因" if head.startswith("失败") else
+               "识别信号" if head.startswith("样本") else
+               "尝试路径" if head.startswith("尝试") else
+               "一得" if head == "一得" else "题解要点")
+        if key not in fields:
+            lines = []
+            for l in m.group(2).splitlines():
+                l = l.strip()
+                if not l or l.startswith("#"):
+                    continue
+                if l.startswith("|"):
+                    cells = [c.strip() for c in l.strip("|").split("|")]
+                    cells = [c for c in cells
+                             if c and not set(c) <= {"-", ":", " "}]
+                    if cells:
+                        lines.append("：".join(cells))
+                else:
+                    lines.append(_clean(re.sub(r"^[\s\-*•\d.、)]+", "", l)))
+            fields[key] = "；".join(lines)[:400]
+    # --- equals-style tags (format A) + colon/numbered fields fill-in ---
     tags = {}
-    tm = TAG_LINE_RE.search(text)
-    if tm:
-        for kv in TAG_KV_RE.finditer(tm.group(1)):
-            tags[kv.group(1)] = kv.group(2).strip()
+    for kv in TAG_KV_RE.finditer(text):
+        tags[kv.group(1)] = _clean(kv.group(2))
+    for k in ("识别信号", "陷阱类型", "可迁移模式", "变体预测"):
+        if not tags.get(k) and fields.get(k):
+            tags[k] = fields[k]
 
     commands = []
     for block in CODE_BLOCK.findall(text):
@@ -97,10 +156,21 @@ def parse_writeup(text):
 
     # Category: explicit 题型 field wins over keyword voting (the vote is
     # easily poisoned by decoy words in the writeup, cf. iq-signal-playbook).
+    title = fields.get("题目", "")
+    name = re.split(r"[（(]", title)[0].strip() if title else ""
     category = None
     if fields.get("题型"):
         first = re.split(r"[/／,，\s]+", fields["题型"])[0].strip().lower()
         category = CAT_MAP.get(first)
+        if category is None:
+            for k, v in CAT_MAP.items():
+                if first.startswith(k):
+                    category = v
+                    break
+    if category is None and title:
+        pm = re.search(r"[（(]([A-Za-z]+)[）)]", title)
+        if pm:
+            category = CAT_MAP.get(pm.group(1).lower())
     if category is None:
         if techniques:
             cats = {}
@@ -115,15 +185,37 @@ def parse_writeup(text):
                         else "reverse" if any(k in low for k in ("ida", "ghidra", "逆向"))
                         else "forensics" if any(k in low for k in ("流量", "pcap", "隐写"))
                         else "misc")
+
+    # outcome: 结果/判定 + flag fields
+    res = fields.get("结果", "")
+    flagv = _clean(fields.get("flag", ""))
+    solved = None
+    lowres = res.lower()
+    if "solved" in lowres and "not" not in lowres and "未" not in res:
+        solved = True
+    elif ("未解出" in res) or ("not solved" in lowres):
+        solved = False
+    if flagv and flagv[:1] not in ("无", "未", "-", "—"):
+        solved = True
+
     return {"category": category, "techniques": techniques,
             "commands": commands, "steps": steps, "headings": headings,
             "fields": fields, "tags": tags,
-            "signals": fields.get("题面特征", ""),
+            "signals": fields.get("识别信号", ""),
             "effective": fields.get("有效技术", ""),
-            "failure_paths": fields.get("失败路径", ""),
+            "failure_paths": fields.get("失败原因", ""),
             "limits": fields.get("适用限制", ""),
             "untested": fields.get("未测试", ""),
-            "fixable": fields.get("可固化性", "")}
+            "fixable": fields.get("可固化性", ""),
+            "chain": fields.get("核心技术链", ""),
+            "pitfalls": fields.get("陷阱类型", ""),
+            "transferable": fields.get("可迁移模式", ""),
+            "variants": fields.get("变体预测", ""),
+            "carrier": fields.get("载体", ""),
+            "gain": fields.get("一得", ""),
+            "notes": fields.get("题解要点", ""),
+            "attempts": fields.get("尝试路径", ""),
+            "title": title, "name": name, "solved": solved, "flag_value": flagv}
 
 
 def _next_version(out_dir, safe):

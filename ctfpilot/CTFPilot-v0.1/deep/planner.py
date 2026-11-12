@@ -75,16 +75,75 @@ def _short_tags(tags):
     return ""
 
 
+def _case_line(c):
+    """One case card as a compact, evidence-linked context line (SOTA:
+    short card + pointer to the source writeup, cf. WikiTrace/Zep)."""
+    parts = ["- CASE %s [%s]" % (c.get("name", "?"),
+                                 "solved" if c.get("solved") else "unsolved")]
+    for label, key, lim in (("信号", "signals", 90), ("链", "chain", 110),
+                            ("坑", "pitfalls", 80), ("迁移", "transferable", 80)):
+        v = str(c.get(key) or "").strip()
+        if v:
+            parts.append("%s: %s" % (label, v[:lim]))
+    if c.get("failure"):
+        parts.append("失败: %s" % str(c["failure"])[:80])
+    if c.get("source"):
+        parts.append("证据: %s" % c["source"])
+    return " | ".join(parts)
+
+
+def load_cases(category, query_tokens=None, top_k=3):
+    """SOTA: case cards (skills/knowledge/cases.jsonl) ranked by signal-token
+    overlap with the current challenge. Returns None when the knowledge file
+    does not exist, so the caller can fall back to legacy learned cards."""
+    path = os.path.join(SKILL_DIR, "knowledge", "cases.jsonl")
+    if not os.path.exists(path):
+        return None
+    cases = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                c = json.loads(line)
+            except ValueError:
+                continue
+            if c.get("category") == category:
+                cases.append(c)
+    if not cases:
+        return []
+    if query_tokens:
+        try:
+            from knowledge import rank_cases
+            return rank_cases(cases, category, query_tokens, top_k)
+        except ImportError:
+            pass
+    cases.sort(key=lambda c: -float(c.get("created") or 0))
+    return cases[:top_k]
+
+
 def build_context(chall_name, routing, tried_summary, lessons, checker_hint):
     skill = load_skill_card(routing["category"])
-    learned = load_learned_cards(routing["category"])
-    learned_txt = "\n".join(
-        "- technique: %s | when: %s%s%s" % (
-            c.get("technique", "?"),
-            c.get("when_to_use", "?"),
-            (" | signals: %s" % str(c.get("signals", ""))[:100]) if c.get("signals") else "",
-            (" | pitfalls: %s" % str(c.get("failure_paths", ""))[:100]) if c.get("failure_paths") else "")
-        for c in learned) or "(none)"
+    qtokens = None
+    try:
+        from knowledge import tokenize
+        qtokens = tokenize(routing.get("summary", "") + " " +
+                           " ".join(f.get("path", "") for f in routing.get("files", [])))
+    except ImportError:
+        pass
+    cases = load_cases(routing["category"], qtokens, 3)
+    if cases is None:
+        learned = load_learned_cards(routing["category"])
+        learned_txt = "\n".join(
+            "- technique: %s | when: %s%s%s" % (
+                c.get("technique", "?"),
+                c.get("when_to_use", "?"),
+                (" | signals: %s" % str(c.get("signals", ""))[:100]) if c.get("signals") else "",
+                (" | pitfalls: %s" % str(c.get("failure_paths", ""))[:100]) if c.get("failure_paths") else "")
+            for c in learned) or "(none)"
+    else:
+        learned_txt = "\n".join(_case_line(c) for c in cases) or "(none)"
     lessons_txt = "\n".join(
         "- %s: %s%s%s" % (
             l["technique"], l["when_to_use"],
@@ -94,7 +153,7 @@ def build_context(chall_name, routing, tried_summary, lessons, checker_hint):
     return (
         "CHALLENGE: %s\nCATEGORY: %s (confidence %.2f)\n"
         "FLAG FORMAT HINT: %s\n\nFILES AND PREVIEWS:\n%s\n\n"
-        "SKILL CARD (%s):\n%s\n\nLEARNED FROM WRITEUPS:\n%s\n\n"
+        "SKILL CARD (%s):\n%s\n\nCASE MEMORY (signal-ranked, evidence-linked):\n%s\n\n"
         "PAST LESSONS (own trajectories):\n%s\n\n"
         "ALREADY TRIED (do not repeat):\n%s\n"
     ) % (chall_name, routing["category"], routing["confidence"], checker_hint,

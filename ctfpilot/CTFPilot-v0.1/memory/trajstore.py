@@ -126,15 +126,31 @@ class TrajStore:
             "WHERE category=? AND technique=?", (category, technique))
         self.conn.commit()
 
-    def recall_lessons(self, category, top_k=3):
+    def recall_lessons(self, category, top_k=3, query_tokens=None):
         """Writeup-quality lessons only (snippet or tags non-empty): bare auto
         solve records ("worked on ...", snippet='') stay out of recall but
-        remain countable via fixation_candidates(). Newest first, one entry per
-        technique; every returned entry gets hit_count+1 (取用即计数)."""
+        remain countable via fixation_candidates(). One entry per technique;
+        every returned entry gets hit_count+1 (取用即计数).
+
+        SOTA scoring (ArchOR/SKALOS-style): when query_tokens are given (the
+        current challenge's signal signature), rank by token overlap over
+        when_to_use+snippet+tags instead of recency alone."""
         rows = self.conn.execute(
-            "SELECT id, category, technique, when_to_use, snippet, tags FROM lessons "
-            "WHERE category=? AND (snippet<>'' OR tags<>'') ORDER BY ts DESC",
+            "SELECT id, category, technique, when_to_use, snippet, tags, ts "
+            "FROM lessons WHERE category=? AND (snippet<>'' OR tags<>'')",
             (category,)).fetchall()
+        if query_tokens:
+            try:
+                from knowledge import tokenize
+
+                def _score(r):
+                    txt = "%s %s %s" % (r[3] or "", r[4] or "", r[5] or "")
+                    return len(query_tokens & tokenize(txt))
+                rows = sorted(rows, key=lambda r: (-_score(r), -r[6]))
+            except ImportError:
+                rows = sorted(rows, key=lambda r: -r[6])
+        else:
+            rows = sorted(rows, key=lambda r: -r[6])
         seen, out, ids = set(), [], []
         for r in rows:
             if r[2] in seen:

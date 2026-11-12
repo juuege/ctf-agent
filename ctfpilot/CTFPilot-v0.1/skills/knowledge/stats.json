@@ -1,0 +1,9 @@
+{
+  "cases": 121,
+  "solved": 74,
+  "with_signals": 13,
+  "with_pitfalls": 12,
+  "with_transferable": 13,
+  "with_failure": 96,
+  "generated": "2026-11-12 19:29:52"
+}

@@ -31,8 +31,16 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
     budget = cfg.get("budget", {})
     max_steps = int(budget.get("max_deep_steps", 12))
     llm_budget = [int(budget.get("max_llm_calls_per_solve", 24))]
+    qtokens = None
+    try:
+        from knowledge import tokenize
+        qtokens = tokenize(routing.get("summary", "") + " " +
+                           " ".join(f.get("path", "") for f in files))
+    except ImportError:
+        pass
     lessons = store.recall_lessons(routing["category"],
-                                   int(cfg.get("memory", {}).get("recall_top_k", 3)))
+                                   int(cfg.get("memory", {}).get("recall_top_k", 3)),
+                                   query_tokens=qtokens)
 
     # Strategy 0: rerun fast path (cheap, and records what was tried)
     flag, fast_attempts = fp.run_quick_pass(chall_dir, files, checker)

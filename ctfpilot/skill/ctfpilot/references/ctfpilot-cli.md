@@ -13,8 +13,9 @@
 | 命令 | 用途 | 关键参数 |
 |---|---|---|
 | `solve <题目目录>` | 解一道题 | `--mode auto/fast/deep`、`--brain auto/llm/mock`、`--name`、`--flag-regex`、`--write-trace` |
-| `learn-writeup <writeup.md> --name <题名>` | 从题解学习，生成技能卡+检查点+经验（自动解析模板字段：题型/题面特征/失败路径/标签等；卡片版本化不覆盖旧卡） | `--name` |
-| `recall --category <题型>` | 检索历史经验与最近挑战（仅含带证据的 writeup 经验；空壳自动记录不进，见 fixations） | `--category` |
+| `learn-writeup <writeup.md> --name <题名>` | 从题解学习，生成技能卡+检查点+经验（自动解析模板字段：题型/识别信号/失败路径/标签等；卡片版本化不覆盖旧卡） | `--name` |
+| `rebuild-knowledge <writeups目录>` | 从写库批量重建案例知识库（四种格式解析→cases.jsonl+经验入库，幂等） | `--dry-run` |
+| `recall --category <题型>` | 检索历史经验与最近挑战（按题面信号相关度排序；空壳自动记录不进，见 fixations） | `--category`、`--query "<信号词>"` |
 | `fixations [--min N]` | 列出 hits+successes ≥ N 的技术（固化环触发依据，频次来自轨迹库） | `--min`（默认 3） |
 | `stats` | 统计落库数据 | — |
 | `selftest` | 运行内置 6 道冒烟题（用 `.temp/selftest.sqlite` 独立记忆库，不污染生产经验） | — |
@@ -54,6 +55,11 @@
 - 单字节重复 xor 特征（固定 key 混淆） → 单字节 XOR。
 - 题目自带 key/note → token-key XOR。
 - 魔数 `1f 8b` → gzip；`PK\x03\x04` → zip（可能多层嵌套）。
+
+## 案例知识库（rebuild-knowledge）
+
+- `rebuild-knowledge <writeups目录> [--dry-run]`：把写库批量解析为案例卡 `skills/knowledge/cases.jsonl`（每案含 题型/识别信号/核心技术链/陷阱/可迁移模式/失败原因/一得/证据指针）并 upsert 进经验库；支持四种写库格式：旧模板（- 题面特征: …）/ 冒号式（- 识别信号: …）/ 数字七维（1. 题型: …）/ 加粗｜分隔式（- **结果**：… ｜ **分类**：…，含 ## 样本特征 表格与 ## 尝试路径 段落）；幂等可重跑，写库更新后重跑一次。
+- `recall` 与深通道检索按题面信号相关度排序（词法重叠打分：识别信号+链+陷阱+可迁移+载体+尝试），`--query` 可显式传信号词；深通道上下文自动注入 top-3 案例卡（含证据指针，需要细节时读 source 指向的写库原文）。
 
 ## 边界与合规
 

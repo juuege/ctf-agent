@@ -29,7 +29,7 @@ create_source: super-agent-skill-creator
 ## 单题解题工作流（核心）
 
 1. **确认题目输入**：拿到题目目录或题目文件（编码文本、密文、压缩包等）。若只有题面文本，先在工程下建一个临时题目目录放入题面，再解题。
-2. **知识预热（先查再动手）**：`recall` 同题型 + 匹配 writeup 标签（识别信号/技术链）+ 读相关 `references/`（信号类先读 playbook）；**recall 为空或太泛时，立即用关键词（题型/协议名/引导头字样）直接检索工程 `skills\learned\*.json`——历史经验卡在文件里而不在 lessons 库，同赛事同类题常在此直接命中全参数**；已有相似解答路径时直接套用并验证，不从零开始。
+2. **知识预热（先查再动手）**：`recall --category <题型> --query "<信号词>"`（信号词 = 魔数/协议名/关键文件名/技术名词，按信号相关度排序命中案例卡）+ 读相关 `references/`（信号类先读 playbook）；**案例卡带证据指针（source 指向写库原文），需要细节时下钻读原文，不要凭卡面臆测**；recall 为空或太泛时，用关键词直接检索工程 `skills\learned\*.json`；已有相似解答路径时直接套用并验证，不从零开始。
 3. **定位工程 + Python**（见"前置"）。
 4. **运行解题**：
    ```powershell
@@ -48,7 +48,8 @@ create_source: super-agent-skill-creator
 |---|---|
 | 解一道题 | `solve <题目目录> [--mode] [--brain]` |
 | 从一篇题解学技术/检查点（自动解析题型/信号/失败路径/标签，卡片版本化不覆盖） | `learn-writeup <writeup.md> --name <题名>` |
-| 检索某题型历史经验（仅含带证据的 writeup 经验，空壳自动记录不进） | `recall --category <crypto/web/reverse/misc/...>` |
+| 从写库批量重建案例知识库（四种格式解析→cases.jsonl + 经验入库，幂等） | `rebuild-knowledge <writeups目录> [--dry-run]` |
+| 检索经验（按题面信号相关度排序，--query 传信号词） | `recall --category <crypto/...> [--query "<信号词>"]` |
 | 查固化候选（哪些技术被反复取用/反复成功，频次来自轨迹库） | `fixations --min 3` |
 | 看整体统计 | `stats` |
 | 验证引擎可用（用独立记忆库，不污染生产经验） | `selftest` |
@@ -57,6 +58,7 @@ create_source: super-agent-skill-creator
 
 - **通道选择**：编码链/凯撒/XOR/解压类 → `--mode fast`（秒级，`auto` 同类）。fast 未解出 → 进入模型探索通道（"补位分析"节），可选先让 `--mode deep --brain mock` 策略梯跑一轮再接手。
 - **无 LLM 后端**：skill 与引擎均不依赖 LLM 服务；`--brain mock` 即纯离线确定性。模型探索由你直接完成，不必调用任何外部模型。
+- **案例记忆**：`skills/knowledge/cases.jsonl`（由 `rebuild-knowledge` 生成）在深通道按题面信号相关度自动注入 top-3 案例卡（含证据指针）；写库更新后重跑 `rebuild-knowledge`（幂等，不产生重复经验）。
 - **比赛专属 flag**：用 `--flag-regex '<正则>'` 追加匹配，或改 `config.json` 的 `flag_patterns`。
 - **flag 来源门控**：`config.json` 的 `flagcheck.require_derived`（默认 true）——与原始题目文件逐字相同的 flag 视为 raw-echo，不入库、不计成功；题目自带 flag 文件/示例 flag 不会被误记为技术经验。遇到“答案就藏在文件里”的题可临时改 false，但经验不落库。
 - **合规边界（务必告知用户）**：沙箱**默认离线**，网络命令一律拒绝（保证 clean solve）；pwn/交互服务题只产出 exp 源码与偏移计算；web/osint 只产出 payload 清单，不发包。
@@ -83,7 +85,7 @@ create_source: super-agent-skill-creator
 
 ## 快通道固化跃迁（RSI 第二环，自主触发）
 
-**触发条件（不等用户提醒）**：`recall` 反复取用同一技术；trace 中同类 detector 反复 miss；补位分析发现"这是可判定的确定性特征"。命中即评估固化——把经验从"知识"编译为快通道"代码资产"，让常规题回到零思考成本的确定性路径。候选类目（魔数表扩展、ZIP 伪加密修复、PNG 宽高 CRC 校验、编码特征识别、零宽字符检测、尾部数据截取、CRC 爆破）与六步 SOP 见 `references/ctfpilot-rsi.md`。
+**触发条件（不等用户提醒）**：`fixations --min 3` 列出的技术（hits+successes 达标，频次读数来自轨迹库，不靠记忆）；trace 中同类 detector 反复 miss；补位分析发现"这是可判定的确定性特征"。命中即评估固化——把经验从"知识"编译为快通道"代码资产"，让常规题回到零思考成本的确定性路径。候选类目（魔数表扩展、ZIP 伪加密修复、PNG 宽高 CRC 校验、编码特征识别、零宽字符检测、尾部数据截取、CRC 爆破）与六步 SOP 见 `references/ctfpilot-rsi.md`。
 
 固化纪律：写"特征检测条件 + 确定性判定逻辑"规格 → 纯标准库实现（临时依赖装 `.temp`）→ 回归验证（原题重放解出同一 flag、负样本不误报）→ `selftest` 全过 → 收益写回 writeup（版本化，旧记录不删）。像素级操作（LSB 等）纯标准库不划算，走深通道或 `.temp` 依赖。
 

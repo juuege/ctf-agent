@@ -172,11 +172,12 @@ def do_learn_writeup(args, cfg):
     f_ = parsed.get("fields", {})
     tags = parsed.get("tags", {})
     evidence = " | ".join(filter(None, [
-        ("信号: " + f_["题面特征"]) if f_.get("题面特征") else "",
+        ("信号: " + f_["识别信号"]) if f_.get("识别信号") else "",
         ("坑: " + tags["陷阱类型"]) if tags.get("陷阱类型") else "",
         ("迁移: " + tags["可迁移模式"]) if tags.get("可迁移模式") else "",
-        ("失败: " + f_["失败路径"]) if f_.get("失败路径") else "",
+        ("失败: " + f_["失败原因"]) if f_.get("失败原因") else "",
         ("限制: " + f_["适用限制"]) if f_.get("适用限制") else "",
+        ("链: " + f_["核心技术链"])[:200] if f_.get("核心技术链") else "",
     ]))
     if not evidence:
         # writeups without template fields still carry their step outline so
@@ -199,8 +200,16 @@ def do_learn_writeup(args, cfg):
 def do_recall(args, cfg):
     store = get_stores(cfg)
     cat = args.category or "misc"
-    lessons = store.recall_lessons(cat, 20)
-    print("== lessons for %s ==" % cat)
+    qtokens = None
+    if getattr(args, "query", None):
+        try:
+            from knowledge import tokenize
+            qtokens = tokenize(args.query)
+        except ImportError:
+            pass
+    lessons = store.recall_lessons(cat, 20, query_tokens=qtokens)
+    print("== lessons for %s%s ==" %
+          (cat, (" (query: %s)" % args.query) if getattr(args, "query", None) else ""))
     if not lessons:
         print("  (no writeup-quality lessons yet; bare auto solve records are "
               "excluded from recall -- count them with `fixations`)")
@@ -216,6 +225,36 @@ def do_recall(args, cfg):
     print("== recent challenges ==")
     for r in rows:
         print("- [%s] %-4s %-30s solved=%s" % (r[0], r[2], r[1], bool(r[3])))
+    return 0
+
+
+def do_rebuild_knowledge(args, cfg):
+    """SOTA ingestion: writeups -> case cards (cases.jsonl) + lesson upsert.
+    Idempotent: stable case ids mean re-runs refresh instead of duplicating."""
+    from knowledge import build_cases, save_cases, rebuild_lessons
+    src = os.path.abspath(args.dir)
+    if not os.path.isdir(src):
+        log("[error] not a directory: %s" % src)
+        return 2
+    cases = build_cases(src)
+    cats = {}
+    for c in cases:
+        cats[c["category"]] = cats.get(c["category"], 0) + 1
+    rich = sum(1 for c in cases if c.get("signals"))
+    log("[knowledge] cases=%d solved=%d with-signals=%d (%.0f%%)" %
+        (len(cases), sum(1 for c in cases if c.get("solved")), rich,
+         100.0 * rich / max(1, len(cases))))
+    log("[knowledge] categories: %s" %
+        ", ".join("%s=%d" % kv for kv in sorted(cats.items())))
+    if args.dry_run:
+        log("[knowledge] dry run, nothing written")
+        return 0
+    out = path_under_project(os.path.join("skills", "knowledge"))
+    paths = save_cases(cases, out)
+    log("[knowledge] wrote %s" % ", ".join(os.path.basename(p) for p in paths))
+    store = get_stores(cfg)
+    n = rebuild_lessons(store, cases)
+    log("[knowledge] lessons upserted: %d (recall now signal-scored)" % n)
     return 0
 
 
@@ -294,6 +333,11 @@ def main():
 
     p = sub.add_parser("recall")
     p.add_argument("--category")
+    p.add_argument("--query", help="signal keywords, e.g. 'NTRU lattice LLL'")
+
+    p = sub.add_parser("rebuild-knowledge")
+    p.add_argument("dir", help="writeups directory (repo ctfpilot/writeups)")
+    p.add_argument("--dry-run", action="store_true")
 
     p = sub.add_parser("fixations")
     p.add_argument("--min", type=int, default=3)
@@ -309,6 +353,8 @@ def main():
         sys.exit(do_learn_writeup(args, cfg))
     elif args.cmd == "recall":
         sys.exit(do_recall(args, cfg))
+    elif args.cmd == "rebuild-knowledge":
+        sys.exit(do_rebuild_knowledge(args, cfg))
     elif args.cmd == "fixations":
         sys.exit(do_fixations(args, cfg))
     elif args.cmd == "stats":
