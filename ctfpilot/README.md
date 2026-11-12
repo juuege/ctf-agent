@@ -19,6 +19,10 @@ ctfpilot/
 ├── skill/ctfpilot/             TeleAgent Skill
 │   ├── SKILL.md                工作流与决策点
 │   └── references/             CLI / RSI / 检索 / 信号 playbook
+├── dsh-plugin/                 DSH（deepseek-harness）插件
+│   ├── lib/index.js            ctfpilot 工具（进程桥接引擎）
+│   ├── locale/                 中英文元信息
+│   └── test/smoke.mjs          注册面 + 真实引擎端到端测试
 ├── writeups/                   题解复盘（按日期归档）
 ├── CTFPilot-技能看板.html      单文件状态看板
 ├── 一键打包CTFPilot.bat        标准包一键打包
@@ -54,6 +58,20 @@ cd CTFPilot-v0.1
 
 双击 `一键打包CTFPilot.bat`：脚本会自动定位 `skill/ctfpilot`、`CTFPilot-v0.1` 与看板，生成带时间戳的 ZIP，内含 `manifest.json`（逐文件 SHA256）与 `打包说明.txt`。默认排除 `__pycache__`、轨迹库与 `challs_incoming` 题目原始数据。
 
+## DSH 插件
+
+[`dsh-plugin/`](dsh-plugin/) 把引擎接入 DeepSeek 的 DSH（deepseek-harness）运行时：一个模型可见的 `ctfpilot` 工具，暴露 solve / recall / learn-writeup / stats / selftest / fixations 六个子命令，进程桥接本地引擎，零 LLM 依赖、离线运行。
+
+挂载（patch overlay 示例）：
+
+```yaml
+- insert:
+    - id: ctfpilot
+      name: '/abs/path/to/ctf-agent/ctfpilot/dsh-plugin/lib/index.js'
+```
+
+详见 [`dsh-plugin/README.md`](dsh-plugin/README.md)。
+
 ## 题解复盘
 
 [`writeups/`](writeups/) 按日期归档 2026-11-10 至 2026-11-12 的 121 篇复盘：解出 78 篇、部分 8 篇、未解 33 篇、跳过 2 篇。
@@ -68,6 +86,7 @@ cd CTFPilot-v0.1
 - 2026-11-11 实测数信杯 BB.q1.iq：引擎 5.1s 未解出，模型补位 BPSK/Viterbi 解出并入库，recall 闭环命中。
 - 快通道新增 PNG LSB 多通道扫描、`flag:...:` 冒号格式与诱饵 flag 过滤。
 - 新增 2026-11-12 批次 77 篇复盘与对应技能卡，`skills/learned/` 持续增厚。
+- 新增 `dsh-plugin/`：DSH 插件（ctfpilot 工具），真实 dsh 0.2.1-rc.3 挂载验证通过。
 
 ## 安全边界
 

@@ -9,7 +9,8 @@ ctf-agent/
 ├── .gitignore
 ├── README.md
 └── ctfpilot/                   CTFPilot 双通道 CTF 解题智能体
-    └── writeups/               题解复盘（2026-11，121 篇）
+    ├── writeups/               题解复盘（2026-11，121 篇）
+    └── dsh-plugin/             DSH（deepseek-harness）插件：ctfpilot 工具
 ```
 
 ## Projects
@@ -22,6 +23,7 @@ ctf-agent/
 - 状态看板：`ctfpilot/CTFPilot-技能看板.html`
 - 一键打包：`ctfpilot/一键打包CTFPilot.bat`
 - 题解复盘：`ctfpilot/writeups/`
+- DSH 插件：`ctfpilot/dsh-plugin/`（DeepSeek harness 的 ctfpilot 工具）
 - 使用说明：[`ctfpilot/README.md`](ctfpilot/README.md)
 
 ## Usage
