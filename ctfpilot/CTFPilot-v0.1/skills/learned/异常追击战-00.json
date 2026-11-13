@@ -1,0 +1,7 @@
+{
+  "name": "异常追击战",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup '异常追击战'",
+  "commands": []
+}

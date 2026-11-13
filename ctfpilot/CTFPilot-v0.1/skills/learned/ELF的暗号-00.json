@@ -1,0 +1,7 @@
+{
+  "name": "ELF的暗号",
+  "category": "pwn",
+  "technique": "ROP / ret2* chain",
+  "when_to_use": "challenge looks like pwn; recall from writeup 'ELF的暗号'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "liuliangdiyu-jksn2025final",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'liuliangdiyu-jksn2025final'",
+  "commands": []
+}

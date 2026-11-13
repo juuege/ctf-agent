@@ -1,0 +1,7 @@
+{
+  "name": "Forensics-C2-NCO2026",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'Forensics-C2-NCO2026'",
+  "commands": []
+}

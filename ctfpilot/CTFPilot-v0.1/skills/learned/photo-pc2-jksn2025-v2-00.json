@@ -1,0 +1,7 @@
+{
+  "name": "photo-pc2-jksn2025-v2",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'photo-pc2-jksn2025-v2'",
+  "commands": []
+}

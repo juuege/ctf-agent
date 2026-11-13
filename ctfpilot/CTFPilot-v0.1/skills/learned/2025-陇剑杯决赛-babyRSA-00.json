@@ -1,0 +1,7 @@
+{
+  "name": "2025-陇剑杯决赛-babyRSA",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup '2025-陇剑杯决赛-babyRSA'",
+  "commands": []
+}

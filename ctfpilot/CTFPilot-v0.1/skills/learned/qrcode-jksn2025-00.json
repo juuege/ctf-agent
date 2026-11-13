@@ -1,0 +1,11 @@
+{
+  "name": "qrcode-jksn2025",
+  "category": "misc",
+  "technique": "QR image decode (cv2) + multi-layer URL jump chain unwrap (redirectToUrl->base64 jumpTo)",
+  "when_to_use": "challenge file is PNG/JPG containing a QR code, or phishing-link analysis asking for the final redirect domain",
+  "commands": [
+    "probe .temp/qrlibs first (cv2+numpy preinstalled from ddd-chb2024); sys.path.insert(0,'.temp/qrlibs'); import cv2",
+    "cv2.QRCodeDetector().detectAndDecode(cv2.imread(path,cv2.IMREAD_GRAYSCALE)) -> raw URL",
+    "urllib.parse.urlparse+parse_qs unwrap redirectToUrl; base64-decode innermost jump/goto param -> final phishing URL; netloc is the answer"
+  ]
+}

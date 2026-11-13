@@ -1,0 +1,10 @@
+{
+  "name": "混淆的秘密-jksn2025final",
+  "category": "misc",
+  "technique": "PHP webshell 静态反混淆（变量名混淆拼装函数名 + base64/strrev + gzinflate 逐字节减 1，纯 Python 仿真不执行）",
+  "when_to_use": "challenge looks like misc; recall from writeup '混淆的秘密-jksn2025final'",
+  "commands": [
+    "raw = zlib.decompress(base64.b64decode(blob1), -15)",
+    "out = ''.join(chr((c - 1) & 0xFF) for c in raw)"
+  ]
+}

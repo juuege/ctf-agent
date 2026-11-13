@@ -1,0 +1,7 @@
+{
+  "name": "drift_oracle-LanqiaoCup2026",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'drift_oracle-LanqiaoCup2026'",
+  "commands": []
+}

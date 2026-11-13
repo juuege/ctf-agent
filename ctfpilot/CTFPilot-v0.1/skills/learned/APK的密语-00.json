@@ -1,0 +1,7 @@
+{
+  "name": "APK的密语",
+  "category": "reverse",
+  "technique": "APK 当 zip 解包；最小 dex 优先全量 dump 字符串池（key/URL/类名一次拿全）；\"加密请求\"叙事 ≠ flag 以密文形态存储，加密只发生",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'APK的密语'",
+  "commands": []
+}

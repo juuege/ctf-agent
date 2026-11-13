@@ -1,0 +1,7 @@
+{
+  "name": "veil_gate-LanqiaoCup2026quals",
+  "category": "reverse",
+  "technique": "MIPS/ELF static disassembly (capstone, section/symbol walk)",
+  "when_to_use": "challenge looks like reverse; recall from writeup 'veil_gate-LanqiaoCup2026quals'",
+  "commands": []
+}

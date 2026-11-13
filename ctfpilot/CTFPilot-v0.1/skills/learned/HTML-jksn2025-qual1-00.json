@@ -1,0 +1,7 @@
+{
+  "name": "HTML-jksn2025-qual1",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'HTML-jksn2025-qual1'",
+  "commands": []
+}

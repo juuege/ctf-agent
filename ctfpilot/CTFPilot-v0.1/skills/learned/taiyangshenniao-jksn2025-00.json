@@ -1,0 +1,7 @@
+{
+  "name": "taiyangshenniao-jksn2025",
+  "category": "misc",
+  "technique": "\"一半的XX\"题面=PNG IHDR 高/宽砍半的固定信号；恢复公式 L=h*(1+4*bpp/8) 整除关系+IHDR CRC 32 位校验枚举 w，纯标准库",
+  "when_to_use": "challenge looks like misc; recall from writeup 'taiyangshenniao-jksn2025'",
+  "commands": []
+}

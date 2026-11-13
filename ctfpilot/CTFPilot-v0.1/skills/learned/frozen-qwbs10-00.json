@@ -1,0 +1,7 @@
+{
+  "name": "frozen-qwbs10",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'frozen-qwbs10'",
+  "commands": []
+}

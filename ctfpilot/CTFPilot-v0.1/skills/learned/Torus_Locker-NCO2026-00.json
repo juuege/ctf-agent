@@ -1,0 +1,7 @@
+{
+  "name": "Torus_Locker-NCO2026",
+  "category": "crypto",
+  "technique": "smooth-order DLP via Pohlig-Hellman + CRT",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'Torus_Locker-NCO2026'",
+  "commands": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "ipquna-jksn2025-zx",
+  "category": "misc",
+  "technique": "grep `\\d+\\.\\d+\\.\\d+\\.\\d+|urlArray|bakurl|apiurl` 于 ≤200KB 业务 JS（跳过 chunk-vendors",
+  "when_to_use": "challenge looks like misc; recall from writeup 'ipquna-jksn2025-zx'",
+  "commands": []
+}

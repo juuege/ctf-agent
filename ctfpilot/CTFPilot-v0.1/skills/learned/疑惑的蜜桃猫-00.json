@@ -1,0 +1,15 @@
+{
+  "name": "疑惑的蜜桃猫",
+  "category": "misc",
+  "technique": "PNG IEND 尾部附加 RAR5 识别 + bsdtar 解包；ZIP 伪加密本地头/中央目录 flags bit0 双层清除",
+  "when_to_use": "challenge looks like misc; recall from writeup '疑惑的蜜桃猫'",
+  "commands": [
+    "tar -tf _tail.rar",
+    "tar -xf _tail.rar -C _rar",
+    "python - <<'PY'",
+    "d = bytearray(open('flag.exe','rb').read()); i = d.find(b'PK\\x03\\x04'); z = d[i:]",
+    "lf = struct.unpack('<H', z[6:8])[0]; z[6:8] = struct.pack('<H', lf & ~1)",
+    "cc = z.find(b'PK\\x01\\x02'); cf = struct.unpack('<H', z[cc+8:cc+10])[0]; z[cc+8:cc+10] = struct.pack('<H', cf & ~1)",
+    "PY"
+  ]
+}

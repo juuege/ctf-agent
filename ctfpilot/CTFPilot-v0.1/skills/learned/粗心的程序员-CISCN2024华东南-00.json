@@ -1,0 +1,9 @@
+{
+  "name": "粗心的程序员-CISCN2024华东南",
+  "category": "web",
+  "technique": "PHP 日志注入写 config.php（username + X-Forwarded-For 落盘）+ \\r 绕过 \\n 过滤 → 直接请求 config.p",
+  "when_to_use": "challenge looks like web; recall from writeup '粗心的程序员-CISCN2024华东南'",
+  "commands": [
+    "& $py -X utf8 .\\ctfpilot.py solve <题目目录> --mode auto --write-trace"
+  ]
+}

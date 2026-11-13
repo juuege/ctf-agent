@@ -1,0 +1,7 @@
+{
+  "name": "web-download-jksn2025",
+  "category": "web",
+  "technique": "web methodology",
+  "when_to_use": "challenge looks like web; recall from writeup 'web-download-jksn2025'",
+  "commands": []
+}

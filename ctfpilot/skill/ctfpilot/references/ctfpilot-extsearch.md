@@ -34,6 +34,15 @@ for it in data["items"]:
 
 paper-search 脚本路径：`<paper-search 技能目录>/scripts/search_papers.py`（用法见该技能 SKILL.md；纯标准库，三源自动重试降级）。
 
+### 3.1 API 额度耗尽/网页不通时的仓库浏览降级（2026-11-11 实测）
+
+- 先查额度：`GET https://api.github.com/rate_limit`（额度为 0 时仍返回 `remaining/reset`，不消耗 core）。
+- 列仓库文件+大小（不占 GitHub 额度）：`https://data.jsdelivr.com/v1/packages/gh/<owner>/<repo>@<branch>?structure=flat`，读 `files[].name/size`；超大仓库可能 403。
+- 下载单文件：`https://cdn.jsdelivr.net/gh/<owner>/<repo>@<branch>/<path>`（路径按 URL 编码）。
+- 整仓 zip 探活：`HEAD https://codeload.github.com/<owner>/<repo>/zip/refs/heads/main`（200 即可下，通常无 Content-Length）。
+- 注意：`github.com` 网页与 `releases.atom` 本机可能超时，`raw.githubusercontent.com` 不通；Releases 附件可用 `github.com/<owner>/<repo>/releases/download/...` 直链尝试。
+- 实测：API 0/60 时用 jsdelivr 在 10 秒内列完 8 个候选仓库并定位附件，可替代 API contents。
+
 ## 4. 自我进化对标关键词组（按需取用，英文检索质量最佳）
 
 | 主题 | 检索词 |

@@ -1,0 +1,7 @@
+{
+  "name": "Cookie迷雾-jksn2025final",
+  "category": "web",
+  "technique": "insecure deserialization",
+  "when_to_use": "challenge looks like web; recall from writeup 'Cookie迷雾-jksn2025final'",
+  "commands": []
+}

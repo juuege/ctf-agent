@@ -1,0 +1,7 @@
+{
+  "name": "ip-jksn2025",
+  "category": "misc",
+  "technique": "IP 统计题先按 /24 前缀分组再逐组查库，查询量从 100 降到 7；组内抽 2 个不同尾缀复核一致即可代表全组；归属判定用 ≥3 个独立库交叉验证（ipw",
+  "when_to_use": "challenge looks like misc; recall from writeup 'ip-jksn2025'",
+  "commands": []
+}

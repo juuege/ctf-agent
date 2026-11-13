@@ -1,0 +1,7 @@
+{
+  "name": "碎片的秘密",
+  "category": "misc",
+  "technique": "QR decode and partial-QR quadrant stitching",
+  "when_to_use": "challenge looks like misc; recall from writeup '碎片的秘密'",
+  "commands": []
+}

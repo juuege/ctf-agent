@@ -1,0 +1,7 @@
+{
+  "name": "pcapng-jksn2025",
+  "category": "misc",
+  "technique": "流量题第一步先 raw 正则扫 flag 再谈协议重组；自洽校验=服务端 200 响应体与上传正文逐字节一致且 Content-Length:33 = len(",
+  "when_to_use": "challenge looks like misc; recall from writeup 'pcapng-jksn2025'",
+  "commands": []
+}

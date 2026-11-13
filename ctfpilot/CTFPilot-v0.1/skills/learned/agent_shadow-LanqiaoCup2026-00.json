@@ -1,0 +1,7 @@
+{
+  "name": "agent_shadow-LanqiaoCup2026",
+  "category": "web",
+  "technique": "交互样本逐条对照工具路由与 reply 文案，从 policy_block 文案反推放行条件（plan 数组含 approval 字样），从 plan 步骤与缓",
+  "when_to_use": "challenge looks like web; recall from writeup 'agent_shadow-LanqiaoCup2026'",
+  "commands": []
+}

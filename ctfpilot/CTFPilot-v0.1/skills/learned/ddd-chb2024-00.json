@@ -1,0 +1,7 @@
+{
+  "name": "ddd-chb2024",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'ddd-chb2024'",
+  "commands": []
+}

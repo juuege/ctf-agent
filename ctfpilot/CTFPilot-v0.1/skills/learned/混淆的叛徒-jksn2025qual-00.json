@@ -1,0 +1,7 @@
+{
+  "name": "混淆的叛徒-jksn2025qual",
+  "category": "web",
+  "technique": "route 只拦 http(s)（`**/*` 会误拦 file:// 主导航致 ERR_FAILED）；window 属性 setter+Proxy 钩子可直",
+  "when_to_use": "challenge looks like web; recall from writeup '混淆的叛徒-jksn2025qual'",
+  "commands": []
+}

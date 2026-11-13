@@ -1,0 +1,7 @@
+{
+  "name": "whoami-ccb2025final",
+  "category": "crypto",
+  "technique": "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'whoami-ccb2025final'",
+  "commands": []
+}

