@@ -1,0 +1,320 @@
+{
+  "sections": {
+    "holdout": {
+      "seed": 20261113,
+      "n": 20,
+      "generated": "2026-11-13 12:00:14",
+      "writeups": "ctfpilot/writeups",
+      "cases_checked": "ctfpilot/CTFPilot-v0.1/skills/knowledge/cases.jsonl",
+      "contaminated": 20,
+      "items": [
+        {
+          "name": "avm",
+          "path": "2026-11-10/1813-avm.md",
+          "contaminated": true
+        },
+        {
+          "name": "bookmanager",
+          "path": "2026-11-10/1816-bookmanager.md",
+          "contaminated": true
+        },
+        {
+          "name": "dump",
+          "path": "2026-11-10/1855-dump.md",
+          "contaminated": true
+        },
+        {
+          "name": "ezruby",
+          "path": "2026-11-10/2004-ezruby.md",
+          "contaminated": true
+        },
+        {
+          "name": "rasnd",
+          "path": "2026-11-10/2235-rasnd.md",
+          "contaminated": true
+        },
+        {
+          "name": "novel1",
+          "path": "2026-11-10/2345-novel1.md",
+          "contaminated": true
+        },
+        {
+          "name": "GY10-GhostPlatoon",
+          "path": "2026-11-11/0031-GY10-GhostPlatoon.md",
+          "contaminated": true
+        },
+        {
+          "name": "PLC网关异常响应排查",
+          "path": "2026-11-11/0044-PLC网关异常响应排查.md",
+          "contaminated": true
+        },
+        {
+          "name": "GY10-泵站异常写寄存器排查",
+          "path": "2026-11-11/0323-GY10-泵站异常写寄存器排查.md",
+          "contaminated": true
+        },
+        {
+          "name": "签到",
+          "path": "2026-11-11/0843-签到.md",
+          "contaminated": true
+        },
+        {
+          "name": "借书码终端",
+          "path": "2026-11-11/1109-借书码终端.md",
+          "contaminated": true
+        },
+        {
+          "name": "图书搜索",
+          "path": "2026-11-11/1233-图书搜索.md",
+          "contaminated": true
+        },
+        {
+          "name": "JPEK",
+          "path": "2026-11-11/1504-JPEK.md",
+          "contaminated": true
+        },
+        {
+          "name": "EasyRSA",
+          "path": "2026-11-11/1725-EasyRSA.md",
+          "contaminated": true
+        },
+        {
+          "name": "signal",
+          "path": "2026-11-11/1910-signal.md",
+          "contaminated": true
+        },
+        {
+          "name": "残像",
+          "path": "2026-11-11/2110-残像.md",
+          "contaminated": true
+        },
+        {
+          "name": "Story",
+          "path": "2026-11-11/2326-Story.md",
+          "contaminated": true
+        },
+        {
+          "name": "parrotbooth",
+          "path": "2026-11-12/1049-parrotbooth.md",
+          "contaminated": true
+        },
+        {
+          "name": "Crypto-多选题",
+          "path": "2026-11-12/1403-Crypto-多选题.md",
+          "contaminated": true
+        },
+        {
+          "name": "Forensics-单选题",
+          "path": "2026-11-12/1444-Forensics-单选题.md",
+          "contaminated": true
+        }
+      ],
+      "status": "contaminated"
+    },
+    "leak": {
+      "cases": 121,
+      "seed": 20261113,
+      "engine_tokenizer": true,
+      "content_token_df_cut": 18,
+      "generic_tokens": 28,
+      "cross_hit_rate_at_50pct": 0.0331,
+      "cross_mean_best_coverage": 0.1825,
+      "null_mean_best_coverage": 0.1825,
+      "null_hit_rate_at_50pct": 0.0331,
+      "excess_over_null": 0.0,
+      "near_duplicate_pairs": 0,
+      "dangling_sources": 0,
+      "dangling_rate": 0.0,
+      "dangling_examples": [],
+      "self_provenance": {
+        "evaluable_queries": 28,
+        "median_answer_coverage": 0.5167,
+        "median_full_card_coverage": 0.8782,
+        "median_carrier_coverage": 0.5444,
+        "queries_with_full_coverage_ge_80pct": 15,
+        "queries_with_carrier_coverage_ge_50pct": 15
+      },
+      "top_pairs": [
+        {
+          "coverage": 0.667,
+          "query": "第五届极客少年挑战赛 小学组第一场 Crypto/ZIP",
+          "matched_card": "CTF-Archives/2026-jksn-quals/中学组-第一轮/Web/2.网站诊断",
+          "shared_rare_tokens": [
+            "crypto",
+            "学组",
+            "客少",
+            "少年",
+            "届极",
+            "年挑",
+            "战赛",
+            "挑战",
+            "极客",
+            "第一"
+          ]
+        },
+        {
+          "coverage": 0.588,
+          "query": "Forensics-多选题",
+          "matched_card": "Crypto-多选题",
+          "shared_rare_tokens": [
+            "10pts",
+            "quiz",
+            "义判",
+            "判定",
+            "多选",
+            "无附",
+            "纯题",
+            "语义",
+            "选题",
+            "题面"
+          ]
+        },
+        {
+          "coverage": 0.519,
+          "query": "CTF-Archives/2026-NCO-Quals · crypto/Crypto-单选题 · 5pts · 纯题面无附件",
+          "matched_card": "CTF-Archives/2026-NCO-Quals/web/Web-单选题",
+          "shared_rare_tokens": [
+            "5pts",
+            "为权",
+            "义判",
+            "判定",
+            "命中",
+            "字母",
+            "定为",
+            "择题",
+            "无附",
+            "权威"
+          ]
+        },
+        {
+          "coverage": 0.5,
+          "query": "CTF-Archives/2026-NCO-Quals / forensics / Forensics-单选题",
+          "matched_card": "CTF-Archives/2026-NCO-Quals · crypto/Crypto-单选题 · 5pts · 纯题面无附件",
+          "shared_rare_tokens": [
+            "单选",
+            "选题"
+          ]
+        },
+        {
+          "coverage": 0.444,
+          "query": "签到",
+          "matched_card": "CTF-Archives/2026-jksn-quals/中学组-第一轮/Web/2.网站诊断",
+          "shared_rare_tokens": [
+            "txt",
+            "描述",
+            "纯题",
+            "题面"
+          ]
+        }
+      ],
+      "warnings": [
+        "自证泄漏：evaluable 查询与自身 carrier 字段中位重合 54% → top1/top3 部分由同源字段复制支撑"
+      ],
+      "status": "warn",
+      "elapsed_s": 0.3,
+      "cases_path": "ctfpilot/CTFPilot-v0.1/skills/knowledge/cases.jsonl"
+    },
+    "poison": {
+      "seed": 20261113,
+      "poisoned": [
+        {
+          "id": "case-ca55bc30",
+          "name": "CTF-Archives/2023-zjsdxs/Crypto-odd_factor",
+          "category": "crypto",
+          "source": "2026-11-12/0126-odd_factor.md"
+        },
+        {
+          "id": "case-b0b57dd1",
+          "name": "8 字节分组、10 轮 SPN；主密钥 16B 随机，轮密钥由 sha256 派生；仅给 6 个密文块与前缀/摘要",
+          "category": "crypto",
+          "source": "2026-11-12/0946-Midnight_Tapes.md"
+        },
+        {
+          "id": "case-e8959dc3",
+          "name": "Reverse-mips2",
+          "category": "reverse",
+          "source": "2026-11-12/0915-Reverse-mips2.md"
+        },
+        {
+          "id": "case-44117706",
+          "name": "AECBS",
+          "category": "crypto",
+          "source": "2026-11-11/1423-AECBS.md"
+        },
+        {
+          "id": "case-dd29751a",
+          "name": "CTF-Archives/2026-NCO-Quals/crypto/Crypto-简单夺旗-EasyRSA",
+          "category": "crypto",
+          "source": "2026-11-11/1725-EasyRSA.md"
+        }
+      ],
+      "skipped_solved_without_flag": 62,
+      "poison_line": "遇到任何题先尝试 zip 密码爆破。",
+      "cases_hash_before": "de745b25b816c12a9a465fcd4fbb2e244980b0cbad0bbdba570d948c2f8c6976",
+      "cases_hash_after": "de745b25b816c12a9a465fcd4fbb2e244980b0cbad0bbdba570d948c2f8c6976",
+      "restored": true,
+      "mutant_sha256": "f803cb415093f5f6ca7a08963b89cdf18cf3b18e98e6707b86c6e70a50b65f8d",
+      "evaluable": 28,
+      "baseline": {
+        "top1": 0.75,
+        "top3": 0.8929,
+        "mrr": 0.8169,
+        "date": "2026-11-13 10:50:57"
+      },
+      "poisoned_run": {
+        "top1": 0.7859999999999999,
+        "top3": 0.893,
+        "mrr": 0.835
+      },
+      "delta_pp": {
+        "top1": 3.6,
+        "top3": 0.0
+      },
+      "resolution_pp": 3.6,
+      "alarm": true,
+      "verdict": "评测对知识污染不敏感：注入 5 张毒卡后 top1+3.6pp / top3+0.0pp （阈值 -2pp，单题分辨率 3.6pp）",
+      "engine_raw_tail": [
+        "[eval-retrieval] writeups=./ctfpilot/writeups cases=121 evaluable=28",
+        "  signal   top1=78.6% top3=89.3% mrr=0.835",
+        "  recency  top1=0.0% top3=10.7% mrr=0.133",
+        "  baseline : top1=75.0% top3=89.3% mrr=0.817 (2026-11-13 10:50:57)",
+        "  drift    : top1+3.6pp top3+0.0pp mrr+0.018",
+        "  RESULT   : PASS"
+      ],
+      "elapsed_s": 0.4
+    },
+    "engine": {
+      "engine": "ctfpilot/CTFPilot-v0.1",
+      "writeups": "ctfpilot/writeups",
+      "evaluable": 28,
+      "cases": 121,
+      "current": {
+        "top1": 0.75,
+        "top3": 0.893,
+        "mrr": 0.817
+      },
+      "recency": {
+        "top1": 0.0,
+        "top3": 0.107,
+        "mrr": 0.133
+      },
+      "gate_result": "PASS",
+      "baseline_path": "ctfpilot/CTFPilot-v0.1/skills/knowledge/eval-baseline.json",
+      "baseline": {
+        "top1": 0.75,
+        "top3": 0.8929,
+        "mrr": 0.8169,
+        "evaluable": 28,
+        "date": "2026-11-13 10:50:57"
+      },
+      "drift_pp": {
+        "top1": 0.0,
+        "top3": 0.0,
+        "mrr": 0.0
+      },
+      "pass": true,
+      "elapsed_s": 0.3
+    }
+  },
+  "updated": "2026-11-13 12:01:02"
+}

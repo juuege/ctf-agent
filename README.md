@@ -11,6 +11,7 @@ ctf-agent/
 └── ctfpilot/                   CTFPilot 双通道 CTF 解题智能体
     ├── arena/                  消融基准：对抗时钟 + 4 变体 A/B 运行器
     ├── writeups/               题解复盘（2026-11，121 篇）
+    ├── lab/                    评测科学探针（泄漏/投毒/留出集，任务 6）
     └── dsh-plugin/             DSH（deepseek-harness）插件：ctfpilot 工具
 ```
 

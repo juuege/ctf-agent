@@ -1,0 +1,110 @@
+{
+  "seed": 20261113,
+  "n": 20,
+  "generated": "2026-11-13 12:00:14",
+  "writeups": "ctfpilot/writeups",
+  "cases_checked": "ctfpilot/CTFPilot-v0.1/skills/knowledge/cases.jsonl",
+  "contaminated": 20,
+  "items": [
+    {
+      "name": "avm",
+      "path": "2026-11-10/1813-avm.md",
+      "contaminated": true
+    },
+    {
+      "name": "bookmanager",
+      "path": "2026-11-10/1816-bookmanager.md",
+      "contaminated": true
+    },
+    {
+      "name": "dump",
+      "path": "2026-11-10/1855-dump.md",
+      "contaminated": true
+    },
+    {
+      "name": "ezruby",
+      "path": "2026-11-10/2004-ezruby.md",
+      "contaminated": true
+    },
+    {
+      "name": "rasnd",
+      "path": "2026-11-10/2235-rasnd.md",
+      "contaminated": true
+    },
+    {
+      "name": "novel1",
+      "path": "2026-11-10/2345-novel1.md",
+      "contaminated": true
+    },
+    {
+      "name": "GY10-GhostPlatoon",
+      "path": "2026-11-11/0031-GY10-GhostPlatoon.md",
+      "contaminated": true
+    },
+    {
+      "name": "PLC网关异常响应排查",
+      "path": "2026-11-11/0044-PLC网关异常响应排查.md",
+      "contaminated": true
+    },
+    {
+      "name": "GY10-泵站异常写寄存器排查",
+      "path": "2026-11-11/0323-GY10-泵站异常写寄存器排查.md",
+      "contaminated": true
+    },
+    {
+      "name": "签到",
+      "path": "2026-11-11/0843-签到.md",
+      "contaminated": true
+    },
+    {
+      "name": "借书码终端",
+      "path": "2026-11-11/1109-借书码终端.md",
+      "contaminated": true
+    },
+    {
+      "name": "图书搜索",
+      "path": "2026-11-11/1233-图书搜索.md",
+      "contaminated": true
+    },
+    {
+      "name": "JPEK",
+      "path": "2026-11-11/1504-JPEK.md",
+      "contaminated": true
+    },
+    {
+      "name": "EasyRSA",
+      "path": "2026-11-11/1725-EasyRSA.md",
+      "contaminated": true
+    },
+    {
+      "name": "signal",
+      "path": "2026-11-11/1910-signal.md",
+      "contaminated": true
+    },
+    {
+      "name": "残像",
+      "path": "2026-11-11/2110-残像.md",
+      "contaminated": true
+    },
+    {
+      "name": "Story",
+      "path": "2026-11-11/2326-Story.md",
+      "contaminated": true
+    },
+    {
+      "name": "parrotbooth",
+      "path": "2026-11-12/1049-parrotbooth.md",
+      "contaminated": true
+    },
+    {
+      "name": "Crypto-多选题",
+      "path": "2026-11-12/1403-Crypto-多选题.md",
+      "contaminated": true
+    },
+    {
+      "name": "Forensics-单选题",
+      "path": "2026-11-12/1444-Forensics-单选题.md",
+      "contaminated": true
+    }
+  ]
+}
