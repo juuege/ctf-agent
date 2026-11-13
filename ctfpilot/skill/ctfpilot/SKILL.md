@@ -49,6 +49,7 @@ create_source: super-agent-skill-creator
 | 解一道题 | `solve <题目目录> [--mode] [--brain]` |
 | 从一篇题解学技术/检查点（自动解析题型/信号/失败路径/标签，卡片版本化不覆盖） | `learn-writeup <writeup.md> --name <题名>` |
 | 从写库批量重建案例知识库（四种格式解析→cases.jsonl + 经验入库，幂等） | `rebuild-knowledge <writeups目录> [--dry-run]` |
+| 检索回归评测（改检索/卡片后必跑：top1/top3/MRR 与基线对比，降超 5pp 报 FAIL） | `eval-retrieval [--save-baseline]` |
 | 检索经验（按题面信号相关度排序，--query 传信号词） | `recall --category <crypto/...> [--query "<信号词>"]` |
 | 查固化候选（哪些技术被反复取用/反复成功，频次来自轨迹库） | `fixations --min 3` |
 | 看整体统计 | `stats` |

@@ -251,12 +251,66 @@ def do_rebuild_knowledge(args, cfg):
     if args.dry_run:
         log("[knowledge] dry run, nothing written")
         return 0
-    paths = save_cases(cases, out)
+    paths = save_cases(cases, out, extra_stats={"writeups_dir": src})
     log("[knowledge] wrote %s" % ", ".join(os.path.basename(p) for p in paths))
     store = get_stores(cfg)
     n = rebuild_lessons(store, cases)
     log("[knowledge] lessons upserted: %d (recall now signal-scored)" % n)
     return 0
+
+
+def do_eval_retrieval(args, cfg):
+    """Retrieval regression (固化留出评测): query = each writeup's 题面描述,
+    target = its own case card; compare against the saved baseline and fail
+    if top1/top3 regress beyond a 5pp tolerance. 先测试后上线."""
+    from knowledge import load_cases, eval_retrieval
+    skill_dir = path_under_project("skills")
+    cases = load_cases(skill_dir)
+    if not cases:
+        log("[error] no cases.jsonl -- run rebuild-knowledge first")
+        return 2
+    stats_path = path_under_project(os.path.join("skills", "knowledge", "stats.json"))
+    wdir = args.writeups
+    if not wdir and os.path.exists(stats_path):
+        with open(stats_path, "r", encoding="utf-8") as f:
+            wdir = json.load(f).get("writeups_dir")
+    if not wdir or not os.path.isdir(wdir):
+        log("[error] writeups dir not found -- pass it or rerun rebuild-knowledge")
+        return 2
+    res = eval_retrieval(cases, wdir)
+    log("[eval-retrieval] writeups=%s cases=%d evaluable=%d" %
+        (wdir, res["total"], res["evaluable"]))
+    for k in ("signal", "recency"):
+        m = res[k]
+        log("  %-8s top1=%.1f%% top3=%.1f%% mrr=%.3f" %
+            (k, m["top1"] * 100, m["top3"] * 100, m["mrr"]))
+    base_path = path_under_project(os.path.join("skills", "knowledge", "eval-baseline.json"))
+    ok = True
+    if os.path.exists(base_path):
+        with open(base_path, "r", encoding="utf-8") as f:
+            b = json.load(f)
+        s = res["signal"]
+        if b.get("evaluable") and abs(res["evaluable"] - b["evaluable"]) > 3:
+            log("  note     : evaluable set changed (%d vs %d) -- baseline comparison may shift" %
+                (res["evaluable"], b["evaluable"]))
+        ok = s["top1"] >= b["top1"] - 0.05 and s["top3"] >= b["top3"] - 0.05
+        log("  baseline : top1=%.1f%% top3=%.1f%% mrr=%.3f (%s)" %
+            (b["top1"] * 100, b["top3"] * 100, b["mrr"], b.get("date", "")))
+        log("  drift    : top1%+.1fpp top3%+.1fpp mrr%+.3f" %
+            ((s["top1"] - b["top1"]) * 100, (s["top3"] - b["top3"]) * 100,
+             s["mrr"] - b["mrr"]))
+        log("  RESULT   : %s" % ("PASS" if ok else "FAIL (retrieval regressed beyond 5pp tolerance)"))
+    else:
+        log("  (no baseline yet -- run with --save-baseline to set one)")
+    if args.save_baseline:
+        s = res["signal"]
+        with open(base_path, "w", encoding="utf-8") as f:
+            json.dump({"top1": s["top1"], "top3": s["top3"], "mrr": s["mrr"],
+                      "evaluable": res["evaluable"],
+                      "date": time.strftime("%Y-%m-%d %H:%M:%S")}, f,
+                     ensure_ascii=False, indent=2)
+        log("[eval-retrieval] baseline saved: %s" % base_path)
+    return 0 if ok else 1
 
 
 def do_fixations(args, cfg):
@@ -340,6 +394,11 @@ def main():
     p.add_argument("dir", help="writeups directory (repo ctfpilot/writeups)")
     p.add_argument("--dry-run", action="store_true")
 
+    p = sub.add_parser("eval-retrieval")
+    p.add_argument("writeups", nargs="?",
+                   help="writeups dir (default: dir used by last rebuild-knowledge)")
+    p.add_argument("--save-baseline", action="store_true")
+
     p = sub.add_parser("fixations")
     p.add_argument("--min", type=int, default=3)
 
@@ -356,6 +415,8 @@ def main():
         sys.exit(do_recall(args, cfg))
     elif args.cmd == "rebuild-knowledge":
         sys.exit(do_rebuild_knowledge(args, cfg))
+    elif args.cmd == "eval-retrieval":
+        sys.exit(do_eval_retrieval(args, cfg))
     elif args.cmd == "fixations":
         sys.exit(do_fixations(args, cfg))
     elif args.cmd == "stats":

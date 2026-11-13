@@ -15,6 +15,7 @@
 | `solve <题目目录>` | 解一道题 | `--mode auto/fast/deep`、`--brain auto/llm/mock`、`--name`、`--flag-regex`、`--write-trace` |
 | `learn-writeup <writeup.md> --name <题名>` | 从题解学习，生成技能卡+检查点+经验（自动解析模板字段：题型/识别信号/失败路径/标签等；卡片版本化不覆盖旧卡） | `--name` |
 | `rebuild-knowledge <writeups目录>` | 从写库批量重建案例知识库（四种格式解析→cases.jsonl+经验入库，幂等） | `--dry-run` |
+| `eval-retrieval [writeups]` | 检索回归评测（留出查询→top1/top3/MRR，与基线对比，降超 5pp 报 FAIL） | `--save-baseline` |
 | `recall --category <题型>` | 检索历史经验与最近挑战（按题面信号相关度排序；空壳自动记录不进，见 fixations） | `--category`、`--query "<信号词>"` |
 | `fixations [--min N]` | 列出 hits+successes ≥ N 的技术（固化环触发依据，频次来自轨迹库） | `--min`（默认 3） |
 | `stats` | 统计落库数据 | — |
@@ -59,7 +60,8 @@
 ## 案例知识库（rebuild-knowledge）
 
 - `rebuild-knowledge <writeups目录> [--dry-run]`：把写库批量解析为案例卡 `skills/knowledge/cases.jsonl`（每案含 题型/识别信号/核心技术链/陷阱/可迁移模式/失败原因/一得/证据指针）并 upsert 进经验库；支持四种写库格式：旧模板（- 题面特征: …）/ 冒号式（- 识别信号: …）/ 数字七维（1. 题型: …）/ 加粗｜分隔式（- **结果**：… ｜ **分类**：…，含 ## 样本特征 表格与 ## 尝试路径 段落）；幂等可重跑，写库更新后重跑一次。
-- `recall` 与深通道检索按题面信号相关度排序（词法重叠打分：识别信号+链+陷阱+可迁移+载体+尝试+区别+排除），`--query` 可显式传信号词；深通道上下文自动注入 top-3 案例卡（含证据指针与四条下钻触发规则：缺细节/失败来源/冲突/动作失败），**每 4 步或连败 2 次自动重检索**（查询并入当前假设与已排除路径）。重跑 `rebuild-knowledge` 时已精化字段（signals/distinct/excludes）按 case id 自动保留，不会被解析器覆盖。
+- `recall` 与深通道检索按题面信号相关度排序（词法重叠打分：识别信号+链+陷阱+可迁移+载体+尝试+区别+排除），`--query` 可显式传信号词；深通道上下文自动注入 top-3 案例卡（含证据指针与四条下钻触发规则：缺细节/失败来源/冲突/动作失败），**每 4 步或连败 2 次自动重检索**（查询并入当前假设与已排除路径）。重跑 `rebuild-knowledge` 时已精化字段（signals/distinct/excludes 等）按 case id 自动保留，不会被解析器覆盖。
+- **检索回归**：改动检索打分/卡片内容后先跑 `eval-retrieval`（无参数时用 rebuild 记录的写库目录），与 `eval-baseline.json` 对比；top1 或 top3 降超 5pp 返回非零（FAIL）。改完确认变好再用 `--save-baseline` 抬高基线。
 
 ## 边界与合规
 

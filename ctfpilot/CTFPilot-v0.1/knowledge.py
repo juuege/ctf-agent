@@ -23,7 +23,7 @@ CASE_TEXT_KEYS = ("name", "signals", "chain", "pitfalls",
                   "distinct", "excludes")
 REFINED_FIELDS = ("signals", "distinct", "excludes", "chain", "pitfalls",
                   "transferable", "variants", "failure", "gain", "limits",
-                  "carrier", "attempts")
+                  "carrier", "attempts", "category", "category_inferred")
 
 
 def tokenize(text):
@@ -80,6 +80,7 @@ def build_cases(writeups_dir):
                 "limits": parsed.get("limits", ""),
                 "carrier": parsed.get("carrier", ""),
                 "attempts": parsed.get("attempts", ""),
+                "category_inferred": bool(parsed.get("category_inferred")),
                 "source": rel,
                 "created": created,
             })
@@ -87,7 +88,7 @@ def build_cases(writeups_dir):
     return cases
 
 
-def save_cases(cases, out_dir):
+def save_cases(cases, out_dir, extra_stats=None):
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "cases.jsonl")
     with open(path, "w", encoding="utf-8") as f:
@@ -102,6 +103,7 @@ def save_cases(cases, out_dir):
         "with_failure": sum(1 for c in cases if c.get("failure")),
         "generated": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
+    stats.update(extra_stats or {})
     spath = os.path.join(out_dir, "stats.json")
     with open(spath, "w", encoding="utf-8") as f:
         json.dump(stats, f, ensure_ascii=False, indent=2)
@@ -152,6 +154,62 @@ def merge_refined(cases, existing_jsonl_path):
                 if o.get(k):
                     c[k] = o[k]
     return cases
+
+
+def _eval_query_text(path):
+    """Query = the writeup's own 题面 description: 题目 label/section + 附件/载体
+    lines. Deliberately excludes the writeup's answer-side fields (signals/chain)
+    so the eval measures 'new challenge description -> find the right case'."""
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        t = f.read()
+    parts = []
+    m = re.search(r"^[ \t]*(?:[-*•]\s*)?(?:\d+[.、)]\s*)?题目\s*[:：]\s*(.+)$", t, re.M)
+    if m:
+        parts.append(m.group(1))
+    m = re.search(r"^#{1,4}\s*题目\s*$\n(.+?)(?=\n#{1,4}\s|\Z)", t, re.M | re.S)
+    if m:
+        parts.append(" ".join(m.group(1).split()[:120]))
+    for m in re.finditer(r"^[ \t]*(?:[-*•]\s*)?(?:附件|载体(?:\s*/\s*格式)?)\s*[:：]\s*(.+)$", t, re.M):
+        parts.append(m.group(1))
+    return " ".join(parts)
+
+
+def eval_retrieval(cases, writeups_dir):
+    """Held-out retrieval regression (固化版留出评测):
+    for each case build a query from its own writeup's 题面 description (minus
+    the case name tokens), then rank within the target's recorded category pool
+    using the production scorer (token overlap over CASE_TEXT_KEYS, recency
+    tiebreak -- category bonus is constant within a pool). Returns metrics
+    for the production ranker ('signal') and a recency-only reference."""
+    qs = []
+    for c in cases:
+        p = os.path.join(writeups_dir, c["source"])
+        if not os.path.exists(p):
+            continue
+        q = tokenize(_eval_query_text(p)) - tokenize(c["name"])
+        if len(q) >= 6:
+            qs.append((c, q))
+    ranks = {"signal": [], "recency": []}
+    for target, q in qs:
+        pool = [c for c in cases if c.get("category") == target.get("category")]
+        if len(pool) < 2:
+            pool = cases
+        scored = sorted(((len(q & case_tokens(c)), -float(c.get("created") or 0), c["id"])
+                         for c in pool), key=lambda x: (-x[0], x[1]))
+        ranks["signal"].append(next(i for i, (_s, _t, cid) in enumerate(scored, 1)
+                                    if cid == target["id"]))
+        by_time = sorted(pool, key=lambda c: -float(c.get("created") or 0))
+        ranks["recency"].append(next(i for i, c in enumerate(by_time, 1)
+                                     if c["id"] == target["id"]))
+    out = {"evaluable": len(qs), "total": len(cases)}
+    for k, rr in ranks.items():
+        n = len(rr)
+        out[k] = {
+            "top1": round(sum(1 for r in rr if r == 1) / n, 4) if n else 0.0,
+            "top3": round(sum(1 for r in rr if r <= 3) / n, 4) if n else 0.0,
+            "mrr": round(sum(1.0 / r for r in rr) / n, 4) if n else 0.0,
+        }
+    return out
 
 
 def rank_cases(cases, category, query_tokens, top_k=3):

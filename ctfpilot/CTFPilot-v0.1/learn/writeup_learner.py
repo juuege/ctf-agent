@@ -159,6 +159,7 @@ def parse_writeup(text):
     title = fields.get("题目", "")
     name = re.split(r"[（(]", title)[0].strip() if title else ""
     category = None
+    category_inferred = False
     if fields.get("题型"):
         first = re.split(r"[/／,，\s]+", fields["题型"])[0].strip().lower()
         category = CAT_MAP.get(first)
@@ -172,6 +173,9 @@ def parse_writeup(text):
         if pm:
             category = CAT_MAP.get(pm.group(1).lower())
     if category is None:
+        # fallback: keyword vote / text guess -- flag it so the audit and
+        # recall consumers know this category was inferred, not stated.
+        category_inferred = True
         if techniques:
             cats = {}
             for cat, _n in techniques:
@@ -215,7 +219,8 @@ def parse_writeup(text):
             "gain": fields.get("一得", ""),
             "notes": fields.get("题解要点", ""),
             "attempts": fields.get("尝试路径", ""),
-            "title": title, "name": name, "solved": solved, "flag_value": flagv}
+            "title": title, "name": name, "solved": solved, "flag_value": flagv,
+            "category_inferred": category_inferred}
 
 
 def _next_version(out_dir, safe):
