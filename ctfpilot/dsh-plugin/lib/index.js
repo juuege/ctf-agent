@@ -19,7 +19,7 @@ const inject = ['tools']
 //#endregion
 
 //#region command mapping
-const COMMANDS = ['solve', 'recall', 'learn-writeup', 'stats', 'selftest', 'fixations']
+const COMMANDS = ['solve', 'recall', 'learn-writeup', 'rebuild-knowledge', 'eval-retrieval', 'stats', 'selftest', 'fixations', 'dashboard']
 
 function buildArgs(args) {
   switch (args.command) {
@@ -30,12 +30,22 @@ function buildArgs(args) {
       if (args.flag_regex) argv.push('--flag-regex', args.flag_regex)
       return argv
     }
-    case 'recall':
-      return ['recall', ...(args.category ? ['--category', args.category] : [])]
+    case 'recall': {
+      const argv = ['recall']
+      if (args.category) argv.push('--category', args.category)
+      if (args.query) argv.push('--query', args.query)
+      return argv
+    }
     case 'learn-writeup':
       return ['learn-writeup', args.writeup, ...(args.name ? ['--name', args.name] : [])]
+    case 'rebuild-knowledge':
+      return ['rebuild-knowledge', args.writeups_dir, ...(args.dry_run ? ['--dry-run'] : [])]
+    case 'eval-retrieval':
+      return ['eval-retrieval', ...(args.writeups_dir ? [args.writeups_dir] : []), ...(args.save_baseline ? ['--save-baseline'] : [])]
     case 'fixations':
       return ['fixations', ...(typeof args.min === 'number' ? ['--min', String(args.min)] : [])]
+    case 'dashboard':
+      return ['dashboard', ...(args.out_html ? ['--out', args.out_html] : [])]
     default:
       return [args.command]
   }
@@ -80,17 +90,153 @@ const PYTHON_CANDIDATES = () => {
 const RESULT_LINE = /^\[result\]\s+(SOLVED|NOT SOLVED)(?:\s+in\s+([0-9.]+)s)?/m
 const FLAG_LINE = /\[result\]\s+FLAG:\s*(\S+)/
 
+// ---------- structured timeline extraction ----------
+// Engine log format:
+//   [triage] scanning <dir>
+//   [triage] category=<cat> confidence=<N.NN>
+//      [<cat>] <evidence>
+//   [fast] running offline detectors...
+//   <detector>: <detail> -> flag{...}        (or just: <detail>)
+//   [deep] entering hypothesis loop...
+//   [deep] step N: <strategy>
+//   <action> -> <err_class> | <head_text>
+//   [deep] FLAG FOUND at step N via <strategy>
+
+const TRIAGE_LINE = /\[triage\]\s+category=(\w+)\s+confidence=([\d.]+)/
+// Machine-readable summary emitted by the engine after every solve:
+//   [meta] {"category":"crypto","confidence":0.87,"evidence":[...],
+//           "steps":[{"phase":"fast","name":"base64","detail":"...","success":false}, ...]}
+const META_LINE = /^\[meta\]\s+(\{.*\})\s*$/m
+
+/**
+ * Parse steps from the engine's machine-readable [meta] line.
+ * Falls back to None so the caller can degrade gracefully.
+ */
+function parseMetaSteps(metaJson) {
+  try {
+    const m = JSON.parse(metaJson)
+    const steps = Array.isArray(m.steps) ? m.steps : []
+    return {
+      category: typeof m.category === 'string' ? m.category : '',
+      confidence: typeof m.confidence === 'number' ? m.confidence : 0,
+      evidence: Array.isArray(m.evidence) ? m.evidence.map(t => String(t)) : [],
+      steps: steps.map(s => ({
+        phase: String(s.phase || ''),
+        name: String(s.name || ''),
+        detail: String(s.detail || ''),
+        success: !!s.success,
+        step: 0,
+        result: s.success ? 'success' : 'failed',
+        error_class: '',
+      })),
+    }
+  } catch {
+    return null
+  }
+}
+const EVIDENCE_LINE = /^   \[([\w-]+)\] (.+)$/
+const FAST_DETECTOR_LINE = /^(\S+):\s*(.+?)(?:\s*->\s*(flag\{[^}]+\}|FLAG:\S+))?\s*$/
+const DEEP_STEP_LINE = /\[deep\]\s+step\s+(\d+):\s*(.+)$/
+const DEEP_FOUND_LINE = /\[deep\]\s+FLAG FOUND at step (\d+) via (.+)$/
+
+/**
+ * Parse the full engine stdout into a structured result object.
+ *
+ * Extracts:
+ *  - triage: category, confidence, evidence[]
+ *  - fastPath: per-detector attempt results
+ *  - deepLoop: per-step strategy + outcome
+ *  - overall: solved, flag, elapsed
+ */
 function parseEngineResult(stdout) {
-  // flag/elapsed default to '' (single-type schema; dsh registry rejects type arrays)
-  const result = { command: null, solved: false, flag: '', elapsed: '', summary: '', output: String(stdout || '') }
-  const m = RESULT_LINE.exec(result.output)
+  const output = String(stdout || '')
+  const result = {
+    command: null, solved: false, flag: '', elapsed: '',
+    summary: '', output,
+    // NEW: structured metadata for UI consumption
+    category: '',
+    confidence: 0,
+    evidence: [],
+    steps: [],       // timeline of every phase/detector/step
+  }
+
+  // --- preferred source: engine's machine-readable [meta] line ---
+  const mm = META_LINE.exec(output)
+  if (mm) {
+    const parsed = parseMetaSteps(mm[1])
+    if (parsed) {
+      result.category = parsed.category
+      result.confidence = parsed.confidence
+      result.evidence = parsed.evidence
+      result.steps = parsed.steps
+    }
+  } else {
+    // --- fallback: regex over the human-readable log ---
+    const tm = TRIAGE_LINE.exec(output)
+    if (tm) {
+      result.category = tm[1]
+      result.confidence = parseFloat(tm[2])
+    }
+
+    const lines = output.split('\n')
+    let inEvidence = false
+    for (const line of lines) {
+      if (line.startsWith('[triage]')) { inEvidence = true; continue }
+      if (line.startsWith('[')) { inEvidence = false; continue }
+      if (inEvidence) {
+        const em = EVIDENCE_LINE.exec(line)
+        if (em) result.evidence.push({ tag: em[1], text: em[2] })
+      }
+    }
+
+    const fastSection = output.split('[deep]')[0]
+    const fastLines = fastSection.split('\n').filter(l => l && !l.startsWith('[') && !l.startsWith('   ') && !l.startsWith('=='))
+    for (const fl of fastLines) {
+      const fm = FAST_DETECTOR_LINE.exec(fl)
+      if (!fm) continue
+      const found = fm[2] ? (fm[0].includes('->') && fm[0].includes('flag')) : false
+      const flagMatch = /(flag\{[^}]+\}|FLAG:\S+)/i.exec(fm[0])
+      result.steps.push({
+        phase: 'fast', name: fm[1], detail: fm[2],
+        success: !!found, flag: flagMatch ? flagMatch[1].replace(/^FLAG:\s*/, '') : '',
+        time: '',
+      })
+    }
+
+    let currentStep = null
+    for (const dl of output.split('\n')) {
+      const dsm = DEEP_STEP_LINE.exec(dl)
+      if (dsm) {
+        currentStep = { phase: 'deep', step: parseInt(dsm[1]), strategy: dsm[2], result: 'pending' }
+        result.steps.push(currentStep)
+        continue
+      }
+      const dfm = DEEP_FOUND_LINE.exec(dl)
+      if (dfm && currentStep) {
+        currentStep.result = 'solved'
+        currentStep.success = true
+        break
+      }
+      if (currentStep && dl.trim() && !dl.startsWith('[')) {
+        if (/->\s*(timeout|nonzero-exit|empty-output|sandbox-reject|no-result)/.test(dl)) {
+          currentStep.result = 'failed'
+          currentStep.errorClass = dl.match(/->\s*(\w[\w-]*)/)?.[1] || ''
+        }
+      }
+    }
+  }
+
+  // --- final result ---
+  const m = RESULT_LINE.exec(output)
   if (m) {
     result.solved = m[1] === 'SOLVED'
     result.elapsed = m[2] ?? ''
   }
-  const f = FLAG_LINE.exec(result.output)
+  const f = FLAG_LINE.exec(output)
   if (f) result.flag = f[1]
-  const last = result.output.trimEnd().split('\n').filter(Boolean).slice(-1)[0]
+  // Summary = last *meaningful* line; skip machine-readable [meta] lines.
+  const last = output.trimEnd().split('\n').filter(Boolean)
+    .reverse().find(l => !l.startsWith('[meta]')) || ''
   result.summary = last ? last.slice(0, 300) : ''
   return result
 }
@@ -146,20 +292,38 @@ function runEngine(argv, { python, engineDir, timeoutMs, maxOutputChars, signal 
 function toolDescription() {
   return [
     'Run the local CTFPilot engine for CTF challenges (authorized competitions / local practice only).',
-    'Fast deterministic path solves encoding chains, Caesar, XOR, gzip/zip unpacking and PNG LSB stego in seconds with zero LLM calls; if it misses, read its attempts output and continue yourself.',
-    'Commands: solve <challenge_dir> (auto routes fast then deep; --mode fast for known-trivial encodings, deep for strategy ladder, default auto; write_trace saves a replayable trace json),',
-    'recall (query past experience checkpoints by category before attacking a new challenge), learn-writeup <file> (ingest a solve writeup into checkpoints/skill cards after finishing a challenge),',
-    'stats (global bookkeeping), selftest (verify the engine install, 6 smoke challenges), fixations (list repeatedly-used techniques worth hard-coding next).',
-    'Typical loop: recall -> solve --mode auto --write_trace -> if NOT SOLVED, analyze the engine output yourself -> learn-writeup when a path works. Prefer recall before deep diving; solve before re-implementing base64/caesar/xor/zip logic by hand.',
+    'Fast deterministic path solves encoding chains, Caesar, XOR, gzip/zip unpacking and PNG LSB stego in seconds with zero LLM calls; the deep channel injects top-3 relevant case cards (signal-scored) and re-retrieves every 4 steps / 2 failures; flags identical to original challenge files are rejected as raw-echo and do not count.',
+    'Commands: solve <challenge_dir> (auto routes fast then deep; --mode fast for known-trivial encodings; write_trace saves a replayable trace json on success AND failure),',
+    'recall [--category] [--query <signal keywords>] (query past experience, ranked by signal relevance — pass magic numbers / protocol names / technique names e.g. "NTRU lattice LLL"; case cards carry evidence pointers: drill down into the writeup source when a card lacks detail, its source is a failed case, two cards conflict, or the previous action failed),',
+    'learn-writeup <file> (ingest a writeup into versioned skill cards + checkpoints; parses template fields, tags, and failure paths),',
+    'rebuild-knowledge <writeups_dir> (batch rebuild the case-card knowledge base from a directory of writeups — 4-format parser, idempotent, safe to rerun after adding writeups),',
+    'eval-retrieval [writeups_dir] (retrieval regression gate — MANDATORY after changing retrieval/cards: top1/top3/MRR vs baseline, FAIL when drifting beyond 5pp; --save-baseline stores a new baseline after intentional improvements),',
+    'stats (global bookkeeping), selftest (verify the engine install, isolated memory), fixations --min N (techniques repeatedly used/succeeded — hard-coding candidates, frequency from the trajectory store),',
+    'dashboard (generate interactive HTML dashboard from SQLite trajectory data — open in browser)',
+    'Typical loop: recall --category <cat> --query <signals> -> solve --mode auto --write-trace -> if NOT SOLVED, analyze value.steps/value.output and continue yourself -> learn-writeup when a path works -> rebuild-knowledge after adding writeups. Prefer recall before deep diving; solve before re-implementing base64/caesar/xor/zip logic by hand.',
   ].join(' ')
 }
 
 function renderResult(value) {
   switch (value.command) {
     case 'solve':
-      return value.solved
-        ? `SOLVED in ${value.elapsed || '?'}s — ${value.flag || '(flag not printed)'}`
-        : `NOT SOLVED${value.elapsed ? ` in ${value.elapsed}s` : ''} — engine had no deterministic path; check value.output attempts, then analyze yourself (recall first for similar solved cases)`
+      if (value.solved) {
+        return `SOLVED in ${value.elapsed || '?'}s — ${value.flag || '(flag not printed)'}`
+      }
+      const fastN = value.steps?.filter(s => s.phase === 'fast').length || 0
+      const deepN = value.steps?.filter(s => s.phase !== 'fast').length || 0
+      const hint = value.steps?.length > 0
+        ? `${value.steps.length} 步尝试（fast=${fastN}, deep=${deepN}）`
+        : '引擎无确定性路径'
+      return `NOT SOLVED${value.elapsed ? ` in ${value.elapsed}s` : ''} — ${hint}。检查 value.output 中的 attempts，或自己继续分析（先 recall 同题型经验）`
+    case 'eval-retrieval': {
+      const pass = /RESULT\s*:\s*PASS/.test(value.output || '')
+      const m = /signal\s+top1=([\d.]+%?) top3=([\d.]+%?)/.exec(value.output || '')
+      const scores = m ? `top1=${m[1]} top3=${m[2]}` : 'no scores parsed'
+      return pass
+        ? `eval-retrieval PASS — ${scores}（检索质量在基线容差内）`
+        : `eval-retrieval FAIL — ${scores}。检索回归超容差：见 value.output 的 drift 细节；属意外回退需查检索/卡片变更，故意改进后可 --save-baseline 更新基线`
+    }
     default:
       return `${value.command} ok — see value.output`
   }
@@ -169,6 +333,7 @@ function commandWireName(args) {
   switch (args.command) {
     case 'solve': return `ctfpilot solve ${args.challenge ?? ''} ${args.mode ? '(' + args.mode + ')' : ''}`.trim()
     case 'learn-writeup': return `ctfpilot learn-writeup ${args.writeup ?? ''}`
+    case 'rebuild-knowledge': return `ctfpilot rebuild-knowledge ${args.writeups_dir ?? ''}${args.dry_run ? ' (dry-run)' : ''}`.trim()
     default: return `ctfpilot ${args.command}`
   }
 }
@@ -189,12 +354,17 @@ function registerCtfpilot(ctx, config = {}) {
       command: { type: 'string', required: true, description: 'Engine subcommand.' },
       challenge: { type: 'string', description: 'solve: challenge directory (absolute path).' },
       mode: { type: 'string', description: 'solve: engine mode. fast = deterministic detectors only; deep = strategy ladder; auto = fast then deep. Default auto.' },
-      write_trace: { type: 'boolean', description: 'solve: write _ctfpilot_trace.json for replay/retro. Default false.' },
+      write_trace: { type: 'boolean', description: 'solve: write _ctfpilot_trace.json for replay/retro (written on success AND failure). Default false.' },
       flag_regex: { type: 'string', description: 'solve: extra flag pattern for non-flag{} formats.' },
       category: { type: 'string', description: 'recall: category filter (crypto|web|reverse|misc|forensics|pwn|osint).' },
+      query: { type: 'string', description: 'recall: signal keywords (magic numbers / protocol names / key filenames / technique names) that rank case cards by relevance, e.g. "NTRU lattice LLL" or "pcap Modbus".' },
       writeup: { type: 'string', description: 'learn-writeup: path to the markdown writeup file.' },
       name: { type: 'string', description: 'learn-writeup: challenge name used for the stored card.' },
+      writeups_dir: { type: 'string', description: 'rebuild-knowledge / eval-retrieval: directory of writeup markdown files (e.g. the ctf-20min output dir).' },
+      dry_run: { type: 'boolean', description: 'rebuild-knowledge: parse and report without writing anything. Default false.' },
+      save_baseline: { type: 'boolean', description: 'eval-retrieval: store current scores as the new baseline (after intentional improvements). Default false.' },
       min: { type: 'number', description: 'fixations: minimum hit count filter. Default from engine.' },
+      out_html: { type: 'string', description: 'dashboard: output HTML file path (default: CTFPilot-看板.html in engineDir)' },
     },
     output: {
       schema: {
@@ -206,6 +376,25 @@ function registerCtfpilot(ctx, config = {}) {
           elapsed: { type: 'string' },
           summary: { type: 'string' },
           output: { type: 'string' },
+          category: { type: 'string' },
+          confidence: { type: 'number' },
+          evidence_count: { type: 'number' },
+          steps: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                phase: { type: 'string' },
+                name: { type: 'string' },
+                detail: { type: 'string' },
+                success: { type: 'boolean' },
+                step: { type: 'number' },
+                strategy: { type: 'string' },
+                result: { type: 'string' },
+                error_class: { type: 'string' },
+              },
+            },
+          },
         },
       },
       render: (_args, value) => [{ type: 'text', text: renderResult(value) }],
@@ -219,6 +408,9 @@ function registerCtfpilot(ctx, config = {}) {
       }
       if (args.command === 'learn-writeup' && !args.writeup) {
         throw new Error('learn-writeup requires `writeup`: path to the markdown writeup file')
+      }
+      if (args.command === 'rebuild-knowledge' && !args.writeups_dir) {
+        throw new Error('rebuild-knowledge requires `writeups_dir`: directory containing writeup markdown files')
       }
       const engineDir = resolveEngine(cfg.engineDir)
       const python = cfg.python || resolvePython(engineDir)
@@ -235,7 +427,9 @@ function registerCtfpilot(ctx, config = {}) {
       value.output = truncate(value.output, cfg.maxOutputChars)
       // Engine prints its own errors distinctly; non-zero exit without a
       // [result] line means infrastructure failure (bad path, missing python pkg).
-      if (code !== 0 && !RESULT_LINE.test(stdout)) {
+      // Exception: eval-retrieval reports a domain-level regression FAIL with
+      // exit 1 — that is a normal value, not an infrastructure error.
+      if (code !== 0 && !RESULT_LINE.test(stdout) && !/^\[eval-retrieval\]/m.test(stdout)) {
         throw new Error(`engine exited ${code}: ${truncate(stderr || stdout || '(no output)', 500)}`)
       }
       return value
@@ -244,10 +438,29 @@ function registerCtfpilot(ctx, config = {}) {
       return { card: 'terminal', title: commandWireName(args), description: 'CTFPilot engine (local, offline)' }
     },
     presentResult(args, { isError, content }) {
+      const value = typeof content === 'object' ? content : {}
+      // Build a readable process timeline for the UI card.
+      // Phases from the engine [meta] line: fast / deep-pre / exec / plan.
+      const PHASE_LABEL = { fast: '快通道', 'deep-pre': '深预检', exec: '深执行', plan: '规划', deep: '深通道' }
+      const timeline = (value.steps || []).map(s => {
+        const label = PHASE_LABEL[s.phase] || s.phase || '?'
+        if (s.phase === 'fast' || s.phase === 'deep-pre') {
+          const icon = s.success ? '[✓]' : '[ ]'
+          return `${icon} ${label}/${s.name}: ${(s.detail || '').slice(0, 120)}`
+        }
+        // exec / plan / deep steps
+        const icon = s.result === 'success' || s.result === 'solved' ? '[✓]'
+          : s.result === 'failed' ? '[!]' : '[·]'
+        return `${icon} ${label}/${s.step ? 'step' + s.step + ' ' : ''}${s.strategy || s.name}: ${s.error_class || s.result || '...'}`
+      }).filter(Boolean).join('\n')
+
+      const extra = timeline ? `\n\n── 过程时间线 ──\n${timeline}` : ''
+      const base = typeof content === 'string' ? content : JSON.stringify(content, null, 0)
+      const rawOutput = base.slice(0, 4000) + extra
       return {
         card: 'terminal',
         title: commandWireName(args),
-        rawOutput: typeof content === 'string' ? content : '',
+        rawOutput,
         exit: { code: isError ? 1 : 0 },
       }
     },
