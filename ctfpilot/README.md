@@ -23,6 +23,7 @@ ctfpilot/
 │   ├── lib/index.js            ctfpilot 工具（进程桥接引擎）
 │   ├── locale/                 中英文元信息
 │   └── test/smoke.mjs          注册面 + 真实引擎端到端测试
+├── arena/                      消融基准（对抗时钟 + 4 变体 A/B 运行器）
 ├── writeups/                   题解复盘（按日期归档）
 ├── CTFPilot-技能看板.html      单文件状态看板
 ├── 一键打包CTFPilot.bat        标准包一键打包
