@@ -2,6 +2,8 @@
 
 Usage (run with the project python, UTF-8 mode):
   python -X utf8 ctfpilot.py solve <challenge_dir> [--mode auto|fast|deep] [--brain auto|llm|mock]
+                                         [--benchmark] [--json]
+  python -X utf8 ctfpilot.py bench-pull --pool <pool_dir> --dest <dest_dir> [--tag <tag>]
   python -X utf8 ctfpilot.py learn-writeup <writeup.md> --name <name>
   python -X utf8 ctfpilot.py recall --category crypto
   python -X utf8 ctfpilot.py stats
@@ -12,6 +14,8 @@ Usage (run with the project python, UTF-8 mode):
 import argparse
 import json
 import os
+import random
+import shutil
 import sys
 import time
 
@@ -83,10 +87,16 @@ def do_solve(args, cfg):
             return False
         log("[flagcheck] raw-echo: flag appears verbatim in original file %s;"
             " not counting as a derived solve" % src)
+        # DB retraction: previously only the in-memory attempt list was fixed;
+        # the stored row kept success=1, so the failure profile credited a
+        # cheat echo. Taxonomy v2: retractions persist as semantic:raw-echo.
+        retracted = store.retract_attempts_by_flag(cid, f)
+        if retracted:
+            log("[flagcheck] retracted %d crediting attempt(s) in db" % retracted)
         store.log_attempt(cid, "verify", "provenance", "raw-echo in %s" % src,
-                          False, f, error_class="raw-echo")
+                          False, f, error_class="semantic:raw-echo")
         attempts.append(Attempt("provenance", "raw-echo in %s" % src, False))
-        provenance.update(status="raw-echo", raw_file=src)
+        provenance.update(status="raw-echo", raw_file=src, retracted=retracted)
         # retract the echoing attempt so the auto-lesson/trace do not credit it
         for a in attempts:
             if a.flag == f:
@@ -108,7 +118,8 @@ def do_solve(args, cfg):
         flag, deep_attempts = run_deep_loop(name, chall_dir, routing,
                                             routing["files"], checker,
                                             sandbox, llm, store, cid, cfg, log,
-                                            brain=args.brain)
+                                            brain=args.brain,
+                                            benchmark=bool(getattr(args, "benchmark", False)))
         attempts.extend(deep_attempts)
         if flag and _reject_raw_echo(flag):
             flag = None
@@ -155,7 +166,31 @@ def do_solve(args, cfg):
         ],
     }
     log("[meta] %s" % json.dumps(meta, ensure_ascii=False))
-    return 0 if flag else 1
+    rc = 0 if flag else 1
+    # Benchmark/unattended output. The two flags are orthogonal; both print
+    # AFTER every other log line ([meta] included) so a runner can tail the
+    # stream. Return-code semantics stay untouched: 0=solved 1=not-solved
+    # 2=bad args.
+    if getattr(args, "benchmark", False):
+        log("[benchmark] name=%s solved=%s flag=%s time=%.2f attempts=%d" %
+            (name, "true" if flag else "false", flag if flag else "-", dt,
+             len(attempts)))
+    if getattr(args, "json", False):
+        result_path = os.path.join(chall_dir, "_ctfpilot_result.json")
+        payload = {
+            "name": name,
+            "category": routing["category"],
+            "solved": bool(flag),
+            "flag": flag or "",
+            "time_seconds": round(dt, 3),
+            "attempts": len(attempts),
+            "mode": args.mode,
+            "provenance": provenance,
+        }
+        with open(result_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        log("[json] %s" % result_path)
+    return rc
 
 
 def _dump_trace(path, name, routing, attempts, flag, provenance=None):
@@ -169,6 +204,54 @@ def _dump_trace(path, name, routing, attempts, flag, provenance=None):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(trace, f, ensure_ascii=False, indent=2)
     log("[trace] wrote %s" % path)
+
+
+def do_bench_pull(args, cfg):
+    """Benchmark source pull: randomly pick a pool challenge that is not yet
+    under dest (dedup by subdirectory name), copy it over minus engine
+    artifacts (__pycache__ / _ctfpilot* / .temp), and keep a cumulative
+    ledger. Powers the unattended benchmark loop; return 3 when the pool is
+    exhausted so a runner can distinguish it from a hard failure."""
+    pool = os.path.abspath(args.pool)
+    dest = os.path.abspath(args.dest)
+    if not os.path.isdir(pool):
+        log("[error] pool not a directory: %s" % pool)
+        return 2
+    os.makedirs(dest, exist_ok=True)
+    pool_names = sorted(d for d in os.listdir(pool)
+                        if os.path.isdir(os.path.join(pool, d)))
+    used = set(d for d in os.listdir(dest)
+               if os.path.isdir(os.path.join(dest, d)))
+    fresh = [c for c in pool_names if c not in used]
+    if not fresh:
+        log("[bench-pull] pool exhausted")
+        return 3
+    pick = random.choice(fresh)
+    target = os.path.join(dest, pick)
+    shutil.copytree(os.path.join(pool, pick), target,
+                    ignore=shutil.ignore_patterns("__pycache__", "_ctfpilot*",
+                                                  ".temp"))
+    remaining = sum(1 for c in pool_names
+                    if not os.path.isdir(os.path.join(dest, c)))
+    ledger_path = os.path.join(dest, "_bench_ledger.json")
+    ledger = {"pulled": 0, "remaining": remaining, "history": [], "tag": ""}
+    try:
+        with open(ledger_path, "r", encoding="utf-8") as f:
+            saved = json.load(f)
+        if isinstance(saved, dict):
+            ledger.update(saved)
+    except (OSError, ValueError):
+        pass
+    ledger["pulled"] = int(ledger.get("pulled", 0)) + 1
+    ledger["history"] = (list(ledger.get("history", [])) + [pick])[-200:]
+    ledger["tag"] = args.tag or ""
+    ledger["remaining"] = remaining
+    with open(ledger_path, "w", encoding="utf-8") as f:
+        json.dump(ledger, f, ensure_ascii=False, indent=2)
+    log("[bench-pull] chall=%s" % target)
+    log("[bench-pull] ledger pulled=%d remaining=%d tag=%s" %
+        (ledger["pulled"], ledger["remaining"], ledger["tag"] or "-"))
+    return 0
 
 
 def do_learn_writeup(args, cfg):
@@ -967,6 +1050,20 @@ def main():
     p.add_argument("--name")
     p.add_argument("--flag-regex")
     p.add_argument("--write-trace", action="store_true")
+    p.add_argument("--benchmark", action="store_true",
+                   help="unattended mode: no user interaction; print a "
+                        "machine-parsable [benchmark] result line")
+    p.add_argument("--json", action="store_true",
+                   help="write _ctfpilot_result.json into the challenge dir "
+                        "and print [json] <abs path>")
+
+    p = sub.add_parser("bench-pull")
+    p.add_argument("--pool", required=True,
+                   help="challenge pool dir (one challenge per subdir)")
+    p.add_argument("--dest", required=True,
+                   help="destination dir (pulled challenges + ledger land here)")
+    p.add_argument("--tag", default="",
+                   help="batch tag recorded in the ledger")
 
     p = sub.add_parser("learn-writeup")
     p.add_argument("file")
@@ -1009,6 +1106,8 @@ def main():
     cfg = load_config()
     if args.cmd == "solve":
         sys.exit(do_solve(args, cfg))
+    elif args.cmd == "bench-pull":
+        sys.exit(do_bench_pull(args, cfg))
     elif args.cmd == "learn-writeup":
         sys.exit(do_learn_writeup(args, cfg))
     elif args.cmd == "recall":

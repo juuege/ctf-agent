@@ -85,6 +85,19 @@ class TrajStore:
              (evidence or "")[:8000]))
         self.conn.commit()
 
+    def retract_attempts_by_flag(self, cid, flag):
+        """Provenance retraction (raw-echo gate): mark rows that credited
+        `flag` as failed so the failure profile / detector stats are not
+        polluted by cheat echoes. Returns the number of retracted rows."""
+        if not flag:
+            return 0
+        cur = self.conn.execute(
+            "UPDATE attempts SET success=0, flag='', error_class='semantic:raw-echo', "
+            "detail=detail||' [retracted:raw-echo]' "
+            "WHERE challenge_id=? AND flag=? AND success=1", (cid, flag))
+        self.conn.commit()
+        return cur.rowcount
+
     # ---------- lessons ----------
     @staticmethod
     def _lesson_key(when_to_use):
@@ -223,9 +236,21 @@ class TrajStore:
         return [{"phase": r[0], "detector": r[1], "detail": r[2], "success": bool(r[3])}
                 for r in rows]
 
+    def error_breakdown(self):
+        """Failure profile for `stats`: attempts grouped by the v2 error
+        taxonomy (exec:* / semantic:*), successes kept separate so a class
+        with many successes (e.g. exec:ok misses) is not confused with
+        failure modes."""
+        rows = self.conn.execute(
+            "SELECT error_class, COUNT(*), SUM(success) FROM attempts "
+            "WHERE error_class<>'' GROUP BY error_class ORDER BY COUNT(*) DESC"
+        ).fetchall()
+        return {r[0]: {"count": r[1], "success": r[2] or 0} for r in rows}
+
     def stats(self):
         ch = self.conn.execute("SELECT COUNT(*), SUM(solved) FROM challenges").fetchone()
         at = self.conn.execute("SELECT COUNT(*) FROM attempts").fetchone()
         ls = self.conn.execute("SELECT COUNT(*) FROM lessons").fetchone()
         return {"challenges": ch[0] or 0, "solved": ch[1] or 0,
-                "attempts": at[0] or 0, "lessons": ls[0] or 0}
+                "attempts": at[0] or 0, "lessons": ls[0] or 0,
+                "error_breakdown": self.error_breakdown()}

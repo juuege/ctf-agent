@@ -12,7 +12,8 @@
 
 | 命令 | 用途 | 关键参数 |
 |---|---|---|
-| `solve <题目目录>` | 解一道题 | `--mode auto/fast/deep`、`--brain auto/llm/mock`、`--name`、`--flag-regex`、`--write-trace` |
+| `solve <题目目录>` | 解一道题 | `--mode auto/fast/deep`、`--brain auto/llm/mock`、`--name`、`--flag-regex`、`--write-trace`、`--benchmark`、`--json` |
+| `bench-pull --pool <题目池> --dest <落题目录>` | 无人值守题源拉取：随机抽一道未出现在 dest 的题（子目录名判重）复制过去，排除 `__pycache__`/`_ctfpilot*`/`.temp`，更新 `_bench_ledger.json`（pulled/剩余/历史≤200/tag）；池空返回码 3 | `--pool`、`--dest`、`--tag` |
 | `learn-writeup <writeup.md> --name <题名>` | 从题解学习，生成技能卡+检查点+经验（自动解析模板字段：题型/识别信号/失败路径/标签等；卡片版本化不覆盖旧卡） | `--name` |
 | `rebuild-knowledge <writeups目录>` | 从写库批量重建案例知识库（四种格式解析→cases.jsonl+经验入库，幂等） | `--dry-run` |
 | `eval-retrieval [writeups]` | 检索回归评测（留出查询→top1/top3/MRR，与基线对比，降超 5pp 报 FAIL） | `--save-baseline` |
@@ -31,12 +32,15 @@
   - `mock`：离线确定性策略梯（按题型的策略表），无需任何 LLM。
 - `--flag-regex <正则>`：追加一个自定义 flag 匹配正则（比赛专属格式）。
 - `--write-trace`：解完后在题目目录写 `_ctfpilot_trace.json`（含题型、flag、provenance、全部尝试轨迹）。**成功与未解出都会写**，失败 trace 是归因复盘的主要原料。
+- `--benchmark`：无人值守模式（与 `--json` 正交）。深通道 planner 上下文注入“无人值守：不要输出任何需要用户交互的动作（看图改用脚本化证据，如 OCR/像素统计，失败则跳过）”；结束时在所有日志之后打印一行机器可解析结果：`[benchmark] name=<题名> solved=<true/false> flag=<flag|-> time=<秒> attempts=<次数>`。
+- `--json`：解完在题目目录写 `_ctfpilot_result.json`（name/category/solved/flag/time_seconds/attempts/mode/provenance），stdout 末行打印 `[json] <绝对路径>`。返回码语义不变。
 
 ### 返回码
 
 - `0`：解出 flag（或学习/检索成功）。
 - `1`：`solve` 未解出；`selftest` 有未通过项。
 - `2`：参数错误（目录不存在等）。
+- `3`：`bench-pull` 题池耗尽（题都已在 dest 中）。
 
 ## 返回/日志解析
 
@@ -47,6 +51,9 @@
   - `[triage] category=<题型> confidence=<概率>` → 题型判定。
   - `[fast]` / `[deep]` 前缀 → 走的通道。
   - `[llm] probe <后端> -> down/up` → LLM 后端探测结果（全 down 时自动 mock）。
+  - `[benchmark] name=... solved=... flag=... time=... attempts=...` → `solve --benchmark` 的机器可解析结果行（在所有日志之后）。
+  - `[json] <绝对路径>` → `--json` 的结果文件路径（stdout 末行）。
+  - `[bench-pull] chall=<路径>` / `[bench-pull] ledger pulled=N remaining=M tag=...` → 抽题去向与台账；`[bench-pull] pool exhausted` → 池空（返回码 3）。
 - `--write-trace` 生成 `_ctfpilot_trace.json`，含每步尝试的 `detector/detail/success/flag`，适合需要轨迹留痕时使用。
 
 ## 题型判断速查（route 输出）

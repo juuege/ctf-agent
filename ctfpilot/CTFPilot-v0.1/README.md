@@ -94,10 +94,12 @@ core/                     router(题型路由) sandbox(离线沙箱) flagcheck l
 fastpath/detectors.py     快通道全部确定性检测器
 deep/planner.py           可选 LLM 动作 + 离线 mock 策略梯
 deep/loop.py              慢通道主循环（上下文分段+错误分类+纠错）
-memory/trajstore.py       SQLite 轨迹库/经验/检查点（recall 供规划器检索）
+deep/error_tax.py         双层错误分类 exec:*/semantic:*（挂机/重复劳动/过早放弃/raw-echo，stats 出失败画像）
+memory/trajstore.py       SQLite 轨迹库/经验/检查点（recall 供规划器检索；按 flag 撤回 raw-echo 记账）
 learn/writeup_learner.py  题解解析 -> 技能卡 + 检查点
 skills/*.md               七类技能卡（可被 writeup 学习持续增厚）
 tests/challs/             6 道冒烟题（selftest 用）
+tests/test_error_tax.py   错误分类单测（python -X utf8 tests/test_error_tax.py）
 ```
 
 ## 合规与安全

@@ -9,23 +9,12 @@ trace lives in SQLite, not in the prompt.
 from core.sandbox import SandboxViolation
 from fastpath.detectors import Attempt
 from fastpath import detectors as fp
-
-
-def classify_error(result):
-    """Map an execution result to an error class for the trajectory store."""
-    if result is None:
-        return "no-result"
-    if result.get("rc") == -1 and "TIMEOUT" in result.get("stderr", ""):
-        return "timeout"
-    if result.get("rc") != 0:
-        return "nonzero-exit"
-    if not result.get("stdout", "").strip():
-        return "empty-output"
-    return "ok"
+from deep.error_tax import (classify_exec as classify_error, fingerprint,
+                            action_key as _action_key, final_class, giveup_class)
 
 
 def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
-                  llm, store, cid, cfg, log, brain="auto"):
+                  llm, store, cid, cfg, log, brain="auto", benchmark=False):
     """Returns (flag or None, attempts)."""
     attempts = []
     budget = cfg.get("budget", {})
@@ -59,6 +48,11 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
 
     tried = []
     fails_in_row = 0
+    # Semantic-layer state (error taxonomy v2): observation fingerprints and
+    # action-source keys already seen in THIS challenge, so repeat work /
+    # ladder cycling / sleeping become visible in the failure profile.
+    seen_fps = set()
+    seen_action_keys = set()
     for step in range(max_steps):
         tried_summary = "\n".join("- %s" % t for t in tried[-12:]) or "(nothing)"
         # JIT re-retrieval (JitSkill zero-training approximation): refresh
@@ -76,6 +70,16 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
                 pass
         context = planner.build_context(chall_name, routing, tried_summary,
                                         lessons, "flag{...} style")
+        if benchmark:
+            # Unattended loop (solve --benchmark): a human is never on the
+            # other side. Planner asks ("user looks at the image") would hang
+            # the run, so they degrade to scripted evidence or are skipped.
+            context += ("\nUNATTENDED BENCHMARK MODE: no user is present. Do "
+                        "not output any action that requires user "
+                        "interaction. Instead of asking the user to look at "
+                        "an image, produce scripted evidence (e.g. OCR-like "
+                        "heuristics, pixel statistics); if that fails, skip "
+                        "the step and continue.\n")
         action, err = planner.next_action(brain, routing["category"], routing,
                                           step, sandbox, files, chall_dir,
                                           context, llm, llm_budget)
@@ -83,6 +87,19 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
             log("[deep] step %d: planner gave no action (%s)" % (step, err))
             attempts.append(Attempt("planner", err, False))
             store.log_attempt(cid, "plan", "planner", err, False, error_class="planner-empty")
+            break
+
+        # Explicit giveup handling. v0.1 crash: a giveup action has no "cmd",
+        # so the exec branch below did action["cmd"] -> KeyError -> the whole
+        # solve crashed with a traceback. Now it exits cleanly with a
+        # budget-aware class (premature vs honest surrender).
+        if action.get("action") == "giveup":
+            reason = (action.get("reason") or "").strip()[:300]
+            ec = giveup_class(step, max_steps)
+            log("[deep] step %d: giveup (%s): %s" % (step, ec, reason))
+            attempts.append(Attempt("planner", "giveup: %s" % reason, False))
+            store.log_attempt(cid, "plan", "planner", "giveup: %s" % reason,
+                              False, error_class=ec, evidence=reason)
             break
 
         strategy = action.get("_strategy") or action.get("_brain", "llm") + "-action"
@@ -110,13 +127,27 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
         err_class = classify_error(result)
         out_text = result.get("stdout", "") + "\n" + result.get("stderr", "")
         found = checker.find(out_text)
+        # Taxonomy v2: exec-level err_class drives the diagnosis hints;
+        # the stored error_class is the final dual-layer classification
+        # (register the fingerprints AFTER classifying so the first
+        # occurrence of anything is never a "repeat").
+        fp_obs = fingerprint(out_text)
+        akey = _action_key(action)
+        eclass = final_class(err_class,
+                             code=action.get("code") or action.get("cmd"),
+                             fp=fp_obs, seen_fps=seen_fps,
+                             action_key=akey, seen_action_keys=seen_action_keys)
+        if fp_obs:
+            seen_fps.add(fp_obs)
+        if akey:
+            seen_action_keys.add(akey)
         attempts.append(Attempt(strategy,
-                                "rc=%s err=%s out=%d chars" %
-                                (result.get("rc"), err_class, len(out_text)),
-                                bool(found), found))
+                                 "rc=%s err=%s out=%d chars" %
+                                 (result.get("rc"), err_class, len(out_text)),
+                                 bool(found), found))
         store.log_attempt(cid, "exec", strategy,
                           "rc=%s err=%s" % (result.get("rc"), err_class),
-                          bool(found), found, err_class,
+                          bool(found), found, eclass,
                           evidence=out_text[:4000])
 
         if found:

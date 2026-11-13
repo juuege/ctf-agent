@@ -47,6 +47,9 @@ create_source: super-agent-skill-creator
 | 用户意图 | 用这个 |
 |---|---|
 | 解一道题 | `solve <题目目录> [--mode] [--brain]` |
+| 无人值守跑题（不等人交互：图片走脚本化证据，末行打印机器可解析结果） | `solve <题目目录> --mode auto --benchmark` |
+| 无人值守跑题并落结果文件（题目目录写 `_ctfpilot_result.json`，stdout 末行 `[json] <路径>`） | `solve <题目目录> --mode auto --benchmark --json` |
+| 从题池随机抽一道未做过的题（子目录名判重，复制排除引擎痕迹，池空返回码 3） | `bench-pull --pool <题目池> --dest <落题目录> [--tag <批次>]` |
 | 从一篇题解学技术/检查点（自动解析题型/信号/失败路径/标签，卡片版本化不覆盖） | `learn-writeup <writeup.md> --name <题名>` |
 | 从写库批量重建案例知识库（四种格式解析→cases.jsonl + 经验入库，幂等） | `rebuild-knowledge <writeups目录> [--dry-run]` |
 | 检索回归评测（改检索/卡片后必跑：top1/top3/MRR 与基线对比，降超 5pp 报 FAIL） | `eval-retrieval [--save-baseline]` |
