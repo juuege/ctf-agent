@@ -58,8 +58,22 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
     log("[deep] brain=%s (backend=%s)" % (brain, llm_be.get("name") if llm_be else "none"))
 
     tried = []
+    fails_in_row = 0
     for step in range(max_steps):
         tried_summary = "\n".join("- %s" % t for t in tried[-12:]) or "(nothing)"
+        # JIT re-retrieval (JitSkill zero-training approximation): refresh
+        # lessons every 4 steps or after 2 consecutive failures, folding the
+        # current hypotheses / excluded paths into the query signature.
+        if step > 0 and qtokens is not None and (step % 4 == 0 or fails_in_row >= 2):
+            try:
+                from knowledge import tokenize as _tok
+                lessons = store.recall_lessons(routing["category"],
+                                               int(cfg.get("memory", {}).get("recall_top_k", 3)),
+                                               query_tokens=qtokens | _tok(tried_summary))
+                fails_in_row = 0
+                log("[deep] step %d: lessons re-recalled with progress tokens" % step)
+            except ImportError:
+                pass
         context = planner.build_context(chall_name, routing, tried_summary,
                                         lessons, "flag{...} style")
         action, err = planner.next_action(brain, routing["category"], routing,
@@ -90,6 +104,7 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
             attempts.append(Attempt("sandbox", sv.reason, False))
             store.log_attempt(cid, "exec", strategy, sv.reason, False,
                               error_class="sandbox-reject")
+            fails_in_row += 1
             continue
 
         err_class = classify_error(result)
@@ -112,6 +127,7 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
         head = out_text.strip().splitlines()
         head_txt = head[0][:160] if head else "(no output)"
         tried.append("%s -> %s | %s" % (strategy, err_class, head_txt))
+        fails_in_row = fails_in_row + 1 if err_class != "ok" else 0
         if err_class == "timeout":
             brain_hint = " (previous step timed out; use a smaller/faster script)"
             tried[-1] += brain_hint

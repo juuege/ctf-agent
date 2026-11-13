@@ -76,12 +76,15 @@ def _short_tags(tags):
 
 
 def _case_line(c):
-    """One case card as a compact, evidence-linked context line (SOTA:
-    short card + pointer to the source writeup, cf. WikiTrace/Zep)."""
-    parts = ["- CASE %s [%s]" % (c.get("name", "?"),
-                                 "solved" if c.get("solved") else "unsolved")]
+    """One case card as a compact, evidence-linked context line (Zep-style
+    short card + pointer). unsolved cards are failure-sourced (WASP-Mem:
+    self-judged failure traces add noise unless verified) and are marked so
+    the reader treats them as pitfall/boundary references only."""
+    tag = "solved" if c.get("solved") else "unsolved·失败来源"
+    parts = ["- CASE %s [%s]" % (c.get("name", "?"), tag)]
     for label, key, lim in (("信号", "signals", 90), ("链", "chain", 110),
-                            ("坑", "pitfalls", 80), ("迁移", "transferable", 80)):
+                            ("坑", "pitfalls", 80), ("迁移", "transferable", 80),
+                            ("区别", "distinct", 70), ("排除", "excludes", 70)):
         v = str(c.get(key) or "").strip()
         if v:
             parts.append("%s: %s" % (label, v[:lim]))
@@ -153,7 +156,7 @@ def build_context(chall_name, routing, tried_summary, lessons, checker_hint):
     return (
         "CHALLENGE: %s\nCATEGORY: %s (confidence %.2f)\n"
         "FLAG FORMAT HINT: %s\n\nFILES AND PREVIEWS:\n%s\n\n"
-        "SKILL CARD (%s):\n%s\n\nCASE MEMORY (signal-ranked, evidence-linked):\n%s\n\n"
+        "SKILL CARD (%s):\n%s\n\nCASE MEMORY (signal-ranked, evidence-linked; descent before trusting):\n%s\n\n"
         "PAST LESSONS (own trajectories):\n%s\n\n"
         "ALREADY TRIED (do not repeat):\n%s\n"
     ) % (chall_name, routing["category"], routing["confidence"], checker_hint,
@@ -171,7 +174,12 @@ SYSTEM_PROMPT = (
     "Rules: no network access (curl/wget/http are blocked); "
     "each script must print anything it finds; prefer small, verifiable steps; "
     "use z3-solver style math when a constraint problem appears; "
-    "if a previous attempt failed, choose a DIFFERENT technique."
+    "if a previous attempt failed, choose a DIFFERENT technique.\n"
+    "CASE MEMORY descent rules (WikiTrace): a case card is compact -- before "
+    "relying on it, open and read the writeup at its 证据 path when (a) the card "
+    "lacks details you need, (b) the card is unsolved·失败来源 (use such cards as "
+    "pitfall/boundary reference only, never as a proven path), (c) two cards "
+    "conflict, or (d) any previous action failed."
 )
 
 

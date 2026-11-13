@@ -231,12 +231,14 @@ def do_recall(args, cfg):
 def do_rebuild_knowledge(args, cfg):
     """SOTA ingestion: writeups -> case cards (cases.jsonl) + lesson upsert.
     Idempotent: stable case ids mean re-runs refresh instead of duplicating."""
-    from knowledge import build_cases, save_cases, rebuild_lessons
+    from knowledge import build_cases, save_cases, rebuild_lessons, merge_refined
     src = os.path.abspath(args.dir)
     if not os.path.isdir(src):
         log("[error] not a directory: %s" % src)
         return 2
     cases = build_cases(src)
+    out = path_under_project(os.path.join("skills", "knowledge"))
+    cases = merge_refined(cases, os.path.join(out, "cases.jsonl"))
     cats = {}
     for c in cases:
         cats[c["category"]] = cats.get(c["category"], 0) + 1
@@ -249,7 +251,6 @@ def do_rebuild_knowledge(args, cfg):
     if args.dry_run:
         log("[knowledge] dry run, nothing written")
         return 0
-    out = path_under_project(os.path.join("skills", "knowledge"))
     paths = save_cases(cases, out)
     log("[knowledge] wrote %s" % ", ".join(os.path.basename(p) for p in paths))
     store = get_stores(cfg)

@@ -76,8 +76,8 @@ create_source: super-agent-skill-creator
 当 `solve` 返回 NOT SOLVED 且题目超出引擎边界（信号/音频/隐写/自定义调制等）：
 
 1. 先 `recall` 查同题型历史经验，并向用户如实说明引擎为何失败（如 IQ 信号无 DSP 检测器）。
-2. **卡壳即搜索（禁止盲试）**：补位 15 分钟无进展或同一策略连续失败 2 次 → 停止盲试，按 `references/ctfpilot-extsearch.md` 检索：①题名+赛事+writeup ②核心技术词+writeup（如 "IQ BPSK CTF writeup"）③工具名 GitHub。找到即抄参数、用自己脚本复现验证。
-3. **模型自行补位分析**：先读 recall 结果、`references/` 相关知识（信号类读 iq-signal-playbook）与工程 `skills/` 技能卡，再在 `.temp/` 安装临时依赖（numpy/matplotlib 等，勿动全局环境）编写分析脚本：魔数侦察 → 频谱/瀑布图 → 瞬时频率 → 符号解调 → 编码尝试，每步打印可读证据，计算性结论一律脚本验证。
+2. **卡壳即检索（禁止盲试）**：卡壳/换假设时**先重新 `recall`**（查询 = 题面信号 + 当前假设 + 已排除路径；引擎深通道每 4 步或连败 2 次会自动重检索），仍无进展再按 `references/ctfpilot-extsearch.md` 外搜：①题名+赛事+writeup ②核心技术词+writeup（如 "IQ BPSK CTF writeup"）③工具名 GitHub。找到即抄参数、用自己脚本复现验证。
+3. **模型自行补位分析**：先读 recall 结果、`references/` 相关知识（信号类读 iq-signal-playbook）与工程 `skills/` 技能卡，再在 `.temp/` 安装临时依赖（numpy/matplotlib 等，勿动全局环境）编写分析脚本：魔数侦察 → 频谱/瀑布图 → 瞬时频率 → 符号解调 → 编码尝试，每步打印可读证据，计算性结论一律脚本验证。**案例卡四条下钻触发（WikiTrace）：卡面缺细节 / 来源是失败案例 / 两卡冲突 / 上一步动作失败——命中任一条，先读证据指针指向的写库原文再行动；未解案例卡只作避坑与边界参考，不当成功路径照搬。**
 4. 需要看图时遵循"看图规则"。
 5. 解出后把"什么技术在什么题上有效"写成简短 writeup，用 `learn-writeup` 入库（闭合 RSI 记忆环），并附 `--write-trace` 轨迹；随后按"快通道固化跃迁"一节评估是否固化为确定性检测器。
 

@@ -19,7 +19,11 @@ import time
 from learn.writeup_learner import parse_writeup
 
 CASE_TEXT_KEYS = ("name", "signals", "chain", "pitfalls",
-                  "transferable", "variants", "carrier", "attempts")
+                  "transferable", "variants", "carrier", "attempts",
+                  "distinct", "excludes")
+REFINED_FIELDS = ("signals", "distinct", "excludes", "chain", "pitfalls",
+                  "transferable", "variants", "failure", "gain", "limits",
+                  "carrier", "attempts")
 
 
 def tokenize(text):
@@ -118,6 +122,35 @@ def load_cases(engine_skill_dir):
                 cases.append(json.loads(line))
             except ValueError:
                 continue
+    return cases
+
+
+def merge_refined(cases, existing_jsonl_path):
+    """Preserve curated card fields across rebuilds (Zep-style: generation and
+    curation are separate stages). rebuild-knowledge regenerates cases from
+    the writeups; refined fields (rewritten signals / distinct / excludes,
+    Skill++-style) live in an overlay keyed by case id so re-running the
+    parser never clobbers curation."""
+    if not existing_jsonl_path or not os.path.exists(existing_jsonl_path):
+        return cases
+    old = {}
+    with open(existing_jsonl_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                o = json.loads(line)
+            except ValueError:
+                continue
+            if o.get("id"):
+                old[o["id"]] = o
+    for c in cases:
+        o = old.get(c["id"])
+        if o:
+            for k in REFINED_FIELDS:
+                if o.get(k):
+                    c[k] = o[k]
     return cases
 
 
