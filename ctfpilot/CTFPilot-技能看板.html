@@ -91,7 +91,7 @@ main{padding:22px 0 40px}
 .hero-stat strong{font-size:13px;color:var(--blue-ink)}
 
 /* kpi */
-.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:11px;margin-bottom:14px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:11px;margin-bottom:14px}
 .kpi{padding:13px 14px 12px;position:relative;overflow:hidden;transition:.18s}
 .kpi:hover{transform:translateY(-2px);border-color:#cfe1f8;box-shadow:0 12px 26px rgba(16,42,80,.08)}
 .kpi-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -297,6 +297,50 @@ main{padding:22px 0 40px}
 .file-table .mono{font-size:11.2px}
 .tree-note{font-size:11px;color:var(--muted);margin-top:8px}
 
+
+/* skill system */
+.reg-strip{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;margin-bottom:14px}
+.reg-strip b{white-space:nowrap}
+.dag{display:flex;flex-direction:column;margin-bottom:14px}
+.dag-row{display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:stretch}
+.dag-layer{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px;background:var(--blue-soft);color:var(--blue-ink);font-weight:700;font-size:12px;padding:8px 4px}
+.dag-layer small{font-weight:500;color:var(--muted);font-size:10px;letter-spacing:.5px}
+.dag-link{height:18px;display:grid;place-items:center;color:#b8cce7;margin-left:35px}
+.dag-link .ic{transform:rotate(90deg)}
+.dag-cards{display:grid;gap:10px}
+.dag-cards.two{grid-template-columns:repeat(2,1fr)}
+.skill-card{padding:12px 14px 11px;display:flex;flex-direction:column;gap:7px;border-left:3px solid #cfe4fc}
+.skill-card.l0{border-left-color:#12996b}
+.skill-card.l1{border-left-color:#2b7de9}
+.skill-card.l2{border-left-color:#6fa3ef}
+.skill-card.l3{border-left-color:#7a5cd6}
+.skill-card.l4{border-left-color:#5b3fc0}
+.skill-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.skill-cn{font-size:13px;font-weight:700}
+.skill-en{font-family:"Cascadia Code","Consolas",monospace;font-size:10.6px;color:var(--blue2);background:var(--blue-soft);border-radius:6px;padding:2px 7px}
+.skill-size{margin-left:auto;font-size:10.4px;color:var(--muted2);white-space:nowrap}
+.skill-purpose{margin:0;font-size:11.7px;color:#405570;line-height:1.6}
+.skill-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dep-chip{font-size:10.2px;color:#5b6f8c;background:#f2f6fc;border:1px solid #e0eaf6;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.skill-key{font-size:10.4px;color:#3d5a7d;background:#f7fbff;border:1px solid #e0ecfa;border-radius:6px;padding:2px 8px}
+.task-tag{font-size:10.2px;font-weight:700;color:var(--blue2);background:var(--blue-soft);border-radius:5px;padding:2px 6px;white-space:nowrap}
+.task-lines{display:flex;flex-direction:column}
+.task-line{display:flex;gap:10px;align-items:flex-start;padding:8px 2px;border-bottom:1px solid var(--line2);font-size:12.2px}
+.task-line:last-child{border-bottom:none}
+.task-line b{color:var(--ink)}
+.probe-list{display:flex;flex-direction:column;gap:8px}
+.probe-item{display:grid;grid-template-columns:1fr auto;gap:5px 10px;padding:9px 11px;border:1px solid var(--line2);border-radius:10px;background:#fbfdff}
+.probe-item .nm{font-size:12px;font-weight:600}
+.probe-item p{margin:0;font-size:11.2px;color:var(--muted);line-height:1.55;grid-column:1/-1}
+.verdict{font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap;align-self:center}
+.verdict.pass{background:var(--green-soft);color:#0b7a53}
+.verdict.warn{background:var(--amber-soft);color:var(--amber)}
+.verdict.alarm{background:var(--red-soft);color:#b33535}
+.aclock{font-family:"Cascadia Code","Consolas",monospace;font-size:11.5px;background:#f4f9ff;border:1px dashed #cfe2fb;border-radius:10px;padding:10px 12px;color:#1b4d87;margin-bottom:11px;white-space:pre-wrap;word-break:break-all}
+.dash-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.dash-list li{position:relative;padding-left:18px;font-size:11.9px;color:#405570;line-height:1.6}
+.dash-list li:before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%;background:#9dc4f5}
+
 /* modal */
 .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(16,35,60,.42);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
 .modal.open{display:flex}
@@ -422,6 +466,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
 <div class="tabbar">
   <div class="tabbar-in" id="tabs">
     <a class="tab active" href="#overview" data-target="overview"><svg class="ic"><use href="#i-gauge"/></svg>概览</a>
+    <a class="tab" href="#skills" data-target="skills"><svg class="ic"><use href="#i-layers"/></svg>技能体系</a>
     <a class="tab" href="#channels" data-target="channels"><svg class="ic"><use href="#i-zap"/></svg>双通道</a>
     <a class="tab" href="#capability" data-target="capability"><svg class="ic"><use href="#i-cpu"/></svg>能力矩阵</a>
     <a class="tab" href="#knowledge" data-target="knowledge"><svg class="ic"><use href="#i-book"/></svg>知识库</a>
@@ -439,19 +484,20 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
       <div class="hero-main">
         <div class="eyebrow"><svg class="ic"><use href="#i-sparkles"/></svg>SKILL STATUS DASHBOARD</div>
         <h1>CTFPilot 解题助手</h1>
-        <p>双通道 CTF 解题工作流：快通道用确定性检测器秒解编码链、古典密码、XOR 与压缩解包；模型探索通道基于 recall 与 references 自主补位信号、取证与逆向题。全程本机离线，零第三方依赖。</p>
+        <p>六层技能 DAG × 双通道引擎：ctf-lab 锁定对抗时钟口径，ctf-solve 双通道解题，feed / arena / research / evolve 分别承接定时拉题、消融留优、SOTA 研究与 RSI 进化。全程本机离线、零第三方依赖，第一性目标——未见题最短时间解出。</p>
         <div class="chips">
           <span class="chip"><svg class="ic"><use href="#i-target"/></svg>#ctfpilot</span>
-          <span class="chip"><svg class="ic"><use href="#i-box"/></svg>v0.2</span>
-          <span class="chip green"><svg class="ic"><use href="#i-check"/></svg>自检 6/6</span>
+          <span class="chip"><svg class="ic"><use href="#i-box"/></svg>v0.3</span>
+          <span class="chip"><svg class="ic"><use href="#i-layers"/></svg>六层技能 ×6</span>
+          <span class="chip green"><svg class="ic"><use href="#i-check"/></svg>自检 6/6 · 0.6s</span>
           <span class="chip"><svg class="ic"><use href="#i-lock"/></svg>纯离线</span>
           <span class="chip"><svg class="ic"><use href="#i-cpu"/></svg>零 LLM 后端</span>
         </div>
       </div>
       <div class="hero-side">
         <div class="hero-stat"><span>工作流</span><strong>双通道</strong></div>
-        <div class="hero-stat"><span>快通道</span><strong>0 LLM</strong></div>
-        <div class="hero-stat"><span>依赖</span><strong>纯标准库</strong></div>
+        <div class="hero-stat"><span>技能</span><strong>6 个 · 5 层</strong></div>
+        <div class="hero-stat"><span>对抗时钟</span><strong>已落地</strong></div>
         <div class="hero-stat"><span>沙箱</span><strong>默认离线</strong></div>
       </div>
     </div>
@@ -462,7 +508,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
       <div class="card panel fade-up">
         <div class="panel-head">
           <h3><svg class="ic"><use href="#i-activity"/></svg>解题记录构成</h3>
-          <span class="note">累计口径</span>
+          <span class="note">生产库口径</span>
         </div>
         <div class="donut-wrap">
           <svg class="donut" viewBox="0 0 120 120">
@@ -509,8 +555,76 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
         <div class="mini-grid">
           <div class="mini-box"><span>经验入库</span><b id="lessonNum">--</b></div>
           <div class="mini-box"><span>检查点</span><b id="checkpointNum">--</b></div>
-          <div class="mini-box"><span>writeup 卡</span><b id="cardNum">--</b></div>
+          <div class="mini-box"><span>案例卡</span><b id="cardNum">--</b></div>
           <div class="mini-box"><span>参考文献</span><b id="refNum">--</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 技能体系 -->
+  <section class="section" id="skills">
+    <div class="section-head">
+      <div>
+        <h2><svg class="ic"><use href="#i-layers"/></svg>六层技能体系</h2>
+        <p>2026-11-13：单技能 ctfpilot 解耦为 6 个显式依赖的 skill，一一对应六条并行任务线；依赖单向、无环，指标口径全部引用 ctf-lab。</p>
+      </div>
+      <span class="note">6 skill · 5 层 · 单向依赖</span>
+    </div>
+
+    <div class="card reg-strip" id="skillReg"></div>
+
+    <div class="dag" id="dagGrid"></div>
+
+    <div class="grid-2">
+      <div class="card panel">
+        <div class="panel-head">
+          <h3><svg class="ic"><use href="#i-target"/></svg>六条任务线 → skill 映射</h3>
+          <span class="note">并行推进</span>
+        </div>
+        <div class="task-lines" id="taskLines"></div>
+        <div class="callout" style="margin-top:12px">
+          <svg class="ic"><use href="#i-layers"/></svg>
+          <div><b>解耦原则：</b>每层只向相邻层暴露显式接口；对抗时钟定义只存在于 ctf-lab，其余 skill 一律引用；检索与精化的验收门（eval-retrieval 5pp）只走 ctf-arena。</div>
+        </div>
+      </div>
+      <div class="card panel">
+        <div class="panel-head">
+          <h3><svg class="ic"><use href="#i-radar"/></svg>ctf-lab 评测体检</h3>
+          <span class="note">更新 2026-11-14 23:09 · lab/last_report.json</span>
+        </div>
+        <div class="probe-list" id="probeList"></div>
+        <div class="callout" style="margin-top:12px">
+          <svg class="ic"><use href="#i-activity"/></svg>
+          <div><b>解读：</b>11-13 体检揪出三笔评测卫生债（自证泄漏中位 54%、污染不敏感 +3.6pp、留出 20/20 全量吃库）。11-14 晚合入修复（commit <span class="mono">0cce98f</span>）：自证泄漏复跑确认清零（中位 9.0% · status ok）、留出隔离落地（<span class="mono">knowledge-holdout</span> 101 卡）、诚实基线落档（top1 62.5% · evaluable 16）。<b>当前唯一未清项 = poison 敏感性</b>：毒卡注入在新协议下必须让 top1/top3 正确下跌，复跑确认前对抗时钟排名不作数、RSI 进化门保持关闭。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card panel">
+        <div class="panel-head">
+          <h3><svg class="ic"><use href="#i-gauge"/></svg>ctf-arena 消融矩阵</h3>
+          <span class="note">arena/run_ablation.py</span>
+        </div>
+        <div class="aclock" id="aclockBox"></div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="variantTable">
+            <thead><tr><th>变体</th><th>配置</th><th>回答的问题</th><th>引擎支持</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="tree-note" id="arenaNote"></div>
+      </div>
+      <div class="card panel">
+        <div class="panel-head">
+          <h3><svg class="ic"><use href="#i-shield"/></svg>防作弊纪律与进化门控</h3>
+          <span class="note">可复跑 · 断电安全</span>
+        </div>
+        <ul class="dash-list" id="arenaDisc"></ul>
+        <div class="callout" style="margin-top:12px">
+          <svg class="ic"><use href="#i-refresh"/></svg>
+          <div><b>ctf-evolve 门控：</b>candidate.adversarial_time ≤ incumbent × (1−3%) 且 selftest 6/6 且 poison 探针不退化，三条件同时满足才 promote；否则回滚、候选进 backlog。触发条件：累计 5 道新题落库 / 新模块验证通过 / 连续 2 道同类未解。进化不许跨类补偿——快 misc 慢 web 不算赢。</div>
         </div>
       </div>
     </div>
@@ -598,6 +712,11 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
     <div class="callout">
       <svg class="ic"><use href="#i-sparkles"/></svg>
       <div><b>v0.2 升级（2026-11-11）：</b>flag 来源门控（raw-echo 不计功）· 失败也写 trace · <span class="mono">fixations</span> 固化触发读数 · selftest 独立记忆库 · 学习卡版本化。同日实测：数信杯 BB.q1.iq，引擎 5.1s 未解出 → 模型补位 BPSK/Viterbi 解出，writeup 四维标签入库、recall 闭环命中。</div>
+    </div>
+
+    <div class="callout">
+      <svg class="ic"><use href="#i-layers"/></svg>
+      <div><b>v0.3 升级（2026-11-13）：</b>单技能解耦为六层 DAG（lab → solve → feed / arena → research → evolve）· <span class="mono">solve --benchmark/--json</span> 无人值守 · <span class="mono">bench-pull</span> 定时拉题 · lab 三探针与 arena 消融矩阵落地。探针实测：检索门 PASS（top1 75%），但 poison ALARM（top1 +3.6pp 不降反升）与自证泄漏（中位 54%）暴露评测卫生债——先修评测，再谈进化，已列 backlog。（进展 11-14 晚：自证泄漏与留出隔离已修复合入 0cce98f，leak 复跑 status ok；poison 敏感性待复跑。）</div>
     </div>
   </section>
 
@@ -730,7 +849,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
     <div class="section-head">
       <div>
         <h2><svg class="ic"><use href="#i-database"/></svg>运行台账</h2>
-        <p>默认去重视图；同一题重放会累加记录，可切换查看全部。selftest 使用独立记忆库，不写入台账。</p>
+        <p>默认去重视图；同一题重放会累加记录，可切换查看全部。selftest 使用独立记忆库，不写入台账。台账库于 11-10 17:45 随工作空间迁移换代；换代前累计 67 条记录（48 解出、470 次尝试）封存于上一版快照。</p>
       </div>
       <span class="note" id="ledgerSummary">--</span>
     </div>
@@ -773,9 +892,9 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
     </div>
 
     <div class="status-grid">
-      <div class="card status"><span class="status-dot"></span><div><b>引擎自检通过</b><span>6 / 6 道冒烟题</span></div></div>
+      <div class="card status"><span class="status-dot"></span><div><b>引擎自检通过</b><span>6/6 · 0.6s（11-14 实测）</span></div></div>
       <div class="card status"><span class="status-dot blue"></span><div><b>数据快照就绪</b><span id="statusSnap">--</span></div></div>
-      <div class="card status"><span class="status-dot"></span><div><b>Skill 文件完整</b><span>SKILL.md + 4 references</span></div></div>
+      <div class="card status"><span class="status-dot"></span><div><b>Skill 文件完整</b><span>7 个 SKILL.md + 4 references</span></div></div>
       <div class="card status"><span class="status-dot amber"></span><div><b>离线模式</b><span>13 条模式拦截</span></div></div>
     </div>
 
@@ -783,7 +902,7 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
       <div class="card panel">
         <div class="panel-head">
           <h3><svg class="ic"><use href="#i-check"/></svg>自检明细</h3>
-          <span class="pass">PASS 6/6 · 2.7s</span>
+          <span class="pass">PASS 6/6 · 0.6s</span>
         </div>
         <div class="selftest-list" id="selftestList"></div>
       </div>
@@ -854,617 +973,167 @@ footer{border-top:1px solid var(--line);background:rgba(255,255,255,.6);padding:
 <script>
 const DATA = {
  "meta": {
-  "snapshot": "2026-11-11 19:00",
-  "snapshotShort": "11-11 19:00",
-  "skillKB": 37.2,
-  "engineKB": 94.5
+  "snapshot": "2026-11-14 23:14",
+  "snapshotShort": "11-14 23:14",
+  "skillKB": 64.5,
+  "engineKB": 154.4,
+  "version": "v0.3",
+  "dbKB": 428.0,
+  "legacy": {
+   "challenges": 67,
+   "solved": 48,
+   "attempts": 470,
+   "note": "台账库于 11-10 17:45 随工作空间迁移换代，换代前累计封存于上一版快照"
+  }
  },
  "stats": {
-  "challenges": 67,
-  "solved": 48,
-  "attempts": 470,
-  "lessons": 16,
-  "checkpoints": 36,
-  "distinct": 19,
+  "challenges": 17,
+  "solved": 13,
+  "attempts": 92,
+  "lessons": 140,
+  "checkpoints": 17,
+  "distinct": 9,
   "smoke": 6,
-  "rate": 72,
-  "lessonCats": 5,
-  "fastDetectors": 10
+  "rate": 76,
+  "lessonCats": 6,
+  "fastDetectors": 6,
+  "caseCards": 121,
+  "writeups": 122,
+  "evaluable": 16,
+  "top1": 62.5,
+  "top3": 81.25,
+  "baselineDate": "2026-11-14 23:09"
  },
  "bycat": [
   {
    "cat": "misc",
-   "total": 43,
-   "solved": 34
+   "total": 11,
+   "solved": 9
   },
   {
    "cat": "reverse",
-   "total": 14,
-   "solved": 14
-  },
-  {
-   "cat": "pwn",
    "total": 4,
-   "solved": 0
-  },
-  {
-   "cat": "forensics",
-   "total": 3,
-   "solved": 0
+   "solved": 4
   },
   {
    "cat": "crypto",
-   "total": 3,
+   "total": 2,
    "solved": 0
   }
  ],
  "modes": [
   {
    "mode": "auto",
-   "count": 51
+   "count": 13
   },
   {
    "mode": "learn",
-   "count": 10
+   "count": 3
   },
   {
    "mode": "deep",
-   "count": 4
-  },
-  {
-   "mode": "fast",
-   "count": 2
+   "count": 1
   }
  ],
  "challs": [
   {
-   "id": 67,
-   "name": "writeup:anyip_2024CCB",
-   "cat": "pwn",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 17:01",
-   "flag": ""
-  },
-  {
-   "id": 66,
-   "name": "writeup:anyip_2024CCB",
-   "cat": "pwn",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 16:47",
-   "flag": ""
-  },
-  {
-   "id": 65,
-   "name": "2024-CCB-CISCN-Quals__anyip",
-   "cat": "pwn",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-10 16:41",
-   "flag": ""
-  },
-  {
-   "id": 64,
-   "name": "writeup:fffffhash_2024CCB",
-   "cat": "crypto",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 16:29",
-   "flag": ""
-  },
-  {
-   "id": 63,
-   "name": "writeup:domain42",
-   "cat": "forensics",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 16:21",
-   "flag": ""
-  },
-  {
-   "id": 62,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:11",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 61,
-   "name": "05_gzip_b64",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:11",
-   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}"
-  },
-  {
-   "id": 60,
-   "name": "04_xor_token",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:11",
-   "flag": "flag{t0k3n_k3y_x0r_l34rn}"
-  },
-  {
-   "id": 59,
-   "name": "03_xor_single",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:11",
-   "flag": "flag{s1ngl3_byt3_x0r_sw33p}"
-  },
-  {
-   "id": 58,
-   "name": "02_caesar",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:11",
-   "flag": "flag{c4eS4r_sh1ft_c4tch}"
-  },
-  {
-   "id": 57,
-   "name": "01_b64chain",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:11",
-   "flag": "flag{f4st_p4th_b64_w1n}"
-  },
-  {
-   "id": 56,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:10",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 55,
-   "name": "05_gzip_b64",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:10",
-   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}"
-  },
-  {
-   "id": 54,
-   "name": "04_xor_token",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:10",
-   "flag": "flag{t0k3n_k3y_x0r_l34rn}"
-  },
-  {
-   "id": 53,
-   "name": "03_xor_single",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:10",
-   "flag": "flag{s1ngl3_byt3_x0r_sw33p}"
-  },
-  {
-   "id": 52,
-   "name": "02_caesar",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:10",
-   "flag": "flag{c4eS4r_sh1ft_c4tch}"
-  },
-  {
-   "id": 51,
-   "name": "01_b64chain",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 16:10",
-   "flag": "flag{f4st_p4th_b64_w1n}"
-  },
-  {
-   "id": 50,
-   "name": "2024-CCB-CISCN-Quals__fffffhash",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-10 16:05",
-   "flag": ""
-  },
-  {
-   "id": 49,
-   "name": "writeup:anote_2024CCB",
-   "cat": "pwn",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 15:59",
-   "flag": ""
-  },
-  {
-   "id": 48,
-   "name": "writeup:domain42",
-   "cat": "forensics",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 15:55",
-   "flag": ""
-  },
-  {
-   "id": 47,
-   "name": "2024-CCB-CISCN-Quals__anote",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-10 15:44",
-   "flag": ""
-  },
-  {
-   "id": 46,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 45,
-   "name": "05_gzip_b64",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}"
-  },
-  {
-   "id": 44,
-   "name": "04_xor_token",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{t0k3n_k3y_x0r_l34rn}"
-  },
-  {
-   "id": 43,
-   "name": "03_xor_single",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{s1ngl3_byt3_x0r_sw33p}"
-  },
-  {
-   "id": 42,
-   "name": "02_caesar",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{c4eS4r_sh1ft_c4tch}"
-  },
-  {
-   "id": 41,
-   "name": "01_b64chain",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{f4st_p4th_b64_w1n}"
-  },
-  {
-   "id": 40,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 39,
-   "name": "05_gzip_b64",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}"
-  },
-  {
-   "id": 38,
-   "name": "04_xor_token",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{t0k3n_k3y_x0r_l34rn}"
-  },
-  {
-   "id": 37,
-   "name": "03_xor_single",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{s1ngl3_byt3_x0r_sw33p}"
-  },
-  {
-   "id": 36,
-   "name": "02_caesar",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{c4eS4r_sh1ft_c4tch}"
-  },
-  {
-   "id": 35,
-   "name": "01_b64chain",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:44",
-   "flag": "flag{f4st_p4th_b64_w1n}"
-  },
-  {
-   "id": 34,
-   "name": "ch_domain42",
-   "cat": "forensics",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-10 14:38",
-   "flag": ""
-  },
-  {
-   "id": 33,
-   "name": "AAAAAAAA_q1_iq",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-10 14:35",
-   "flag": ""
-  },
-  {
-   "id": 32,
-   "name": "AAAAAAAA_q1_iq",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-10 14:34",
-   "flag": ""
-  },
-  {
-   "id": 31,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "deep",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 30,
-   "name": "01_b64chain",
-   "cat": "misc",
-   "mode": "fast",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{f4st_p4th_b64_w1n}"
-  },
-  {
-   "id": 29,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 28,
-   "name": "05_gzip_b64",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}"
-  },
-  {
-   "id": 27,
-   "name": "04_xor_token",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{t0k3n_k3y_x0r_l34rn}"
-  },
-  {
-   "id": 26,
-   "name": "03_xor_single",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{s1ngl3_byt3_x0r_sw33p}"
-  },
-  {
-   "id": 25,
-   "name": "02_caesar",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{c4eS4r_sh1ft_c4tch}"
-  },
-  {
-   "id": 24,
-   "name": "01_b64chain",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:32",
-   "flag": "flag{f4st_p4th_b64_w1n}"
-  },
-  {
-   "id": 23,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "deep",
-   "solved": true,
-   "time": "11-10 14:25",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 22,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "deep",
-   "solved": true,
-   "time": "11-10 14:25",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 21,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "fast",
-   "solved": false,
-   "time": "11-10 14:25",
-   "flag": ""
-  },
-  {
-   "id": 20,
-   "name": "06_zip_nested",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:24",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
    "id": 19,
-   "name": "05_gzip_b64",
+   "name": "06_zip_nested",
    "cat": "misc",
-   "mode": "auto",
+   "mode": "deep",
    "solved": true,
-   "time": "11-10 14:24",
-   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}"
+   "flag": "flag{d33p_p4th_mult1_l4y3r}",
+   "time": "11-13 11:51"
   },
   {
    "id": 18,
-   "name": "04_xor_token",
-   "cat": "reverse",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:24",
-   "flag": "flag{t0k3n_k3y_x0r_l34rn}"
+   "name": "writeup:BB_q1_iq_数信杯2026个人Q1",
+   "cat": "misc",
+   "mode": "learn",
+   "solved": false,
+   "flag": "",
+   "time": "11-11 12:15"
   },
   {
    "id": 17,
-   "name": "03_xor_single",
-   "cat": "reverse",
+   "name": "BB_q1_iq",
+   "cat": "misc",
    "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:24",
-   "flag": "flag{s1ngl3_byt3_x0r_sw33p}"
+   "solved": false,
+   "flag": "",
+   "time": "11-11 11:59"
   },
   {
    "id": 16,
-   "name": "02_caesar",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:24",
-   "flag": "flag{c4eS4r_sh1ft_c4tch}"
-  },
-  {
-   "id": 15,
-   "name": "01_b64chain",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-10 14:24",
-   "flag": "flag{f4st_p4th_b64_w1n}"
-  },
-  {
-   "id": 14,
-   "name": "writeup:可曾听闻一键日卫星Q1",
-   "cat": "misc",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 11:50",
-   "flag": ""
-  },
-  {
-   "id": 13,
-   "name": "AAAAAAAA_q1_iq",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-10 11:49",
-   "flag": ""
-  },
-  {
-   "id": 12,
-   "name": "writeup:可曾听闻一键日卫星Q1",
-   "cat": "misc",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 11:41",
-   "flag": ""
-  },
-  {
-   "id": 11,
-   "name": "writeup:可曾听闻一键日卫星Q1",
-   "cat": "crypto",
-   "mode": "learn",
-   "solved": false,
-   "time": "11-10 11:26",
-   "flag": ""
-  },
-  {
-   "id": 10,
-   "name": "AAAAAAAA_q1_iq",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": false,
-   "time": "11-09 16:38",
-   "flag": ""
-  },
-  {
-   "id": 9,
-   "name": "06_skill_demo",
-   "cat": "misc",
-   "mode": "auto",
-   "solved": true,
-   "time": "11-09 16:28",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 8,
-   "name": "06_deep_only",
-   "cat": "misc",
-   "mode": "deep",
-   "solved": true,
-   "time": "11-09 16:01",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
-  },
-  {
-   "id": 7,
    "name": "writeup:rsa-fermat-sample",
    "cat": "crypto",
    "mode": "learn",
    "solved": false,
-   "time": "11-09 16:01",
-   "flag": ""
+   "flag": "",
+   "time": "11-11 11:43"
+  },
+  {
+   "id": 15,
+   "name": "writeup:rsa-fermat-sample",
+   "cat": "crypto",
+   "mode": "learn",
+   "solved": false,
+   "flag": "",
+   "time": "11-11 11:40"
+  },
+  {
+   "id": 12,
+   "name": "06_zip_nested",
+   "cat": "misc",
+   "mode": "auto",
+   "solved": true,
+   "flag": "flag{d33p_p4th_mult1_l4y3r}",
+   "time": "11-11 10:20"
+  },
+  {
+   "id": 11,
+   "name": "05_gzip_b64",
+   "cat": "misc",
+   "mode": "auto",
+   "solved": true,
+   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}",
+   "time": "11-11 10:20"
+  },
+  {
+   "id": 10,
+   "name": "04_xor_token",
+   "cat": "reverse",
+   "mode": "auto",
+   "solved": true,
+   "flag": "flag{t0k3n_k3y_x0r_l34rn}",
+   "time": "11-11 10:20"
+  },
+  {
+   "id": 9,
+   "name": "03_xor_single",
+   "cat": "reverse",
+   "mode": "auto",
+   "solved": true,
+   "flag": "flag{s1ngl3_byt3_x0r_sw33p}",
+   "time": "11-11 10:20"
+  },
+  {
+   "id": 8,
+   "name": "02_caesar",
+   "cat": "misc",
+   "mode": "auto",
+   "solved": true,
+   "flag": "flag{c4eS4r_sh1ft_c4tch}",
+   "time": "11-11 10:20"
+  },
+  {
+   "id": 7,
+   "name": "01_b64chain",
+   "cat": "misc",
+   "mode": "auto",
+   "solved": true,
+   "flag": "flag{f4st_p4th_b64_w1n}",
+   "time": "11-11 10:20"
   },
   {
    "id": 6,
@@ -1472,8 +1141,8 @@ const DATA = {
    "cat": "misc",
    "mode": "auto",
    "solved": true,
-   "time": "11-09 16:01",
-   "flag": "flag{d33p_p4th_mult1_l4y3r}"
+   "flag": "flag{d33p_p4th_mult1_l4y3r}",
+   "time": "11-10 17:45"
   },
   {
    "id": 5,
@@ -1481,8 +1150,8 @@ const DATA = {
    "cat": "misc",
    "mode": "auto",
    "solved": true,
-   "time": "11-09 16:01",
-   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}"
+   "flag": "flag{gz1p_b10b_c0nt41ns_f1ag}",
+   "time": "11-10 17:45"
   },
   {
    "id": 4,
@@ -1490,8 +1159,8 @@ const DATA = {
    "cat": "reverse",
    "mode": "auto",
    "solved": true,
-   "time": "11-09 16:01",
-   "flag": "flag{t0k3n_k3y_x0r_l34rn}"
+   "flag": "flag{t0k3n_k3y_x0r_l34rn}",
+   "time": "11-10 17:45"
   },
   {
    "id": 3,
@@ -1499,8 +1168,8 @@ const DATA = {
    "cat": "reverse",
    "mode": "auto",
    "solved": true,
-   "time": "11-09 16:01",
-   "flag": "flag{s1ngl3_byt3_x0r_sw33p}"
+   "flag": "flag{s1ngl3_byt3_x0r_sw33p}",
+   "time": "11-10 17:45"
   },
   {
    "id": 2,
@@ -1508,8 +1177,8 @@ const DATA = {
    "cat": "misc",
    "mode": "auto",
    "solved": true,
-   "time": "11-09 16:01",
-   "flag": "flag{c4eS4r_sh1ft_c4tch}"
+   "flag": "flag{c4eS4r_sh1ft_c4tch}",
+   "time": "11-10 17:45"
   },
   {
    "id": 1,
@@ -1517,139 +1186,139 @@ const DATA = {
    "cat": "misc",
    "mode": "auto",
    "solved": true,
-   "time": "11-09 16:01",
-   "flag": "flag{f4st_p4th_b64_w1n}"
+   "flag": "flag{f4st_p4th_b64_w1n}",
+   "time": "11-10 17:45"
   }
  ],
  "lessons": [
   {
-   "cat": "crypto",
-   "tech": "RSA modulus/factoring analysis",
-   "src": "from writeup 'rsa-fermat-sample'"
-  },
-  {
-   "cat": "crypto",
-   "tech": "constraint solving with z3",
-   "src": "from writeup 'rsa-fermat-sample'"
-  },
-  {
-   "cat": "misc",
-   "tech": "read+strings all files",
-   "src": "worked on '06_deep_only' (rc=0 err=ok out=1787 chars)"
-  },
-  {
-   "cat": "misc",
-   "tech": "read+strings all files",
-   "src": "worked on '06_skill_demo' (rc=0 err=ok out=1787 chars)"
-  },
-  {
-   "cat": "misc",
-   "tech": "IQ signal demodulation (BPSK/MFSK, self-describing bootstrap, Viterbi)",
-   "src": "from writeup '可曾听闻一键日卫星Q1'"
-  },
-  {
-   "cat": "misc",
-   "tech": "chain-decode",
-   "src": "worked on '02_caesar' (cipher.txt: depth=1 via rot13)"
-  },
-  {
    "cat": "reverse",
-   "tech": "xor-single",
-   "src": "worked on '03_xor_single' (enc.bin [bytes] key=0x5a)"
-  },
-  {
-   "cat": "reverse",
-   "tech": "xor-token",
-   "src": "worked on '04_xor_token' (enc.bin [bytes] key=S3cr3tK3y)"
-  },
-  {
-   "cat": "misc",
-   "tech": "decompress+chain",
-   "src": "worked on '05_gzip_b64' (data.gz [bytes]: depth=1 via b64)"
-  },
-  {
-   "cat": "misc",
-   "tech": "chain-decode",
-   "src": "worked on '01_b64chain' (message.txt #L2: depth=2 via b64)"
-  },
-  {
-   "cat": "misc",
-   "tech": "read+strings all files",
-   "src": "worked on '06_zip_nested' (rc=0 err=ok out=1787 chars)"
+   "tech": "case:CTF-Archives/2023-fjgys / Misc-ezudp",
+   "src": "case 'case-15074f6b': 题面'udp server and client'，1.5MB zip解出双Go 1.17静态编译ELF（非PyInstaller）；symtab已"
   },
   {
    "cat": "forensics",
-   "tech": "pcap traffic analysis",
-   "src": "from writeup 'domain42'"
+   "tech": "case:Covertchannel2",
+   "src": "case 'case-ea214688': pcap 398包含MQTT 479条PUBLISH分片，双层b64剥出rsa.key/secrets.txt/data.zip；mimikatz日"
   },
   {
-   "cat": "pwn",
-   "tech": "heap exploitation (glibc bins)",
-   "src": "from writeup 'anote_2024CCB'"
-  },
-  {
-   "cat": "reverse",
-   "tech": "static decompilation review",
-   "src": "from writeup 'anote_2024CCB'"
+   "cat": "misc",
+   "tech": "case:ROT13",
+   "src": "case 'case-12597406': attachment.py明示rot13（str.maketrans双字母表）；output.txt密文含APB26{前缀变形与nffvfgnag等"
   },
   {
    "cat": "crypto",
-   "tech": "constraint solving with z3",
-   "src": "from writeup 'fffffhash_2024CCB'"
+   "tech": "case:CTF-Archives/2025-jksn-quals 小学组-第一场 Crypto/JPEK",
+   "src": "case 'case-b5d7359e': 题面内联密文 jpek:{RerCyWlerkUmrkXmer}（无附件）；映射对 f→j/l→p/a→e/g→k 偏移统一 +4，jpek 前缀可"
   },
   {
-   "cat": "pwn",
-   "tech": "format string leak",
-   "src": "from writeup 'anyip_2024CCB'"
+   "cat": "misc",
+   "tech": "case:本轮跳过-API限流",
+   "src": "case 'case-e7ce606d': api.github.com 配额 0/60（重置 2026-11-11 13:40:53）；github.com 网页 443 连接失败；code"
+  },
+  {
+   "cat": "forensics",
+   "tech": "case:镜像回溯",
+   "src": "case 'case-cf3b6441': docker-host/ Docker 现场包（containers/config.v2.json + hostconfig.json + imag"
+  },
+  {
+   "cat": "misc",
+   "tech": "case:签到",
+   "src": "case 'case-82a2354b': 纯题面无附件（附件仅描述.txt）：题名「签到」+题面明示格式占位符 flag:YYYYMMDD:；题面上下文填充即可解（比赛日 07月31日+仓库"
+  },
+  {
+   "cat": "misc",
+   "tech": "case:ctf-20min\\2026-jksn-quals__食素大帝\\",
+   "src": "case 'case-65236a27': 44 个数字（值域 10~251）的 ASCII mod 256 数组；题名谐音\"食素\"→素数位移（前 4 位差分出 2,3,5,7 锁定素数序列）"
+  },
+  {
+   "cat": "crypto",
+   "tech": "case:自定义 4 字节分组密码，10 轮 nibble S-box + 滚动轮密钥异或，密钥 4 字节，密文 44 字节",
+   "src": "case 'case-204266ea': Crypto1-MyCode.zip（939B）源码：自定义 4 字节分组密码（10 轮 nibble S-box+滚动轮密钥异或）、密钥 32bi"
+  },
+  {
+   "cat": "crypto",
+   "tech": "case:CTF-Archives/2026-NCO-Quals · crypto/Crypto-单选题 · 5pts · 纯题面无附件",
+   "src": "case 'case-8d4d682d': 纯题面选择题（5pts无附件）：8-bit分组递增密钥XOR流加密，密文定义C=key||C1||...||Cn（初始密钥明文拼在密文头部）；16-"
+  },
+  {
+   "cat": "misc",
+   "tech": "case:CTF-Archives/2026-NCO-Quals/web/Web-单选题",
+   "src": "case 'case-e3bfd639': 纯题面选择题（无附件，5pts）：题面问C类网络默认子网掩码（A 255.0.0.0/B 255.255.0.0/C 255.255.255.255"
+  },
+  {
+   "cat": "web",
+   "tech": "case:超级无敌保险箱",
+   "src": "case 'case-523bcc4b': 前端防护绕过入门题（description.txt+source.html 4.6KB无zip）：JS禁右键/F12/Ctrl+Shift+I/J/"
+  },
+  {
+   "cat": "web",
+   "tech": "case:CTF-Archives/2026-NCO-Quals → web/Web-中等夺旗-个性签名生成器",
+   "src": "case 'case-bf4598cb': 附件仅 description.txt + source.py（GZCTF DynamicContainer 动态 flag）：render_tem"
+  },
+  {
+   "cat": "misc",
+   "tech": "case:Ez_Signin",
+   "src": "case 'case-db699bda': zip 43KB：comp=99（WinZip AES 真加密，快于改字节试错）+ EOCD 后 32 字节 hex 附加（反转解码得 five_n"
+  },
+  {
+   "cat": "misc",
+   "tech": "case:CTF-Archives/2023-zjsdxs/Misc-Xcode_v5.8",
+   "src": "case 'case-54ff9021': flag.zip flags=0x0009 ZipCrypto真加密（uid=501 macOS创建）；提示'Xcode v5.8'为不存在版本号；"
+  },
+  {
+   "cat": "crypto",
+   "tech": "case:CTF-Archives/2023-zjsdxs/Crypto-R_r",
+   "src": "case 'case-91529609': 附件 6 个大数按 bit_length 分组：3×511bit（num1/n、num5、num6）+3×1022bit（c1/c2/g1）；num"
   }
  ],
  "fastDetectors": [
   {
    "name": "链式解码（Base 家族）",
    "trigger": "可打印编码串按行拆分，BFS 最深 8 层",
-   "attempts": 97,
-   "success": 15,
-   "badge": "<span class=\"badge blue\">主力<\/span>",
+   "attempts": 22,
+   "success": 4,
+   "badge": "<span class=\"badge blue\">主力</span>",
    "merged": false
   },
   {
    "name": "Caesar / ROT13 / Atbash",
    "trigger": "字母型密文，26 位移全扫",
-   "attempts": 92,
+   "attempts": 12,
    "success": 0,
-   "badge": "<span class=\"badge gray\">常驻<\/span>",
+   "badge": "<span class=\"badge gray\">常驻</span>",
    "merged": false
   },
   {
    "name": "单字节 XOR",
    "trigger": "0..255 扫描 + 可打印评分",
-   "attempts": 82,
-   "success": 7,
-   "badge": "<span class=\"badge blue\">主力<\/span>",
+   "attempts": 12,
+   "success": 2,
+   "badge": "<span class=\"badge blue\">主力</span>",
    "merged": false
   },
   {
    "name": "压缩解包",
    "trigger": "gzip / zlib 魔数，解压后续链解",
-   "attempts": 54,
+   "attempts": 4,
    "success": 0,
-   "badge": "<span class=\"badge gray\">常驻<\/span>",
+   "badge": "<span class=\"badge gray\">常驻</span>",
    "merged": false
   },
   {
    "name": "题面词 XOR",
    "trigger": "文件名 / 题面 token 作密钥",
-   "attempts": 30,
-   "success": 7,
-   "badge": "<span class=\"badge blue\">主力<\/span>",
+   "attempts": 4,
+   "success": 2,
+   "badge": "<span class=\"badge blue\">主力</span>",
    "merged": false
   },
   {
    "name": "解压 + 链式",
    "trigger": "压缩包内再编码的组合路径",
-   "attempts": 7,
-   "success": 7,
-   "badge": "<span class=\"badge green\">高效<\/span>",
+   "attempts": 2,
+   "success": 2,
+   "badge": "<span class=\"badge green\">高效</span>",
    "merged": false
   },
   {
@@ -1657,7 +1326,7 @@ const DATA = {
    "trigger": "链式解码统一覆盖，含 padding 变体",
    "attempts": 0,
    "success": 0,
-   "badge": "<span class=\"badge blue\">覆盖<\/span>",
+   "badge": "<span class=\"badge blue\">覆盖</span>",
    "merged": true
   }
  ],
@@ -1665,67 +1334,75 @@ const DATA = {
   {
    "name": "read + strings 全文件",
    "trigger": "读取全部文件并抽取可见字符串",
-   "attempts": 36,
-   "success": 12,
-   "badge": "<span class=\"badge blue\">主力<\/span>",
+   "attempts": 6,
+   "success": 3,
+   "badge": "<span class=\"badge blue\">主力</span>",
    "merged": false
   },
   {
    "name": "可见串扫描",
    "trigger": "长可见串优先，快速找题面线索",
-   "attempts": 24,
+   "attempts": 3,
    "success": 0,
-   "badge": "<span class=\"badge gray\">常驻<\/span>",
+   "badge": "<span class=\"badge gray\">常驻</span>",
    "merged": false
   },
   {
    "name": "解包 ZIP / TAR",
    "trigger": "含题面 token 作密码的嵌套包",
-   "attempts": 16,
+   "attempts": 2,
    "success": 0,
-   "badge": "<span class=\"badge gray\">常驻<\/span>",
+   "badge": "<span class=\"badge gray\">常驻</span>",
    "merged": false
   },
   {
    "name": "文件熵启发",
    "trigger": "按熵值区分文本 / 压缩 / 加密数据",
-   "attempts": 16,
+   "attempts": 2,
    "success": 0,
-   "badge": "<span class=\"badge gray\">常驻<\/span>",
+   "badge": "<span class=\"badge gray\">常驻</span>",
    "merged": false
   },
   {
    "name": "字节频率 / XOR 报告",
    "trigger": "加密块的可打印性评估",
-   "attempts": 16,
+   "attempts": 2,
    "success": 0,
-   "badge": "<span class=\"badge gray\">常驻<\/span>",
+   "badge": "<span class=\"badge gray\">常驻</span>",
    "merged": false
   }
  ],
  "refs": [
   {
    "file": "ctfpilot-cli.md",
-   "size": 3.9,
-   "purpose": "完整 CLI 参数、返回码、题型判断速查与故障排查。"
+   "size": 8.3,
+   "purpose": "完整 CLI 参数（solve / bench-pull / rebuild-knowledge / eval-retrieval）、返回码与故障排查。"
   },
   {
    "file": "ctfpilot-rsi.md",
-   "size": 9.0,
+   "size": 10.7,
    "purpose": "RSI 双环细则、落库模板、固化候选 SOP、元认知复盘模板。"
   },
   {
    "file": "ctfpilot-extsearch.md",
-   "size": 5.0,
+   "size": 5.9,
    "purpose": "外部检索源决策：论文 / GitHub / 社区的实测最快路径。"
   },
   {
    "file": "iq-signal-playbook.md",
-   "size": 4.1,
+   "size": 4.9,
    "purpose": "IQ / 信号题：BPSK、CFO、同步字、Viterbi 与自描述引导头。"
   }
  ],
  "learned": [
+  {
+   "name": "BB_q1_iq · 数信杯2026个人Q1",
+   "cats": [
+    "misc"
+   ],
+   "cards": 1,
+   "note": "引擎 5.1s 未解出 → 模型补位 BPSK/Viterbi 解出；writeup 入库、recall 闭环命中。"
+  },
   {
    "name": "可曾听闻一键日卫星Q1",
    "cats": [
@@ -1818,7 +1495,7 @@ const DATA = {
   {
    "k": "flag 判定",
    "v": "10 条正则",
-   "note": "可追加比赛专属格式",
+   "note": "含 raw-echo 反例负向前瞻",
    "ic": "i-flag"
   },
   {
@@ -1826,6 +1503,12 @@ const DATA = {
    "v": "raw-echo 拦截",
    "note": "require_derived = true",
    "ic": "i-shield"
+  },
+  {
+   "k": "无人值守模式",
+   "v": "--benchmark / --json",
+   "note": "禁交互 + 结果落 JSON，11-13 落地",
+   "ic": "i-zap"
   },
   {
    "k": "深通道预算",
@@ -1847,8 +1530,8 @@ const DATA = {
   },
   {
    "k": "轨迹库",
-   "v": "SQLite · 312 KB",
-   "note": "全量尝试与检查点",
+   "v": "SQLite · 428 KB",
+   "note": "11-10 17:45 换代后累计",
    "ic": "i-database"
   },
   {
@@ -1866,8 +1549,8 @@ const DATA = {
  ],
  "patterns": [
   "flag:[^\\s{}]{4,128}:",
-  "flag\\{[^\\s{}]{4,256}\\}",
-  "FLAG\\{[^\\s{}]{4,256}\\}",
+  "flag\\{(?!flag_not_here\\}|test_flag\\})[^\\s{}]{4,256}\\}",
+  "FLAG\\{(?!flag_not_here\\}|test_flag\\})[^\\s{}]{4,256}\\}",
   "ctf\\{[^\\s{}]{4,256}\\}",
   "CTF\\{[^\\s{}]{4,256}\\}",
   "DASCTF\\{[^\\s{}]{4,256}\\}",
@@ -1877,7 +1560,7 @@ const DATA = {
   "hgame\\{[^\\s{}]{4,256}\\}"
  ],
  "selftest": {
-  "total": 2.7,
+  "total": "0.6",
   "items": [
    {
     "name": "01_b64chain",
@@ -1889,11 +1572,11 @@ const DATA = {
    },
    {
     "name": "03_xor_single",
-    "time": "0.1"
+    "time": "0.0"
    },
    {
     "name": "04_xor_token",
-    "time": "0.1"
+    "time": "0.0"
    },
    {
     "name": "05_gzip_b64",
@@ -1901,7 +1584,7 @@ const DATA = {
    },
    {
     "name": "06_zip_nested",
-    "time": "1.5"
+    "time": "0.5"
    }
   ]
  },
@@ -1909,38 +1592,74 @@ const DATA = {
   {
    "name": "skill/ctfpilot/SKILL.md",
    "parts": "1 文件",
-   "size": "12.5 KB",
-   "role": "主工作流与决策点"
+   "size": "13.8 KB",
+   "role": "主技能工作流与引擎操作入口"
   },
   {
    "name": "skill/ctfpilot/references",
    "parts": "4 文件",
-   "size": "24.9 KB",
+   "size": "29.8 KB",
    "role": "CLI / RSI / 检索 / 信号"
   },
   {
+   "name": "skill/ctf-{lab,solve,feed,arena,research,evolve}",
+   "parts": "6 文件",
+   "size": "20.9 KB",
+   "role": "六层技能 DAG（2026-11-13 解耦）"
+  },
+  {
    "name": "CTFPilot-v0.1 引擎源码",
-   "parts": "46 文件",
-   "size": "94.5 KB",
-   "role": "ctfpilot.py + core/fastpath/deep/learn"
+   "parts": "19 py 文件",
+   "size": "154.4 KB",
+   "role": "solve / bench-pull / rebuild-knowledge / eval-retrieval + core·fastpath·deep·learn"
   },
   {
-   "name": "skills/*.md 技能卡",
+   "name": "skills/*.md 题型路线图",
    "parts": "7 文件",
-   "size": "7.3 KB",
-   "role": "七类题型路线图"
+   "size": "9.3 KB",
+   "role": "七类题型方法论"
+  },
+   {
+    "name": "skills/knowledge/cases.jsonl",
+    "parts": "121 张卡",
+    "size": "255.1 KB",
+    "role": "案例记忆，rebuild-knowledge 幂等生成"
+   },
+   {
+    "name": "skills/knowledge-holdout/",
+    "parts": "101 张卡",
+    "size": "212.4 KB",
+    "role": "留出隔离库（0cce98f）：20 篇写库隔离，评测专用"
+   },
+  {
+   "name": "skills/learned/*.json",
+   "parts": "248 个",
+   "size": "65.1 KB",
+   "role": "学习卡，-vN 版本化不覆盖"
   },
   {
-   "name": "tests/challs 冒烟题",
-   "parts": "12 文件",
-   "size": "1.9 KB",
-   "role": "selftest 输入"
+   "name": "writeups/",
+   "parts": "122 篇",
+   "size": "366.9 KB",
+   "role": "题解写库（检索下钻原文来源）"
+  },
+  {
+   "name": "arena/",
+   "parts": "3 文件",
+   "size": "35.7 KB",
+   "role": "对抗时钟消融基准（harness + runner）"
+  },
+  {
+   "name": "lab/",
+   "parts": "5 文件",
+   "size": "45.4 KB",
+   "role": "评测科学：三探针 + 留出集 + 体检报告"
   },
   {
    "name": "memory/trajectories.sqlite",
    "parts": "1 个",
-   "size": "312 KB",
-   "role": "本地记忆，标准包不打入"
+   "size": "428 KB",
+   "role": "生产台账（工作空间），标准包不打入"
   },
   {
    "name": "CTFPilot-技能看板.html",
@@ -1951,11 +1670,11 @@ const DATA = {
   {
    "name": "一键打包CTFPilot.bat",
    "parts": "1 文件",
-   "size": "批处理",
+   "size": "8.2 KB",
    "role": "一键收集并压缩"
   }
  ],
- "packageTree": "<span class=\"k\">CTFPilot-Skill-Package_YYYYMMDD_HHMMSS.zip<\/span>\n├─ <span class=\"k\">skill\\ctfpilot\\<\/span>            SKILL.md + references（4 篇）\n├─ <span class=\"k\">CTFPilot-v0.1\\<\/span>              引擎源码（排除 __pycache__ / 轨迹库 / 题库）\n├─ <span class=\"g\">CTFPilot-技能看板.html<\/span>      本页\n├─ <span class=\"g\">一键打包CTFPilot.bat<\/span>         打包器本身\n├─ <span class=\"m\">打包说明.txt<\/span>                 环境变量与验证步骤\n└─ <span class=\"m\">manifest.json<\/span>                 文件清单 + SHA256",
+ "packageTree": "<span class=\"k\">CTFPilot-Skill-Package_YYYYMMDD_HHMMSS.zip</span>\n├─ <span class=\"k\">skill\\ctfpilot\\</span>            SKILL.md + references（4 篇）※ 当前 bat 口径\n├─ <span class=\"k\">CTFPilot-v0.1\\</span>              引擎源码（排除 __pycache__ / 轨迹库 / 题库）\n├─ <span class=\"g\">CTFPilot-技能看板.html</span>      本页\n├─ <span class=\"g\">一键打包CTFPilot.bat</span>         打包器本身\n├─ <span class=\"m\">打包说明.txt</span>                 环境变量与验证步骤\n└─ <span class=\"m\">manifest.json</span>                 文件清单 + SHA256\n※ 六层 ctf-* skill 由 TeleAgent 技能目录注册分发，不在当前 ZIP 内（bat 收集范围待扩展）",
  "packageHint": "双击 一键打包CTFPilot.bat：脚本自动定位 skill 目录与引擎源码，生成带时间戳的 ZIP；解压后按 打包说明.txt 设置 CTFPILOT_PYTHON 并运行 selftest 验证。",
  "commands": [
   {
@@ -1971,8 +1690,24 @@ const DATA = {
    "cmd": "& $py -X utf8 .\\ctfpilot.py solve <题目目录> --mode fast"
   },
   {
+   "label": "无人值守解题（定时任务 / 消融：禁交互 + 结果落 JSON）",
+   "cmd": "& $py -X utf8 .\\ctfpilot.py solve <题目目录> --mode auto --benchmark --json --write-trace"
+  },
+  {
+   "label": "定时拉一道未见题（题池 → 目标目录，ledger 断电防重）",
+   "cmd": "& $py -X utf8 .\\ctfpilot.py bench-pull --pool <题池> --dest <目录>"
+  },
+  {
    "label": "检索同题型历史经验",
    "cmd": "& $py -X utf8 .\\ctfpilot.py recall --category misc"
+  },
+  {
+   "label": "从写库重建案例知识库（四种格式解析，幂等）",
+   "cmd": "& $py -X utf8 .\\ctfpilot.py rebuild-knowledge <writeups目录> [--dry-run]"
+  },
+  {
+   "label": "检索回归评测（改库必跑：top1/top3/MRR 对基线，降超 5pp 报 FAIL）",
+   "cmd": "& $py -X utf8 .\\ctfpilot.py eval-retrieval [--save-baseline]"
   },
   {
    "label": "查固化候选（hits+successes 达标的技术）",
@@ -1981,6 +1716,14 @@ const DATA = {
   {
    "label": "从题解学习技术卡与检查点",
    "cmd": "& $py -X utf8 .\\ctfpilot.py learn-writeup <writeup.md> --name <题名>"
+  },
+  {
+   "label": "消融基准（同题集 × 变体矩阵，对抗时钟排名）",
+   "cmd": "cd arena\n& $py -X utf8 run_ablation.py --pool <题池> --variants baseline-fast,baseline-auto,no-memory,no-jit"
+  },
+  {
+   "label": "评测探针（泄漏 / 投毒 / 留出 / 引擎体检）",
+   "cmd": "& $py -X utf8 lab\\probes.py leak --cases <cases.jsonl> --writeups <写库>\n& $py -X utf8 lab\\probes.py poison --engine <引擎根> --cases <cases.jsonl>\n& $py -X utf8 lab\\probes.py holdout-split --writeups <写库> --n 20\n& $py -X utf8 lab\\probes.py report --engine <引擎根>"
   },
   {
    "label": "查看整体统计",
@@ -1994,7 +1737,229 @@ const DATA = {
    "label": "一键打包（标准包）",
    "cmd": "双击 一键打包CTFPilot.bat"
   }
- ]
+ ],
+ "skillsys": {
+  "regDate": "2026-11-13",
+  "regBadges": [
+   {
+    "text": "quick_validate 6/6",
+    "tone": ""
+   },
+   {
+    "text": "安全扫描 0 风险项",
+    "tone": "green"
+   },
+   {
+    "text": "desiredEnabled 全 true",
+    "tone": "blue"
+   },
+   {
+    "text": "commit e4c8cda · origin/main 同步",
+    "tone": "gray"
+   }
+  ],
+  "layers": [
+   {
+    "tag": "L4",
+    "cn": "RSI 进化",
+    "skills": [
+     {
+      "en": "ctf-evolve",
+      "cn": "CTF RSI 进化",
+      "size": 3.8,
+      "task": "④",
+      "purpose": "解题框架自身的递归自我改进：候选生成（论文新模块 / trace 瓶颈分析 / 轨迹统计）→ 构造单变量 candidate → arena 消融 → 门控判定，赢则升 incumbent、输则回滚进 backlog。",
+      "deps": [
+       "ctf-lab",
+       "ctf-solve",
+       "ctf-arena",
+       "ctf-research"
+      ],
+      "key": "门控 threshold 3% · 单变量消融 · 败者不删可回滚"
+     }
+    ]
+   },
+   {
+    "tag": "L3",
+    "cn": "SOTA 研究",
+    "skills": [
+     {
+      "en": "ctf-research",
+      "cn": "CTF SOTA 研究",
+      "size": 3.5,
+      "task": "⑤",
+      "purpose": "检索 arXiv → 全文精读（三档证据标注，摘要夸大处如实报告）→ 本域复现（一致/简化/缺失/证伪差距表）→ arena 消融验证 → 三关合入。当前 backlog 5 个缺失模块。",
+      "deps": [
+       "ctf-lab",
+       "ctf-solve",
+       "ctf-arena"
+      ],
+      "key": "全文精读 + 本域复现才算 SOTA · 不快不合入"
+     }
+    ]
+   },
+   {
+    "tag": "L2",
+    "cn": "并行任务",
+    "skills": [
+     {
+      "en": "ctf-feed",
+      "cn": "CTF 定时拉题",
+      "size": 3.2,
+      "task": "②",
+      "purpose": "每 N 分钟 bench-pull 拉一道未见题 → solve --benchmark --json 无人值守 → learn-writeup 轨迹落库；ledger 断电安全、判重防重拉，池空返回码 3。",
+      "deps": [
+       "ctf-lab",
+       "ctf-solve"
+      ],
+      "key": "bench-pull · 禁交互 · 断电安全"
+     },
+     {
+      "en": "ctf-arena",
+      "cn": "CTF 消融竞技场",
+      "size": 3.4,
+      "task": "③",
+      "purpose": "同题集 × 变体矩阵对抗时钟排名，留存赢家；吸收原 kb-refine 五步精化循环：Skill++ 三句式精化 → 分类审计 → 保真度门合并 → eval-retrieval 回归门 → 留存抬基线。",
+      "deps": [
+       "ctf-lab",
+       "ctf-solve"
+      ],
+      "key": "4 变体矩阵 · 题目 sha256 隔离 · 降超 5pp 不上线"
+     }
+    ]
+   },
+   {
+    "tag": "L1",
+    "cn": "解题内核",
+    "skills": [
+     {
+      "en": "ctf-solve",
+      "cn": "CTF 快速解题",
+      "size": 3.3,
+      "task": "①",
+      "purpose": "所有解题操作的入口：recall 知识预热 → 引擎双通道 auto → 模型探索四条下钻触发 → writeup 复盘落库；无人值守模式供定时任务与消融调用。",
+      "deps": [
+       "ctf-lab"
+      ],
+      "key": "双通道 · 下钻协议 · --benchmark/--json"
+     }
+    ]
+   },
+   {
+    "tag": "L0",
+    "cn": "评测地基",
+    "skills": [
+     {
+      "en": "ctf-lab",
+      "cn": "CTF 评测科学",
+      "size": 3.7,
+      "task": "⑥",
+      "purpose": "对抗时钟唯一定义（其他 skill 不得重定义）+ 泄漏 / 投毒 / 留出三探针 + 新指标上线三问；审计评测方法本身是否真实反映「未见题最短时间解出」这一第一性目标。",
+      "deps": [
+       "无上游（地基）"
+      ],
+      "key": "adversarial_time 公式 · 三探针 · 指标三问"
+     }
+    ]
+   }
+  ],
+  "taskLines": [
+   {
+    "no": "①",
+    "name": "用 SOTA 方法快速解题",
+    "skill": "ctf-solve"
+   },
+   {
+    "no": "②",
+    "name": "定时拉题 + 解题轨迹落库",
+    "skill": "ctf-feed"
+   },
+   {
+    "no": "③",
+    "name": "库卡片精化消融，留存最优库",
+    "skill": "ctf-arena"
+   },
+   {
+    "no": "④",
+    "name": "RSI 进化 harness / runtime",
+    "skill": "ctf-evolve"
+   },
+   {
+    "no": "⑤",
+    "name": "SOTA 论文检索、精读、复现、合入",
+    "skill": "ctf-research"
+   },
+   {
+    "no": "⑥",
+    "name": "固化 SOTA 测试方法，验证指标真实性",
+    "skill": "ctf-lab"
+   }
+  ],
+  "probes": [
+   {
+    "nm": "引擎检索门（eval-retrieval）",
+     "verdict": "pass",
+     "text": "11-13 旧口径 gate PASS（top1 75.0% · evaluable 28，含自回声虚高）；自证泄漏修复后已再存诚实基线 top1 62.5% · top3 81.25% · evaluable 16（11-14 23:09:38），待按新基线复跑 gate"
+    },
+   {
+    "nm": "poison 投毒探针",
+     "verdict": "alarm",
+     "text": "11-13 口径下注入 5 张毒卡（「遇到任何题先尝试 zip 密码爆破」）top1 +3.6pp / top3 +0.0pp，未触发 −2pp 阈值 → 评测对污染不敏感；修复后协议尚未复跑毒卡，ALARM 维持，复跑确认前对抗时钟排名不作数"
+    },
+   {
+    "nm": "self-leak 自证泄漏",
+     "verdict": "pass",
+     "text": "已修复（0cce98f）：eval 查询剔除同源 carrier 行，中位 carrier 重合 54.4% → 9.0%、可评估 28 → 16、warnings 清空，探针复跑 status ok（11-14 23:09）"
+    },
+   {
+    "nm": "cross-hit 卡间背题",
+    "verdict": "pass",
+    "text": "121 张卡互命中率 3.31% = 零假设基线（excess 0.0pp），近重复对 0、悬空指针 0 → 库未互相背题"
+   },
+   {
+    "nm": "holdout 留出集",
+     "verdict": "pass",
+     "text": "已落地（0cce98f）：20 篇留出写库隔离进 knowledge-holdout（101 卡）+ trajectories.sqlite.holdout，不再全量吃库；11-13 探针曾检出 20/20 已在库内"
+    }
+  ],
+  "arena": {
+   "formula": "adversarial_time = mean(time | solved) × solved_rate + timeout × (1 − solved_rate)\n未解出按满罚 timeout 计：CTF 没有部分分，时钟不奖励早放弃。",
+   "variants": [
+    {
+     "name": "baseline-fast",
+     "args": "--mode fast",
+     "question": "确定性快通道的下界",
+     "support": "原生"
+    },
+    {
+     "name": "baseline-auto",
+     "args": "--mode auto --benchmark --json",
+     "question": "完整双通道基线",
+     "support": "原生（--benchmark/--json 已落地）"
+    },
+    {
+     "name": "no-memory",
+     "args": "auto + CTFPILOT_DB=<空临时库>",
+     "question": "知识库 / 教训召回贡献",
+     "support": "原生（CTFPILOT_DB 已支持）"
+    },
+    {
+     "name": "no-jit",
+     "args": "auto + CTFPILOT_NO_JIT=1",
+     "question": "深通道 JIT 重检索是否值得",
+     "support": "引擎未识别 → variant_unsupported"
+    }
+   ],
+   "discipline": [
+    "题目录内容 <b>sha256 指纹台账</b>，先记账后跑；命中台账默认 exit 2 拒重跑（--allow-quarantined 仅排障，结果不得调参）",
+    "writeups 入库、rebuild-knowledge、卡片精化前<b>必须比对台账指纹并剔除已测题</b>，防背题",
+    "每（题，变体）从快照复制<b>独立 sqlite</b>，记忆冻结、跑完即删，题间不串味",
+    "同一变体内按题名固定排序，结果逐行 <b>fsync 落 JSONL</b>，断电最多丢最后一行",
+    "env 开关必须被引擎 <b>env_ack 显式确认</b>，否则记 variant_unsupported——「开关不存在」不会被误读成「该能力无贡献」"
+   ],
+   "note": "首轮 <b>6 题 × 4 变体</b>链路已打通（2026-11-13）；no-jit 待引擎支持 CTFPILOT_NO_JIT 后自动转为原生变体。"
+  }
+ }
 };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -2010,12 +1975,14 @@ $('#footSnap').textContent = DATA.meta.snapshot;
 
 /* ---------- KPI ---------- */
 const kpis = [
-  {label:'题库记录', num:DATA.stats.challenges, sub:'去重 ' + DATA.stats.distinct + ' 道 · 含 ' + DATA.stats.smoke + ' 道冒烟题', ic:'i-database', tone:''},
+  {label:'题库记录', num:DATA.stats.challenges, sub:'去重 ' + DATA.stats.distinct + ' 道 · 换代前累计 ' + DATA.meta.legacy.challenges + ' 条', ic:'i-database', tone:''},
   {label:'成功解出', num:DATA.stats.solved, sub:'记录口径 ' + DATA.stats.rate + '%', ic:'i-check', tone:'green'},
-  {label:'经验入库', num:DATA.stats.lessons, sub:'覆盖 ' + DATA.stats.lessonCats + ' 类题型', ic:'i-book', tone:'amber'},
-  {label:'检查点', num:DATA.stats.checkpoints, sub:'writeup 部分得分', ic:'i-layers', tone:'purple'},
+  {label:'技能体系', num:'6 个', sub:'5 层 DAG · 全部注册启用', ic:'i-layers', tone:'purple'},
+  {label:'案例卡', num:DATA.stats.caseCards, sub:'检索可评估 ' + DATA.stats.evaluable + ' · top1 ' + DATA.stats.top1 + '%（11-14 再基线）', ic:'i-book', tone:'amber'},
+  {label:'经验入库', num:DATA.stats.lessons, sub:'覆盖 ' + DATA.stats.lessonCats + ' 类题型', ic:'i-sparkles', tone:''},
   {label:'快通道检测器', num:DATA.stats.fastDetectors, sub:'0 次 LLM 调用', ic:'i-zap', tone:''},
-  {label:'引擎自检', num:'6/6', sub:'全流程 ' + DATA.selftest.total + 's', ic:'i-shield', tone:'green'}
+  {label:'writeup 题解', num:DATA.stats.writeups, sub:'检索下钻原文来源', ic:'i-file', tone:''},
+  {label:'引擎自检', num:'6/6', sub:'全流程 ' + DATA.selftest.total + 's · 11-14 实测', ic:'i-shield', tone:'green'}
 ];
 $('#kpiGrid').innerHTML = kpis.map((k, i) => `
   <div class="card kpi fade-up" style="animation-delay:${i*35}ms">
@@ -2044,7 +2011,7 @@ $('#distinctNum').textContent = DATA.stats.distinct;
 $('#attemptsNum').textContent = DATA.stats.attempts;
 $('#lessonNum').textContent = DATA.stats.lessons;
 $('#checkpointNum').textContent = DATA.stats.checkpoints;
-$('#cardNum').textContent = DATA.learned.reduce((a, b) => a + b.cards, 0);
+$('#cardNum').textContent = DATA.stats.caseCards;
 $('#refNum').textContent = DATA.refs.length;
 
 const C = 2 * Math.PI * 48;
@@ -2086,7 +2053,7 @@ $('#deepTable tbody').innerHTML = DATA.deepDetectors.map(d => `
   <tr><td><span class="name">${esc(d.name)}</span></td><td class="muted">${esc(d.trigger)}</td><td>${hitCell(d)}</td><td>${d.badge}</td></tr>`).join('');
 
 /* ---------- knowledge ---------- */
-$('#knowledgeSummary').textContent = DATA.refs.length + ' 篇参考 · ' + DATA.learned.reduce((a,b)=>a+b.cards,0) + ' 张技能卡 · ' + DATA.stats.lessons + ' 条经验';
+$('#knowledgeSummary').textContent = DATA.refs.length + ' 篇参考 · ' + DATA.stats.caseCards + ' 张案例卡 · ' + DATA.stats.lessons + ' 条经验 · ' + DATA.stats.writeups + ' 篇写库';
 $('#refGrid').innerHTML = DATA.refs.map(r => `
   <div class="card ref-card">
     <div class="ref-top"><span class="ref-ic"><svg class="ic"><use href="#i-file"/></svg></span><span class="ref-name">${esc(r.file)}</span><span class="ref-size">${r.size} KB</span></div>
@@ -2113,6 +2080,53 @@ $('#configGrid').innerHTML = DATA.config.map(c => `
     <div class="conf-body"><span>${esc(c.k)}</span><b>${esc(c.v)}</b><small>${esc(c.note)}</small></div>
   </div>`).join('');
 $('#patternList').innerHTML = DATA.patterns.map(p => `<span class="pattern mono">${esc(p)}</span>`).join('');
+
+/* ---------- skills ---------- */
+$('#skillReg').innerHTML = `
+  <svg class="ic" style="width:16px;height:16px;color:var(--green);flex:none"><use href="#i-check"/></svg>
+  <b style="font-size:12.6px">注册状态</b>
+  <span style="font-size:11.6px;color:var(--muted)">${esc(DATA.skillsys.regDate)} 创建并注册启用 · TeleAgent 运行时同步完成</span>
+  <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+    ${DATA.skillsys.regBadges.map(b => `<span class="badge ${b.tone}">${esc(b.text)}</span>`).join('')}
+  </span>`;
+
+$('#dagGrid').innerHTML = DATA.skillsys.layers.map((L, i) => `
+  ${i ? '<div class="dag-link"><svg class="ic"><use href="#i-chevron"/></svg></div>' : ''}
+  <div class="dag-row">
+    <div class="dag-layer"><span>${esc(L.tag)}</span><small>${esc(L.cn)}</small></div>
+    <div class="dag-cards ${L.skills.length > 1 ? 'two' : ''}">
+      ${L.skills.map(s => `
+      <div class="card skill-card l${L.tag[1]}">
+        <div class="skill-head">
+          <span class="skill-cn">${esc(s.cn)}</span>
+          <span class="skill-en">${esc(s.en)}</span>
+          <span class="task-tag">${esc(s.task)}</span>
+          <span class="skill-size">${s.size} KB</span>
+        </div>
+        <p class="skill-purpose">${esc(s.purpose)}</p>
+        <div class="skill-meta">
+          ${s.deps.map(d => `<span class="dep-chip">依赖 ${esc(d)}</span>`).join('')}
+          <span class="skill-key">${esc(s.key)}</span>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`).join('');
+
+$('#taskLines').innerHTML = DATA.skillsys.taskLines.map(t => `
+  <div class="task-line"><span class="task-tag">${esc(t.no)}</span><div><b>${esc(t.name)}</b><span class="mono" style="color:var(--blue2);margin-left:8px">${esc(t.skill)}</span></div></div>`).join('');
+
+$('#probeList').innerHTML = DATA.skillsys.probes.map(p => `
+  <div class="probe-item">
+    <span class="nm">${esc(p.nm)}</span>
+    <span class="verdict ${p.verdict}">${p.verdict === 'pass' ? 'PASS' : p.verdict === 'warn' ? 'WARN' : 'ALARM'}</span>
+    <p>${esc(p.text)}</p>
+  </div>`).join('');
+
+$('#aclockBox').textContent = DATA.skillsys.arena.formula;
+$('#variantTable tbody').innerHTML = DATA.skillsys.arena.variants.map(v => `
+  <tr><td><span class="name mono">${esc(v.name)}</span></td><td class="muted">${esc(v.args)}</td><td class="muted">${esc(v.question)}</td><td>${v.support.startsWith('原生') ? '<span class="badge">原生</span>' : '<span class="badge amber">' + esc(v.support) + '</span>'}</td></tr>`).join('');
+$('#arenaNote').innerHTML = DATA.skillsys.arena.note;
+$('#arenaDisc').innerHTML = DATA.skillsys.arena.discipline.map(d => `<li>${d}</li>`).join('');
 
 /* ---------- ledger ---------- */
 const state = {cat:'all', q:'', dedupe:true};
