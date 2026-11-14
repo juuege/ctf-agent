@@ -38,8 +38,26 @@ solved_rate = N_solved / N_total；time 单位秒；timeout = 该变体的超时
 |---|---|---|
 | `probes.py leak --cases <cases.jsonl> --writeups <写库>` | 卡间互命中率（背题风险）+ 悬空指针率 | 互命中率与零假设差 <2pp 为安全；悬空指针 >0 即修 |
 | `probes.py poison --engine <根> --cases <cases.jsonl>` | 注入 5 张毒卡看指标是否降 | top1 或 top3 降 <2pp = **ALARM** |
-| `probes.py holdout-split --writeups <写库> [--n 20]` | 固定 seed 抽留出集 | 已在库中 = "已污染"警告 |
+| `probes.py holdout-split --writeups <写库> [--n 20]` | 固定 seed 抽留出集 | 已在库中 = "已污染"警告；配套隔离见下「留出隔离协议」 |
 | `probes.py report --engine <根>` | 连引擎 eval-retrieval 出体检 | top1/top3 降超 5pp = FAIL |
+
+## 留出隔离协议（2026-11-14 落地）
+
+留出集只是清单不够，rebuild 必须能真隔离，否则评测仍在自证：
+
+1. `probes.py holdout-split` 生成 `lab/holdout.json`（固定 seed，可复现）
+2. `ctfpilot.py rebuild-knowledge <写库> --exclude lab/holdout.json`
+   - 写入 `skills/knowledge-holdout/`（**产线 skills/knowledge 与生产召回库一律不动**）
+   - 留出项既不进卡片也不进 lessons；lessons 落隔离库 `<db>.holdout`（CTFPILOT_DB 已设则沿用）
+   - 策展 overlay（精化 signals、人工裁决 category）从产线 cases.jsonl 继承后再过滤
+3. arena/solve-holdout 跑隔离构建：快照引擎后用 knowledge-holdout 覆盖 skills/knowledge，CTFPILOT_DB 指向 .holdout 库
+4. 生产库永远全量（无 --exclude 重建），不留出不丢知识
+
+## 审计结论存档（2026-11-14）
+
+- **自证泄漏已修**：eval 查询去除同源附件/载体行（lab 泄漏探针：carrier 覆盖中位 0.4+ → 0.09，status ok）；探针与引擎同口径（import 引擎 `_eval_query_text`，镜像已同步）
+- **真实基线**：top1 62.5% / top3 81.2% / MRR 0.712 / evaluable 16（旧口径 75.0/89.3/0.817/28 为同源回声虚高，12 条查询实为载体自证）；信号打分 vs 纯新近基线仍压倒性（62.5% vs 0.0%），精化 signals 有真实检索力
+- **9 张 medium 卡人工裁决落地**（misc×4 / forensics×3 / reverse×1 / crypto×1），回归 0 漂移；merge_refined 布尔字段 bug 已修（category_inferred=False 此前会被 rebuild 冲回）
 
 ## 新指标上线三问（写进 `lab/eval_audit.md`）
 

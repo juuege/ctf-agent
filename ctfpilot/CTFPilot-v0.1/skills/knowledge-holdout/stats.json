@@ -1,0 +1,12 @@
+{
+  "cases": 101,
+  "solved": 64,
+  "with_signals": 101,
+  "with_pitfalls": 46,
+  "with_transferable": 49,
+  "with_failure": 92,
+  "generated": "2026-11-14 23:12:46",
+  "writeups_dir": "D:\\teleclaw\\ctf-agent\\ctfpilot\\writeups",
+  "mode": "holdout",
+  "excluded": 20
+}

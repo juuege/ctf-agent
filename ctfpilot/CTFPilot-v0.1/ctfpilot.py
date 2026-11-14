@@ -3,7 +3,8 @@
 Usage (run with the project python, UTF-8 mode):
   python -X utf8 ctfpilot.py solve <challenge_dir> [--mode auto|fast|deep] [--brain auto|llm|mock]
                                          [--benchmark] [--json]
-  python -X utf8 ctfpilot.py bench-pull --pool <pool_dir> --dest <dest_dir> [--tag <tag>]
+  python -X utf8 ctfpilot.py bench-pull --source <local:dir|gh-org:CTF-Archives|gh:owner/repo> --dest <dir> [--tag t]
+                                          (legacy: --pool <dir> = --source local:<dir>)
   python -X utf8 ctfpilot.py learn-writeup <writeup.md> --name <name>
   python -X utf8 ctfpilot.py recall --category crypto
   python -X utf8 ctfpilot.py stats
@@ -207,17 +208,66 @@ def _dump_trace(path, name, routing, attempts, flag, provenance=None):
 
 
 def do_bench_pull(args, cfg):
-    """Benchmark source pull: randomly pick a pool challenge that is not yet
-    under dest (dedup by subdirectory name), copy it over minus engine
-    artifacts (__pycache__ / _ctfpilot* / .temp), and keep a cumulative
-    ledger. Powers the unattended benchmark loop; return 3 when the pool is
-    exhausted so a runner can distinguish it from a hard failure."""
-    pool = os.path.abspath(args.pool)
+    """Benchmark source pull: randomly pick a challenge that is not yet
+    under dest, materialize it, and keep a cumulative ledger. Powers the
+    unattended benchmark loop; return 3 when the source is exhausted so a
+    runner can distinguish it from a hard failure.
+
+    Sources (--source, or legacy --pool for a local dir):
+      local:<pool_dir>   copy a pool challenge minus engine artifacts
+                         (__pycache__ / _ctfpilot* / .temp); dedup by
+                         subdir name. Returns 3 when the pool is exhausted.
+      gh-org:<org>       random year-named repo of a GitHub org (e.g.
+                         CTF-Archives), then a random challenge dir inside;
+                         downloaded over the stable api.github.com channel.
+      gh:<owner>/<repo>  one specific GitHub repository (same walk).
+    GitHub pulls dedup on ledger keys (owner/repo::path) so sources can be
+    mixed freely; the org listing is cached 24h to keep API usage low."""
     dest = os.path.abspath(args.dest)
+    os.makedirs(dest, exist_ok=True)
+    ledger_path = os.path.join(dest, "_bench_ledger.json")
+    ledger = {"pulled": 0, "remaining": -1, "history": [], "tag": "", "keys": []}
+    try:
+        with open(ledger_path, "r", encoding="utf-8") as f:
+            saved = json.load(f)
+        if isinstance(saved, dict):
+            ledger.update(saved)
+    except (OSError, ValueError):
+        pass
+    source = args.source or ("local:" + args.pool if args.pool else "")
+    if not source:
+        log("[error] need --source <local:dir|gh-org:<org>|gh:<owner>/<repo>> "
+            "or legacy --pool <dir>")
+        return 2
+    if source.startswith("gh:") or source.startswith("gh-org:"):
+        from core.ghsource import gh_pull, SourceError
+        used = set(ledger.get("keys") or [])
+        try:
+            key, chall_dir, nfiles, nskip = gh_pull(
+                source, dest, used, cache_dir=os.path.join(dest, "_gh_cache"))
+        except SourceError as e:
+            log("[bench-pull] source error: %s" % e)
+            return 4
+        if not key:
+            log("[bench-pull] source exhausted: %s" % chall_dir)
+            return 3
+        ledger["keys"] = sorted(used | {key})
+        ledger["pulled"] = int(ledger.get("pulled", 0)) + 1
+        ledger["history"] = (list(ledger.get("history", [])) +
+                             [os.path.basename(chall_dir)])[-200:]
+        ledger["tag"] = args.tag or ""
+        with open(ledger_path, "w", encoding="utf-8") as f:
+            json.dump(ledger, f, ensure_ascii=False, indent=2)
+        log("[bench-pull] chall=%s" % chall_dir)
+        log("[bench-pull] files=%d skipped=%d" % (nfiles, nskip))
+        log("[bench-pull] ledger pulled=%d tag=%s source=%s" %
+            (ledger["pulled"], ledger["tag"] or "-", source))
+        return 0
+    pool = source[len("local:"):] if source.startswith("local:") else (args.pool or "")
+    pool = os.path.abspath(pool)
     if not os.path.isdir(pool):
         log("[error] pool not a directory: %s" % pool)
         return 2
-    os.makedirs(dest, exist_ok=True)
     pool_names = sorted(d for d in os.listdir(pool)
                         if os.path.isdir(os.path.join(pool, d)))
     used = set(d for d in os.listdir(dest)
@@ -233,15 +283,6 @@ def do_bench_pull(args, cfg):
                                                   ".temp"))
     remaining = sum(1 for c in pool_names
                     if not os.path.isdir(os.path.join(dest, c)))
-    ledger_path = os.path.join(dest, "_bench_ledger.json")
-    ledger = {"pulled": 0, "remaining": remaining, "history": [], "tag": ""}
-    try:
-        with open(ledger_path, "r", encoding="utf-8") as f:
-            saved = json.load(f)
-        if isinstance(saved, dict):
-            ledger.update(saved)
-    except (OSError, ValueError):
-        pass
     ledger["pulled"] = int(ledger.get("pulled", 0)) + 1
     ledger["history"] = (list(ledger.get("history", [])) + [pick])[-200:]
     ledger["tag"] = args.tag or ""
@@ -333,17 +374,60 @@ def do_recall(args, cfg):
     return 0
 
 
+def _load_exclude_paths(path):
+    """Read a holdout JSON (lab format: {items: [{path: ...}, ...]} or a
+    plain list) into a normalized set of writeup source paths."""
+    try:
+        with open(os.path.abspath(path), "r", encoding="utf-8") as f:
+            hold = json.load(f)
+    except (OSError, ValueError) as e:
+        log("[error] cannot read --exclude file: %s" % e)
+        return None
+    items = hold.get("items", []) if isinstance(hold, dict) else hold
+    paths = set()
+    for it in items or []:
+        p = (it.get("path") if isinstance(it, dict) else str(it)) or ""
+        p = p.replace("\\", "/").lstrip("./")
+        if p:
+            paths.add(p)
+    return paths
+
+
 def do_rebuild_knowledge(args, cfg):
     """SOTA ingestion: writeups -> case cards (cases.jsonl) + lesson upsert.
-    Idempotent: stable case ids mean re-runs refresh instead of duplicating."""
+    Idempotent: stable case ids mean re-runs refresh instead of duplicating.
+
+    Holdout isolation (--exclude <holdout.json>): the listed writeups are
+    held OUT of this build -- neither indexed as cards nor upserted as
+    lessons. The isolated build lands in skills/knowledge-holdout (the
+    production skills/knowledge is never clobbered) and lessons go to an
+    isolated db (<db_path>.holdout, or $CTFPILOT_DB when already set), so
+    production recall keeps its knowledge. Use for eval/solve-holdout
+    runs; production rebuilds run WITHOUT --exclude."""
     from knowledge import build_cases, save_cases, rebuild_lessons, merge_refined
     src = os.path.abspath(args.dir)
     if not os.path.isdir(src):
         log("[error] not a directory: %s" % src)
         return 2
     cases = build_cases(src)
-    out = path_under_project(os.path.join("skills", "knowledge"))
-    cases = merge_refined(cases, os.path.join(out, "cases.jsonl"))
+    # curation (refined signals / adjudicated categories) lives in the
+    # PRODUCTION cases.jsonl overlay -- holdout builds must inherit it too,
+    # then drop the excluded items, or they would regress to raw parse state.
+    overlay = path_under_project(os.path.join("skills", "knowledge",
+                                              "cases.jsonl"))
+    cases = merge_refined(cases, overlay)
+    excluded = 0
+    if args.exclude:
+        hold_paths = _load_exclude_paths(args.exclude)
+        if hold_paths is None:
+            return 2
+        before = len(cases)
+        cases = [c for c in cases if c["source"].lstrip("./") not in hold_paths]
+        excluded = before - len(cases)
+        log("[knowledge] holdout build: excluded=%d retained=%d" %
+            (excluded, len(cases)))
+    out = path_under_project(os.path.join(
+        "skills", "knowledge-holdout" if args.exclude else "knowledge"))
     cats = {}
     for c in cases:
         cats[c["category"]] = cats.get(c["category"], 0) + 1
@@ -356,8 +440,17 @@ def do_rebuild_knowledge(args, cfg):
     if args.dry_run:
         log("[knowledge] dry run, nothing written")
         return 0
-    paths = save_cases(cases, out, extra_stats={"writeups_dir": src})
+    paths = save_cases(cases, out, extra_stats={
+        "writeups_dir": src, "mode": "holdout" if args.exclude else "production",
+        "excluded": excluded})
     log("[knowledge] wrote %s" % ", ".join(os.path.basename(p) for p in paths))
+    if args.exclude:
+        # isolated lessons db: production recall must keep holdout knowledge
+        os.environ.setdefault(
+            "CTFPILOT_DB",
+            path_under_project(cfg["memory"]["db_path"]) + ".holdout")
+        log("[knowledge] isolated lessons db: %s (production store untouched)" %
+            os.environ["CTFPILOT_DB"])
     store = get_stores(cfg)
     n = rebuild_lessons(store, cases)
     log("[knowledge] lessons upserted: %d (recall now signal-scored)" % n)
@@ -1058,8 +1151,12 @@ def main():
                         "and print [json] <abs path>")
 
     p = sub.add_parser("bench-pull")
-    p.add_argument("--pool", required=True,
-                   help="challenge pool dir (one challenge per subdir)")
+    p.add_argument("--source", default="",
+                   help="local:<pool_dir> | gh-org:<org> (e.g. "
+                        "gh-org:CTF-Archives) | gh:<owner>/<repo>")
+    p.add_argument("--pool", default="",
+                   help="legacy: local challenge pool dir (one challenge per "
+                        "subdir); same as --source local:<dir>")
     p.add_argument("--dest", required=True,
                    help="destination dir (pulled challenges + ledger land here)")
     p.add_argument("--tag", default="",
@@ -1076,6 +1173,11 @@ def main():
     p = sub.add_parser("rebuild-knowledge")
     p.add_argument("dir", help="writeups directory (repo ctfpilot/writeups)")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--exclude", default="",
+                   help="holdout JSON (lab holdout.json): listed writeups are "
+                        "held out of the build -- writes to "
+                        "skills/knowledge-holdout + isolated lessons DB; "
+                        "production KB and recall are not touched")
 
     p = sub.add_parser("eval-retrieval")
     p.add_argument("writeups", nargs="?",

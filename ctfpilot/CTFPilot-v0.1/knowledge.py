@@ -151,15 +151,26 @@ def merge_refined(cases, existing_jsonl_path):
         o = old.get(c["id"])
         if o:
             for k in REFINED_FIELDS:
-                if o.get(k):
-                    c[k] = o[k]
+                v = o.get(k, None)
+                if v is None:
+                    continue
+                # booleans (e.g. category_inferred=False after human
+                # adjudication) are values -- copy whenever present; strings
+                # only when non-empty so empty overlays never clobber parses.
+                if isinstance(v, bool) or v:
+                    c[k] = v
     return cases
 
 
 def _eval_query_text(path):
-    """Query = the writeup's own 题面 description: 题目 label/section + 附件/载体
-    lines. Deliberately excludes the writeup's answer-side fields (signals/chain)
-    so the eval measures 'new challenge description -> find the right case'."""
+    """Query = the writeup's own 题面 description only. Deliberately excludes
+    the answer-side fields (signals/chain) AND the 附件/载体 lines: the
+    carrier line is the same-source text of the target card's own carrier
+    field, so keeping it made the eval rank a card against its own words
+    (lab leak probe 2026-11-13: 15/28 evaluable queries overlapped their own
+    card's carrier field >=80%). Production queries are built from the live
+    challenge signature, never from this writeup line, so dropping it makes
+    the eval honest without touching production behavior."""
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         t = f.read()
     parts = []
@@ -169,8 +180,6 @@ def _eval_query_text(path):
     m = re.search(r"^#{1,4}\s*题目\s*$\n(.+?)(?=\n#{1,4}\s|\Z)", t, re.M | re.S)
     if m:
         parts.append(" ".join(m.group(1).split()[:120]))
-    for m in re.finditer(r"^[ \t]*(?:[-*•]\s*)?(?:附件|载体(?:\s*/\s*格式)?)\s*[:：]\s*(.+)$", t, re.M):
-        parts.append(m.group(1))
     return " ".join(parts)
 
 

@@ -127,12 +127,12 @@
       "dangling_rate": 0.0,
       "dangling_examples": [],
       "self_provenance": {
-        "evaluable_queries": 28,
-        "median_answer_coverage": 0.5167,
-        "median_full_card_coverage": 0.8782,
-        "median_carrier_coverage": 0.5444,
-        "queries_with_full_coverage_ge_80pct": 15,
-        "queries_with_carrier_coverage_ge_50pct": 15
+        "evaluable_queries": 16,
+        "median_answer_coverage": 0.323,
+        "median_full_card_coverage": 0.6615,
+        "median_carrier_coverage": 0.0904,
+        "queries_with_full_coverage_ge_80pct": 6,
+        "queries_with_carrier_coverage_ge_50pct": 6
       },
       "top_pairs": [
         {
@@ -207,12 +207,10 @@
           ]
         }
       ],
-      "warnings": [
-        "自证泄漏：evaluable 查询与自身 carrier 字段中位重合 54% → top1/top3 部分由同源字段复制支撑"
-      ],
-      "status": "warn",
+      "warnings": [],
+      "status": "ok",
       "elapsed_s": 0.3,
-      "cases_path": "ctfpilot/CTFPilot-v0.1/skills/knowledge/cases.jsonl"
+      "cases_path": "C:/Users/Dell/.local/share/TeleAgent/TeleAgent的工作空间/CTFPilot-v0.1/skills/knowledge/cases.jsonl"
     },
     "poison": {
       "seed": 20261113,
@@ -316,5 +314,5 @@
       "elapsed_s": 0.3
     }
   },
-  "updated": "2026-11-13 12:01:02"
+  "updated": "2026-11-14 23:09:39"
 }

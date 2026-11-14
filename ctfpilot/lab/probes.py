@@ -76,7 +76,9 @@ def engine_tokenizer(engine):
 
 
 def local_eval_query_text(path):
-    """引擎 _eval_query_text 的本地镜像（仅引擎 import 失败时使用）。"""
+    """引擎 _eval_query_text 的本地镜像（仅引擎 import 失败时使用）。
+    2026-11-14 与引擎同步：题目行/题目节之外，附件/载体行不再进查询
+    （同源文本自证泄漏，见 lab leak probe 审计）。"""
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         t = f.read()
     parts = []
@@ -86,8 +88,6 @@ def local_eval_query_text(path):
     m = re.search(r"^#{1,4}\s*题目\s*$\n(.+?)(?=\n#{1,4}\s|\Z)", t, re.M | re.S)
     if m:
         parts.append(" ".join(m.group(1).split()[:120]))
-    for m in re.finditer(r"^[ \t]*(?:[-*•]\s*)?(?:附件|载体(?:\s*/\s*格式)?)\s*[:：]\s*(.+)$", t, re.M):
-        parts.append(m.group(1))
     return " ".join(parts)
 
 
