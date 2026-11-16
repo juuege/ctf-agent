@@ -1,0 +1,21 @@
+{
+  "name": "myoracletwice",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'myoracletwice'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "mod=getrandbits(1024)不打印+幂oracle输出截断c&0xffffffff+getrandbits的m/e需精确猜中（babypqc/lockbylock同族前置）",
+    "陷阱类型": "逐轮信息论攻击误区（32bit泄漏vs80+1024bit未知量）+getrandbits(40)低位在前的位序+MT递推绝对下标j-227非j+397回绕+缩样rows²外推失真",
+    "可迁移模式": "未知模数幂oracle先查n的2-adic结构找免检位（n偶⇒LSB(c)=LSB(m)=原始MT位）+「符号模拟+满秩消元+操作序列重放」三板斧+n奇偶重试仅RHS重放近零成本",
+    "变体预测": "v2(n)≥2时bit1混入e奇偶不干净仍只用bit0、改泄高位/多位方程同样线性、random.seed(时间)可先爆破种子、可固化候选「MT19937单bit抽稀泄漏检测器」\n\n## 链\nCTF-Archives/2022-xhlj-crypto-myoracletwice（源码即题）"
+  },
+  "fixable": "候选「MT19937 单 bit 抽稀泄漏检测器」（信号=getrandbits 模数/明文 + 低位截断输出）",
+  "version": 2,
+  "created_at": 1794730871.4843688
+}

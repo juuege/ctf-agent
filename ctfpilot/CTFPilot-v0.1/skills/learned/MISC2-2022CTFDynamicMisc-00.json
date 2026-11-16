@@ -1,0 +1,20 @@
+{
+  "name": "MISC2-2022CTFDynamicMisc",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "附件 wav + 源码含 np.insert/ord(...)10/b2a_hex/zip -P + run.sh echo $GZCTF_FLAG（动态题→归档附件多半是基带）",
+  "commands": [],
+  "signals": "附件 wav + 源码含 np.insert/ord(...)10/b2a_hex/zip -P + run.sh echo $GZCTF_FLAG（动态题→归档附件多半是基带）",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "附件 wav + 源码含 np.insert/ord(...)10/b2a_hex/zip -P + run.sh echo $GZCTF_FLAG（动态题→归档附件多半是基带）",
+    "陷阱类型": "前置假压缩包诱饵（内容文本嘲讽+-rYu1nser）；真假两包都要提；np.insert 无 axis 会把立体声展平成单声道；b2a_hex 小写 vs 源码字面大写",
+    "可迁移模式": "动态附件题先读 Dockerfile/run.sh 判 GZCTF 注入→归档附件全扫判基带→基带干净则直接学 writeup 或本地复放验证链"
+  },
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794701341.1852455
+}

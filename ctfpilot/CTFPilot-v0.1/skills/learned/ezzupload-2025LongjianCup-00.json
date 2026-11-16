@@ -1,0 +1,21 @@
+{
+  "name": "ezzupload-2025LongjianCup",
+  "category": "web",
+  "technique": "insecure deserialization",
+  "when_to_use": "PHP 文件上传源码审计：strrpos 取扩展名、session_id 目录、chmod 0000/0644、shell_exec('chmod 000 ')；要求扩展名仅 txt",
+  "commands": [],
+  "signals": "PHP 文件上传源码审计：strrpos 取扩展名、session_id 目录、chmod 0000/0644、shell_exec('chmod 000 ')；要求扩展名仅 txt",
+  "effective": "上传 filename=.php 内容 webshell + 自定 PHPSESSID=<32位hex>；.phtml/.phar/.pht 同样全过",
+  "failure_paths": ".user.ini/.htaccess 被 extension 检查拒（点在位置≥1）；glob 元字符文件名注入无效（glob 结果不做二次解析）；rename 后 chmod 0000 竞态无窗口",
+  "limits": "仅离线源码审计自证，利用链闭合但在线容器未发包验证，flag 未获取",
+  "untested": "Apache FilesMatch / php-fpm 对 .php 文件名的实际解析；pathinfo 变体",
+  "tags": {
+    "识别信号": "PHP上传白名单+strrpos+chmod+shell_exec chmod000星号",
+    "陷阱类型": "strrpos 位置 0 被 == false 吞、glob  不匹配隐藏文件",
+    "可迁移模式": "找位置 0 的匹配结果配松散比较即白名单绕过，点开头文件名可同时绕扩展名与权限回收",
+    "变体预测": "修复成 === false 后 .txt.（末尾点）仍走 ext='' 分支\n- 可固化性: 是"
+  },
+  "fixable": "是；特征检测：web 源码含 strrpos+== false+chmod 组合 → 确定性提示位置 0 松散比较绕过候选",
+  "version": 1,
+  "created_at": 1794548648.8568256
+}

@@ -1,0 +1,16 @@
+{
+  "name": "easy!23333!-ShenYangCar2023",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'easy!23333!-ShenYangCar2023'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794678522.2106104
+}

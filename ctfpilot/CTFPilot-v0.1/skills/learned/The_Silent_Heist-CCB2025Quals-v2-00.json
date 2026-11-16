@@ -1,0 +1,16 @@
+{
+  "name": "The_Silent_Heist-CCB2025Quals",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'The_Silent_Heist-CCB2025Quals'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 2,
+  "created_at": 1794681088.5081906
+}

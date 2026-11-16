@@ -1,0 +1,21 @@
+{
+  "name": "glibc_master-CCBGX2022",
+  "category": "pwn",
+  "technique": "heap exploitation (glibc bins)",
+  "when_to_use": "challenge looks like pwn; recall from writeup 'glibc_master-CCBGX2022'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "菜单堆题Add/Edit/Show/Delete+size强制(0x40e,0x60f]全禁tcache+Edit负索引jg+cdqe+XOR固定表加密+bss挂FILE三指针+anti-hook清理函数0x13ed+Show限3次",
+    "陷阱类型": "Delete不清ptr/size致UAF+三个FILE负索引槽仅stdin的size槽自引用非零可用+hooks被0x13ed盯死+Add后ptr永不清0致24槽预算",
+    "可迁移模式": "负索引OOB判定式=指针槽非零且size槽非零.stdin槽二者同引用同址恒过+XOR流密码明文0x00终止=首0字节后全明文直写+glibc2.31 FSOP首选House of Apple 2(vtable=_IO_wfile_jumps过检查.wide_vtable免检)",
+    "变体预测": "防护函数盯哪对hook就绕开哪对(留realloc/memalign自身不被清)+若size槽布局变化可用largebin attack写堆地址改FILE指针槽+同型题见CCB2024 check_tcachebin_list类反投毒校验\n\n> AI生成"
+  },
+  "fixable": "",
+  "version": 2,
+  "created_at": 1794718355.5989451
+}

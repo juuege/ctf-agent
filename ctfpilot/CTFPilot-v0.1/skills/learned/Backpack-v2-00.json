@@ -1,0 +1,21 @@
+{
+  "name": "Backpack",
+  "category": "forensics",
+  "technique": "subset-sum MITM (0/1 knapsack)",
+  "when_to_use": "py 脚本出现 bin(m)[2:] 比特系数 + 随机权重列表与 C；先算 density=n/log2(max M)，n<=40 用折半 MITM 全枚举，density<0.94 可上 LLL",
+  "commands": [],
+  "signals": "task.py 中 n=m.bit_length()、randint(2**34,2**35)、C=Σm[t]*M[t]",
+  "effective": "n=31 时 2^15 表 + 2^16 查询秒解，唯一解回代 Σbit*M==C 校验通过；位序按 bin(m)[2:] 的 MSB 先序",
+  "failure_paths": "引擎 fast/deep 98 次尝试无背包/子集和检测器，对 ASCII 做凯撒/XOR 全 miss；首版脚本残留错误 import 行 SyntaxError（1 分钟修正）；仅取首个 MITM 命中不可靠，改为全枚举后才确认唯一",
+  "limits": "仅在纯随机权重的 0/1 背包（本题 n=31）实测；C 与 M 取自仓库留存的样例实例，明文仅 4 字节，flag 按题面模板包装为 flag{B@C#}",
+  "untested": "n>40 时的 LLL 实测；真 CJLOSS（超递增+模乘扰动）的模逆还原路径；动态 flag 下 C 变化后的批量重跑",
+  "tags": {
+    "识别信号": "py 脚本含 bin(m)[2:] 与 Σm[t]M[t]",
+    "陷阱类型": "位序误读（LSB 先序会得到另一条可打印串 \"Dbk!\"）与\"回代相等≠位序正确\"",
+    "可迁移模式": "背包题先算 density，n≤40 用 MITM 全枚举、density<0.94 可上 LLL 格",
+    "变体预测": "权重 40+ 且 density>1 改上 Lagarias-Odlyzko 格，超递增+扰动先模逆还原贪心\n- 可固化性: 是"
+  },
+  "fixable": "是；特征检测条件=题目出现 \"randint(23x\" 或 \"bit_length()\" 且存在 C 与权重列表；判定逻辑=解析 C/M → density=n/log2(max M) → n≤40 走 MITM 全枚举、否则走 LLL → 回代校验通过即输出 long_to_bytes(Σbit<<pos)，失败自动降级为仅报告 density 与建议路径",
+  "version": 2,
+  "created_at": 1794552375.1739628
+}

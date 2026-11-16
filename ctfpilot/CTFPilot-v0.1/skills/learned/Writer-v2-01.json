@@ -1,0 +1,20 @@
+{
+  "name": "Writer",
+  "category": "pwn",
+  "technique": "format string leak",
+  "when_to_use": "菜单程序含隐藏数字选项；有符号/无符号比较混用（jg/ja）；函数读未初始化栈局部；printf(用户缓冲区)",
+  "commands": [],
+  "signals": "菜单程序含隐藏数字选项；有符号/无符号比较混用（jg/ja）；函数读未初始化栈局部；printf(用户缓冲区)",
+  "effective": "",
+  "failure_paths": "无远程靶机、按技能规则不执行附件，无法取得真实 flag；exp.py 已按静态偏移完成并可对任意 host:port 运行。；> AI生成",
+  "limits": "PIE+canary+FullRELRO，需两轮触发；仅离线静态构造，未对靶机验证",
+  "untested": "",
+  "tags": {
+    "识别信号": "菜单程序含隐藏数字选项；有符号/无符号比较混用（jg/ja）；函数读未初始化栈局部；printf(用户缓冲区)",
+    "陷阱类型": "只盯栈溢出忽略资金门的有符号/无符号双语义；同调用深度函数帧复用需算偏移不能猜",
+    "可迁移模式": "\"隐藏数字菜单 + 未初始化栈\"类题先比对同深度帧的局部偏移；printf(buf) 先泄漏后二次触发"
+  },
+  "fixable": "",
+  "version": 2,
+  "created_at": 1794558729.5943713
+}

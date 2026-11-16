@@ -1,0 +1,21 @@
+{
+  "name": "death_note",
+  "category": "pwn",
+  "technique": "format string leak",
+  "when_to_use": "ELF64 PIE 无canary FullRELRO(BIND_NOW)；菜单note管理(1写名/2抹名/3看名/4合上)+隐藏项114258(Death_s_Pen一次性)；全局Ptr[48]/Size[48]；符号check_tcachebin_list；字符串\"violated the death note\"",
+  "commands": [],
+  "signals": "ELF64 PIE 无canary FullRELRO(BIND_NOW)；菜单note管理(1写名/2抹名/3看名/4合上)+隐藏项114258(Death_s_Pen一次性)；全局Ptr[48]/Size[48]；符号check_tcachebin_list；字符串\"violated the death note\"",
+  "effective": "①show_name空槽→Exit打印heap_base(\"This is your gift: %p\")白送堆泄漏；②malloc(0x400)→chunk0x410，7次free填满tcache后第8次进unsorted，别名槽show泄main_arena+96得libc基址；③check_tcachebin_list只遍历tcache entries[64]且限[heap+0x2a0, heap+0xc590)，不查fastbin/unsorted/largebin——fastbin dup是设计内绕过面",
+  "failure_paths": "tcache投毒到libc/.bss目标→头变毒指针后下一菜单动作即被check捕获exit(\"No, you violated the death note!!!\")；tcache同chunk双free被key检测封死（重分配清key仅得单实例）；GOT不可写(Full RELRO)；栈ROP锚点需帧内恒定0x71假size，new_name自身请求size与假size同值矛盾",
+  "limits": "全静态推导、未执行附件（合规边界）；glibc 2.39 fastbin stash在毒指针暴露前自动回填tcache至7个",
+  "untested": "2.39 fastbin直弹对假chunk的size(misaligned/idx)检查确切行为；largebin attack+house of apple 2完整链未实测（需远程/本地执行验证）",
+  "tags": {
+    "识别信号": "heap菜单题+配glibc2.39+出现check_tcachebin_list类防护符号+隐藏菜单大数",
+    "陷阱类型": "悬垂Ptr数组不清零+反tcache投毒校验+一次性大malloc函数",
+    "可迁移模式": "凡\"只查tcache\"的反投毒防护一律先走fastbin dup/直弹绕过，再以堆内投毒+largebin/FSOP收尾",
+    "变体预测": "防护扩到fastbin遍历时改攻unsorted/largebin(同一白名单思路)"
+  },
+  "fixable": "否（交互型heap pwn，无确定性静态特征可编码）",
+  "version": 1,
+  "created_at": 1794551192.6311426
+}

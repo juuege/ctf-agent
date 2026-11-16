@@ -1,0 +1,16 @@
+{
+  "name": "Writer",
+  "category": "pwn",
+  "technique": "format string leak",
+  "when_to_use": "challenge looks like pwn; recall from writeup 'Writer'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "无远程靶机、按技能规则不执行附件，无法取得真实 flag；exp.py 已按静态偏移完成并可对任意 host:port 运行。；> AI生成",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794558664.5534906
+}

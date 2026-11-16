@@ -1,0 +1,20 @@
+{
+  "name": "9.ecn-LongjianCup2025",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "单行 chal.py 输出元组 (x(n·P)·m mod p, x(n·G), y(n·G))；itertools.count(r(q), r(q)) 使标量 n 成等差数列（start/step 均随机藏于点列）；P=gen_keypair[1] 公钥、私钥 k 不出现；附件捆 fastecdsa 各 cp 版 wheel（纯依赖，非隐写）",
+  "commands": [],
+  "signals": "单行 chal.py 输出元组 (x(n·P)·m mod p, x(n·G), y(n·G))；itertools.count(r(q), r(q)) 使标量 n 成等差数列（start/step 均随机藏于点列）；P=gen_keypair[1] 公钥、私钥 k 不出现；附件捆 fastecdsa 各 cp 版 wheel（纯依赖，非隐写）",
+  "effective": "",
+  "failure_paths": "引擎 fast 21 attempts NOT SOLVED 0.8s（无 ECC 检测器，预期）；引擎后台启动因 -EncodedCommand 中文路径 GBK/UTF-8 mojibake 损坏未跑成，改前台 fast 留痕",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "单行 chal.py 输出元组 (x(n·P)·m mod p, x(n·G), y(n·G))；itertools.count(r(q), r(q)) 使标量 n 成等差数列（start/step 均随机藏于点列）；P=gen_keypair[1] 公钥、私钥 k 不出现；附件捆 fastecdsa 各 cp 版 wheel（纯依赖，非隐写）",
+    "陷阱类型": "① 直接求 k 或 s₁,s₂ 需 320-bit ECDLP，死路；关键洞察是点列二阶差分为零，绕开离散对数 ② 4 个 ±y 组合中 2 个有效：(s0=-1,s1=+1) 是全局取负对称 R'_i=−R_i（x 坐标相同），结果互证 ③ 验证锚点：全部 42 点在曲线上 + Q 邻差恒定 d",
+    "可迁移模式": "ECC 题「标量随下标线性变化」+「密文=点x坐标×明文 mod p」组合出现时：已知明文头恢复两点 → sqrt 取 ±y → 差分递推整条点列 → 逐位解明文；ECDLP 被降维成 4 组合枚举"
+  },
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794671456.5739832
+}

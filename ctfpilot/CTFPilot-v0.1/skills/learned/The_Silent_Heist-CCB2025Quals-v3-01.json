@@ -1,0 +1,21 @@
+{
+  "name": "The_Silent_Heist-CCB2025Quals",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "CSV 多维数值特征、孤立森林/反欺诈系统、伪造交易总额门槛、协方差相关提示、CSV+EOF 提交",
+  "commands": [],
+  "signals": "CSV 多维数值特征、孤立森林/反欺诈系统、伪造交易总额门槛、协方差相关提示、CSV+EOF 提交",
+  "effective": "",
+  "failure_paths": "靶机 39.106.128.130:30785 已下线，README 无端口，flag 在平台侧不可复现",
+  "limits": "需服务端可交互才能收 flag；纯标准库下本地验证需自实现简化 iForest（随机特征切分树）",
+  "untested": "",
+  "tags": {
+    "识别信号": "CSV 多维数值特征、孤立森林/反欺诈系统、伪造交易总额门槛、协方差相关提示、CSV+EOF 提交",
+    "陷阱类型": "z 截断/偏移采样稀释相关性（corr 0.73→0.50）；各维独立采样破坏协方差被判异常；金额贴边无余量遇浮点截断；嵌套 Releases zip 的 local header 与中央目录字段不一致",
+    "可迁移模式": "GitHub API 限流时 Range 抽 EOCD/中央目录列题目清单+单条抽取+raw inflate；平均两两相关 >0.7 且标准化投影 z SD≈1 → 单因子结构成立",
+    "变体预测": "换 LOF/OneClassSVM 检测器同法可用（分布逆向+本地重建+生成过滤）；多维高斯直接采样可替换因子模型"
+  },
+  "fixable": "",
+  "version": 3,
+  "created_at": 1794681140.0114455
+}

@@ -1,6 +1,6 @@
 # CTFPilot 题解复盘
 
-共 121 篇（按题目去重，保留每道题最新一版），按日期归档：解出 78 篇、部分 8 篇、未解 33 篇、跳过 2 篇。
+共 135 篇（按题目去重，保留每道题最新一版），按日期归档：解出 85 篇、部分 12 篇、未解 36 篇、跳过 2 篇。
 
 > 本目录保留真实 flag，仅用于已结束赛事的复盘与个人记录；请勿用于正在进行的比赛。
 
@@ -127,3 +127,18 @@
 | 2026-11-12 | 15:02 | TinyNTRU | 解出 | [TinyNTRU](2026-11-12/1502-TinyNTRU.md) |
 | 2026-11-12 | 15:13 | Crypto1-MyCode | 解出 | [Crypto1-MyCode](2026-11-12/1513-Crypto1-MyCode.md) |
 | 2026-11-12 | 15:23 | Forensics-多选题 | 解出 | [Forensics-多选题](2026-11-12/1523-Forensics-多选题.md) |
+
+| 2026-11-13 | 14:52 | 数据安全1 | 解出 | [数据安全1](2026-11-13/1452-数据安全1.md) |
+| 2026-11-13 | 15:47 | Mypow | 解出 | [Mypow](2026-11-13/1547-Mypow.md) |
+| 2026-11-15 | 00:09 | packingmachine | 部分 | [packingmachine](2026-11-15/packingmachine-LongjianCup2025.md) |
+| 2026-11-15 | 01:26 | 0x100 | 解出 | [0x100](2026-11-15/0x100-LanqiaoCup2024Finals.md) |
+| 2026-11-15 | 02:44 | Crypto1 | 解出 | [Crypto1](2026-11-15/Crypto1-ctfchallenges.md) |
+| 2026-11-15 | 04:33 | Easy bog | 未解 | [Easy bog](2026-11-15/Easybog-ShenYangCar2023.md) |
+| 2026-11-15 | 07:47 | 哈希撞口令 | 解出 | [哈希撞口令](2026-11-15/哈希撞口令-jksn2025.md) |
+| 2026-11-15 | 08:08 | MISC2 | 部分 | [MISC2](2026-11-15/MISC2-2022CTFDynamicMisc.md) |
+| 2026-11-15 | 08:32 | DeadGame | 未解 | [DeadGame](2026-11-15/DeadGame-StarCTF2023.md) |
+| 2026-11-15 | 09:44 | xor | 解出 | [xor](2026-11-15/xor-NewStarCTF2024W1.md) |
+| 2026-11-15 | 11:43 | suuuuudo | 部分 | [suuuuudo](2026-11-15/suuuuudo-NISACTF2023.md) |
+| 2026-11-15 | 16:34 | HW | 部分 | [HW](2026-11-15/HW-LongjianCup2023.md) |
+| 2026-11-15 | 18:49 | PixMatrix | 未解 | [PixMatrix](2026-11-15/PixMatrix-chb2024.md) |
+| 2026-11-15 | 20:59 | gza_Cracker | 解出 | [gza_Cracker](2026-11-15/gza_Cracker-chb2024.md) |

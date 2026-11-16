@@ -1,0 +1,18 @@
+{
+  "name": "jswa2025-re2-CatCat",
+  "category": "pwn",
+  "technique": "ROP / ret2* chain",
+  "when_to_use": "CatCat.exe 417KB x64 PE 控制台程序，无 PK\\x03\\x04 明文；字符串命中 exe4jlib.jar;i4jdel.exe;CatFlag.jar;、com/exe4j/runtime/WinLauncher、SOFTWARE\\ej-technologies\\exe4j\\locatedjvms\\ → exe4j 打包的 Java 程序（内嵌 CatFlag.jar，主类 Main，JVM 1.8）",
+  "commands": [],
+  "signals": "CatCat.exe 417KB x64 PE 控制台程序，无 PK\\x03\\x04 明文；字符串命中 exe4jlib.jar;i4jdel.exe;CatFlag.jar;、com/exe4j/runtime/WinLauncher、SOFTWARE\\ej-technologies\\exe4j\\locatedjvms\\ → exe4j 打包的 Java 程序（内嵌 CatFlag.jar，主类 Main，JVM 1.8）",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "CatCat.exe 417KB x64 PE 控制台程序，无 PK\\x03\\x04 明文；字符串命中 exe4jlib.jar;i4jdel.exe;CatFlag.jar;、com/exe4j/runtime/WinLauncher、SOFTWARE\\ej-technologies\\exe4j\\locatedjvms\\ → exe4j 打包的 Java 程序（内嵌 CatFlag.jar，主类 Main，JVM 1.8）"
+  },
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794790175.0281851
+}

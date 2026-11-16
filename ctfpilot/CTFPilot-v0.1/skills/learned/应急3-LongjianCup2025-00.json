@@ -1,0 +1,21 @@
+{
+  "name": "应急3-LongjianCup2025",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "system.php 的 cmd= 命令执行 webshell；GET /exec?data=b64(\"123456789012\"+密文) 自定义 C2；SimpleHTTP /control 下发木马；Sangfor EDR TLS 与 1357 条等长 GET / 404 为噪音",
+  "commands": [],
+  "signals": "system.php 的 cmd= 命令执行 webshell；GET /exec?data=b64(\"123456789012\"+密文) 自定义 C2；SimpleHTTP /control 下发木马；Sangfor EDR TLS 与 1357 条等长 GET / 404 为噪音",
+  "effective": "SYN 方向判定监听端口（紧跟 Burp 会话的新端口即 C2）；响应体长度必为 16 倍数、优先用于密钥判定；Go 二进制 main. 符号直接回答\"函数名\"类问题",
+  "failure_paths": "引擎无 pcap 协议级检测器；pcapng EPB 块类型是 0x00000006 而非 0x00000003；手写 AES 的 SBOX 抄表必错，须 GF(2^8) 逆元+仿射变换程序生成并过 FIPS 向量自检",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "system.php 的 cmd= 命令执行 webshell；GET /exec?data=b64(\"123456789012\"+密文) 自定义 C2；SimpleHTTP /control 下发木马；Sangfor EDR TLS 与 1357 条等长 GET / 404 为噪音",
+    "陷阱类型": "大量 EDR/代理/扫描噪音流；请求 blob 非 16 倍数（客户端另钥）解不开，不要死磕；组合题需先读赛事 README 拆分四问",
+    "可迁移模式": "\"流量+落地样本\"题＝先还原攻击链（下载→chmod→执行），再从流量时间轴定位样本监听端口，最后 strings 提符号 + 密钥爆破解密 C2",
+    "变体预测": "同模板仅换端口/函数名/用户名的题可整链路复用；密钥判据\"解密可打印率>0.9\"通用"
+  },
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794541116.1143754
+}

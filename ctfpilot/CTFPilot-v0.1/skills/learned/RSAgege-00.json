@@ -1,0 +1,21 @@
+{
+  "name": "RSAgege",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "new_task.py RSA 变种；p、q 各 512bit 素数但 n=p·q 不给；a=1024bit 素数、b=1536bit 素数给出；r=random.randint(2^8,2^9)（9bit）；assert ((p+2r)3a+q)%b<70；c=m^0x10001 mod p·q；仅给 c、a、b",
+  "commands": [],
+  "signals": "new_task.py RSA 变种；p、q 各 512bit 素数但 n=p·q 不给；a=1024bit 素数、b=1536bit 素数给出；r=random.randint(2^8,2^9)（9bit）；assert ((p+2r)3a+q)%b<70；c=m^0x10001 mod p·q；仅给 c、a、b",
+  "effective": "乘积项系数含模数倍数时取模自消（6ar≡0 mod 3a）；大素数模下余数即小素数本体（q<3a）；未知量分层爆破：先消 r 爆 k、s 定 q，再爆 r 定 p；纯标准库 Miller-Rabin",
+  "failure_paths": "无弯路；InName.zip 为 0 字节 Release 占位（顺带教训：附件先验大小再解题）",
+  "limits": "实测 NewStarCTF2024 Week5「格格你好棒」flag{u_are_@_master_of_latt1ce_Crypt0gr@phy}；k 范围依赖位数比 (p+2r)·3a/b≈(0.75,6)，改参数需重估 k 上界",
+  "untested": "r 范围扩大到多 bit 时爆破代价线性增长；mod b 侧无 3a 倍数结构时须回退格攻击",
+  "tags": {
+    "识别信号": "源码含 assert ((p+2r)3a+q)%b<70 型\"线性组合 mod 大素数小于小界\"且 n 不给",
+    "陷阱类型": "题面\"格哥哥\"暗示 LLL/Coppersmith 双变量小根而忽略 6ar 是 3a 倍数可先取模消元降为小爆破",
+    "可迁移模式": "线性关系含未知小量时先查各项是否为已知量倍数、是则取模坍缩未知量再爆破剩余小参数",
+    "变体预测": "系数不含模数倍数时退化为双变量 Coppersmith、s 界扩大需部分爆破+格混合\n- 可固化性: 是——特征：crypto triage 源码正则含 getPrime(512)×2+getPrime(1024)+getPrime(1536)+assert .%[a-z]+ < \\d+ 且无 n= 赋值"
+  },
+  "fixable": "是——特征：crypto triage 源码正则含 getPrime(512)×2+getPrime(1024)+getPrime(1536)+assert .%[a-z]+ < \\d+ 且无 n= 赋值；判定：捕获 a/b/界值/系数，重放 k×s 爆破+Miller-Rabin，秒级确定性解出",
+  "version": 1,
+  "created_at": 1794743065.793377
+}

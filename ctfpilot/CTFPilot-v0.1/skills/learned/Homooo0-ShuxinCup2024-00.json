@@ -1,0 +1,16 @@
+{
+  "name": "Homooo0-ShuxinCup2024",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'Homooo0-ShuxinCup2024'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "时间盒内 part2 的 hint 构造未找到预期攻击路径，公开题解两轮检索+GitHub 仓库搜索零命中（地方赛道闭门），flag2 缺失。",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794690447.9692643
+}

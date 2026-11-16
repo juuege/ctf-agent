@@ -1,0 +1,21 @@
+{
+  "name": "数据安全1-LongjianCup2025",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "17MB pcapng 单附件 + 单端口 10000 条 GET /api/v1/user/N + 响应 JSON 含 idcard/username/age",
+  "commands": [],
+  "signals": "17MB pcapng 单附件 + 单端口 10000 条 GET /api/v1/user/N + 响应 JSON 含 idcard/username/age",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "17MB pcapng 单附件 + 单端口 10000 条 GET /api/v1/user/N + 响应 JSON 含 idcard/username/age",
+    "陷阱类型": "pcapng linktype=0 按以太网头解析得 0 条流；7890 代理 CONNECT+TLS 流量占大头，易被当成主体",
+    "可迁移模式": "批量越权/遍历类题先按 Host:Port 过滤目标 API 流，再验唯一性/校验位/四种时间序一致，最后顺序拼接取 md5",
+    "变体预测": "POST 分页或带 token、字段分散多接口、跨流时间归并、含重复记录需去重"
+  },
+  "fixable": "",
+  "version": 2,
+  "created_at": 1794554964.0798995
+}

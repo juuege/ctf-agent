@@ -1,0 +1,21 @@
+{
+  "name": "Since you konw something",
+  "category": "misc",
+  "technique": "archive password recovery / crc collision",
+  "when_to_use": "442B zip 单 .py 源码；pwntools xor(FLAG,key) + bytes_to_long，key 注释 \"extremely short\"，注释内给出 66 位十进制大整数 c",
+  "commands": [],
+  "signals": "442B zip 单 .py 源码；pwntools xor(FLAG,key) + bytes_to_long，key 注释 \"extremely short\"，注释内给出 66 位十进制大整数 c",
+  "effective": "pwntools xor 对不等长输入做循环异或（短者循环补齐到长者）；known-plaintext 推导 key[i]=ct[i]^known[i]，格式校验（flag{ + } + 全可打印）唯一收敛 k=2",
+  "failure_paths": "引擎 auto 0.1s NOT SOLVED（无 cyclic-XOR known-plaintext 检测器）；k=1/3/5 解出乱码被格式校验否决",
+  "limits": "验证于 flag 前缀长度 ≥ key 长度的 ASCII 明文场景",
+  "untested": "key>5 字节或明文含多字节 unicode",
+  "tags": {
+    "识别信号": "pwntools xor()+bytes_to_long 源码+注释泄露大整数 c+key 极短",
+    "陷阱类型": "误当一次性 pad 而忽略 key 循环复用",
+    "可迁移模式": "整数密文先 long_to_bytes，已知 flag{ 前缀即已知明文逐 k 推 key 用格式校验筛",
+    "变体预测": "无前缀明文时退化为 k 爆破 + crib dragging\n- 可固化性: 是"
+  },
+  "fixable": "是；特征检测条件=源码含 xor( + bytes_to_long + 单个大整数常量；确定性判定逻辑=long_to_bytes 后用 'flag{' 已知明文推 1..5 字节循环 key，flag{} 包裹且全可打印即出解",
+  "version": 1,
+  "created_at": 1794745373.5763016
+}

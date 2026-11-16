@@ -1,0 +1,21 @@
+{
+  "name": "Another leak of LCG-2024chb",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "task.py 给出 512bit 模数 M=2^512 的 LCG（a、b 已知），64 轮输出每轮只保留 RATIO=0.02024 的随机比特、其余位置为 ；c = flag ^ SEED",
+  "commands": [],
+  "signals": "task.py 给出 512bit 模数 M=2^512 的 LCG（a、b 已知），64 轮输出每轮只保留 RATIO=0.02024 的随机比特、其余位置为 ；c = flag ^ SEED",
+  "effective": "LCG 泄露低位/随机散位时用\"线性表示 + 逐位 Hensel 式回溯\"（649 个已知比特 > 512 位未知，仍留 8 个解，属结构冗余）；再用 seed=getPrime(512) 的素数性质过滤，8 个候选中恰好 1 个素数，唯一定解；最后 flag=c^seed 取可打印串",
+  "failure_paths": "先想连分数/Wiener 类格攻击不适用（a、b 已知、只缺初始 seed，问题是比特约束而非小根）；直接当 512 元线性方程组解也无效，因输出是比特截断而非模方程",
+  "limits": "需 a 与 2^512 互素（a 为素数必为奇数）；已知比特须覆盖足够低位以约束低位分支",
+  "untested": "a 为偶数（非可逆）情形、只泄露高位（MSB）时的回溯方向需反转",
+  "tags": {
+    "识别信号": "LCG参数a/b已知+输出带掩码的比特串",
+    "陷阱类型": "候选解不唯一需靠生成约束(素数/范围)过滤",
+    "可迁移模式": "模 2^k 递推逐位回溯比格攻击更快",
+    "变体预测": "只泄露高位或a为偶数时改为从MSB/用2-adic提升\n- 可固化性: 是"
+  },
+  "fixable": "是；特征=题目目录含 task.py 且出现 \"(aseed + b) % M\" 与 zfill 位串；判定=a 奇则按 A_i/B_i 线性化后从 LSB 逐位回溯，候选>1 时用素数/范围/flag 字符集过滤",
+  "version": 1,
+  "created_at": 1794542583.3472762
+}

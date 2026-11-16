@@ -1,0 +1,16 @@
+{
+  "name": "14.double-LongjianCup2025",
+  "category": "crypto",
+  "technique": "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)",
+  "when_to_use": "challenge looks like crypto; recall from writeup '14.double-LongjianCup2025'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "key 候选全部排除——ELF头[0:16]、main[0:16]、SHA256(main[0:256])、SHA256(文件0x94fd区=bss零页)、SHA256(0x100个零字节)、pcap/内嵌密文 LE/BE 字节序组合均不命中 {hi,lo,hi,lo} 明文模式；运行时 base+0x94fd 落 rw LOAD memsz(0x9398) 之外的页对齐零区，理论应全零但不中，说明关键机关未找到。",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794668047.4444075
+}

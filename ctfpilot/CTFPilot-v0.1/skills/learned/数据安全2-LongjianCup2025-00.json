@@ -1,0 +1,21 @@
+{
+  "name": "数据安全2-LongjianCup2025",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "37MB pcapng 单附件，SMTP 10000 封 125–231 字节模板邮件（4 种 Subject：System Notification/New Account Details/Login Information/Your Access Credentials），混有 7890 代理 CONNECT、ECAgent GET /ECAgent/?op=__check_alive__ 心跳、高熵 2222 端口会话等噪音",
+  "commands": [],
+  "signals": "37MB pcapng 单附件，SMTP 10000 封 125–231 字节模板邮件（4 种 Subject：System Notification/New Account Details/Login Information/Your Access Credentials），混有 7890 代理 CONNECT、ECAgent GET /ECAgent/?op=__check_alive__ 心跳、高熵 2222 端口会话等噪音",
+  "effective": "行级多模板正则：标识 Login Details for X:/USER_LOGIN=/Username:/\\bID:；凭证 password is:/USER_PASS=/Password:/KEY:；\"用户标识和登陆凭证可能以多种的方式存在\"= 同 Subject 下正文格式还有变体",
+  "failure_paths": "①先入为主当钓鱼噪音，弯路找离群邮件/HTTP/2222 加密会话——赛事 README 一句话点破\"邮件即载荷、按时间序提取\"；②宽松正则+整段 b64 盲解回退误配出 4950 对，改行级匹配+删 b64 回退后 10000/10000 全提取",
+  "limits": "仅验证于龙剑杯2025决赛数据安全2；邮件无 Date 头，以捕获首包时间为时间序",
+  "untested": "含 GAP/重传乱序的流重组、非 25 端口 SMTP、凭证经 base64/quoted-printable 编码的变体",
+  "tags": {
+    "识别信号": "pcapng+海量同尺寸 SMTP 模板邮件+题目要求批量提取标识与凭证",
+    "陷阱类型": "海量噪音诱导找\"离群单封\"、同 Subject 不同正文格式变体",
+    "可迁移模式": "批量统计/提取类流量题先读赛事 README 拿拼接与哈希规则再写提取器",
+    "变体预测": "凭证藏在编码体或 POP3/IMAP、要求去重排序\n- 可固化性: 是"
+  },
+  "fixable": "是；特征检测条件=pcapng 中 ≥1000 封含 DATA 段的小邮件且正文密集出现 password/KEY 关键词，确定性判定逻辑=SMTP DATA 切分→时间排序→多模板提取→按题面规则拼接 md5，可作 forensics 检测器候选",
+  "version": 1,
+  "created_at": 1794545483.802722
+}

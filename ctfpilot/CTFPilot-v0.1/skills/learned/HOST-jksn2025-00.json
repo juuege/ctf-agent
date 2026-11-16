@@ -1,0 +1,7 @@
+{
+  "name": "HOST-jksn2025",
+  "category": "web",
+  "technique": "钓鱼网页源码表单 action 第三方收信域名提取（敏感字段 password/cvn/卡号语义确认）",
+  "when_to_use": "challenge looks like web; recall from writeup 'HOST-jksn2025'",
+  "commands": []
+}

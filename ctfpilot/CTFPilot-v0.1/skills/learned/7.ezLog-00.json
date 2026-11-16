@@ -1,0 +1,21 @@
+{
+  "name": "7.ezLog",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "candump 格式 CAN 日志（(ts) vcan0 ID#DATA），197429 行约 100 秒，绝大多数 ID 为 100Hz 周期心跳帧，ID 1FF 仅 12 帧且 payload 全为 0/1 字符、每 0.2s 等间隔",
+  "commands": [],
+  "signals": "candump 格式 CAN 日志（(ts) vcan0 ID#DATA），197429 行约 100 秒，绝大多数 ID 为 100Hz 周期心跳帧，ID 1FF 仅 12 帧且 payload 全为 0/1 字符、每 0.2s 等间隔",
+  "effective": "",
+  "failure_paths": "40C 周期广播 VIN 分片（头帧 00 声明 4 分片/0x13=19 字节，01/02/03 拼 \"JHMFA3%6229S0913849\"）曾判定为题面答案——长度声明自洽但属车辆铭牌泄露层非 flag；01 帧 1/3 规律缺帧（presence bits = 10+110×30 周期 3）确认是总线负载干扰非编码通道",
+  "limits": "candump 文本日志；二进制位串编码需 payload 字符集仅 0/1 才判定",
+  "untested": "",
+  "tags": {
+    "识别信号": "candump CAN 日志+ID 帧频统计+payload 仅 0/1 字符集",
+    "陷阱类型": "周期心跳帧占绝对多数、40C VIN 明文广播是第一层幌子",
+    "可迁移模式": "CAN ID 分桶后按帧数少+等间隔+字符集异常筛隐蔽通道帧",
+    "变体预测": "时间戳间隔编码、多 ID 交错、位串 LSB 反序\n- 可固化性: 是"
+  },
+  "fixable": "是；特征检测条件=candump 行正则解析+每 ID payload 字符集与帧间隔统计；确定性判定逻辑=payload 全为 8 位 0/1 串即按位串转 ASCII 并链接为字符串跑 flag 正则，负样本为普通 hex 帧",
+  "version": 1,
+  "created_at": 1794562675.2098927
+}

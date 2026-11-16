@@ -1,0 +1,21 @@
+{
+  "name": "easy_ecc",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "task.py sage 风格 ECC ElGamal（GF(p) y²=x³+ax+b，p≈2^256）；m/G 随机点，K=k·G，c1=m+r·K、c2=r·G；私钥 k=86388708736702446338970388622357740462258632504448854088010402300997950626097 直接明文给出；flag 左右半分别乘 m 的 x/y 坐标得 c_left/c_right",
+  "commands": [],
+  "signals": "task.py sage 风格 ECC ElGamal（GF(p) y²=x³+ax+b，p≈2^256）；m/G 随机点，K=k·G，c1=m+r·K、c2=r·G；私钥 k=86388708736702446338970388622357740462258632504448854088010402300997950626097 直接明文给出；flag 左右半分别乘 m 的 x/y 坐标得 c_left/c_right",
+  "effective": "ElGamal 结构恒等式 k·c2=r·K 化解未知 nonce r；模逆 pow(x,-1,p)；曲线校验 assert 三点在曲线上闭环验证",
+  "failure_paths": "无实质弯路；引擎快通道对 .py 数值题只会 chain-decode/caesar/xor 全 miss，此类题直接走模型补位即可，不必等 deep",
+  "limits": "已验证 NewStarCTF2024 Week1 本题实测 flag{This_is_the_last_crypto_}；私钥 k 必须已知（本题明文给出）；m[0]/m[1] 取仿射坐标 mod p",
+  "untested": "k 未知时需先解 ECDLP（本题不适用）；非素域/二元域曲线同法未验",
+  "tags": {
+    "识别信号": "sage 风格 EllipticCurve+random_point+c1=m+r·K/c2=r·G 结构且源码含明文 k 常量",
+    "陷阱类型": "把题当 ECDLP 硬解而忽略 k 已泄露",
+    "可迁移模式": "ECC ElGamal 见私钥常量先走 c1−k·c2，flag 乘坐标则用模逆还原",
+    "变体预测": "k 藏于 k=h^d 类派生、flag 整体乘 m.x、Weierstrass 参数藏 sagedump 格式\n- 可固化性: 是——特征：crypto triage 源码含 EllipticCurve(GF(p),[a,b]) 与 c1=m+r·K/c2=r·G 赋值对"
+  },
+  "fixable": "是——特征：crypto triage 源码含 EllipticCurve(GF(p),[a,b]) 与 c1=m+r·K/c2=r·G 赋值对；判定：正则捕获 p/a/b/k/c1/c2/c_left/c_right 八元组 → 纯标准库 EC 点运算复算 m=c1−k·c2 → 坐标模逆出明文",
+  "version": 1,
+  "created_at": 1794740831.7423332
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Reverse Picture",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "rar5 双文件（data.txt 6316B + Picture.exe 319488B）均加密，README 提示\"格式转换，相信自己！\"；压缩包密码与题名同源（picture）",
+  "commands": [],
+  "signals": "rar5 双文件（data.txt 6316B + Picture.exe 319488B）均加密，README 提示\"格式转换，相信自己！\"；压缩包密码与题名同源（picture）",
+  "effective": "tar.exe(libarchive) 对 rar5 method3 报 \"encrypted data not supported\" 属解压 bug 误报，SharpCompress IsEncrypted=True 才是加密真相；rar 文件头 CRC 复核（crc32(NUL×6316)=0xfa70b632≠头内 0xAC839AF9）可当场识破\"解出全 NUL 是假的\"；PNG 缺头修复三件套 = IEND chunk 闭环定位 chunk 起点 + IDAT 长度整除反推宽高 + sRGB/gAMA chunk 指纹确认序；转换头 15B 内含 W(01f2=498)/H(51=81)/depth(08)/color(06) 即 IHDR 数据编码",
+  "failure_paths": "手工解析 rar5 vint 头两轮错位（vint continuation bit 误算）；重建 PNG 误用 b[16:] 吃掉 1 字节致 chunk 错位 zlib truncated（修正 b[15:]）；data.txt 首解（tar.exe）全 NUL 差点误判为空文件干扰项",
+  "limits": "未逆向 Picture.exe（边界禁止执行，且 exe 仅是出题人给的\"格式转换工具\"演示件）；视觉模型读图结果 ISCC{Picture~or~Reverse} 语义自洽但需人工复核图面",
+  "untested": "Picture.exe 静态反汇编验证转换算法；pngcheck 全链校验",
+  "tags": {
+    "识别信号": "rar5+题名弱密码+base64 文本含 sRGB/gAMA base64 片段",
+    "可迁移模式": "加密压缩包先弱密码（题名/题面词/赛事名）再谈其他",
+    "变体预测": "转换头改 XOR 编码/IHDR 参数改藏 exe 字符串/多 chunk IDAT 拆分\n- 一得: 两源交叉验证（SharpCompress.IsEncrypted + 文件头 CRC）才能给\"加密/损坏\"定罪，单一工具报错会带偏整个分支"
+  },
+  "fixable": "候选——\"PNG 缺头修复器\"：特征=无 PNG 魔数但 IEND 闭环成立且含标准 ancillary chunks；逻辑=IEND 反推 chunk 起点 → 整除法得 W/H（枚举 4 通道组合）→ 重建 IHDR 拼 PNG，纯标准库可实现",
+  "version": 1,
+  "created_at": 1794694171.2854884
+}

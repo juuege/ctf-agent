@@ -1,0 +1,21 @@
+{
+  "name": "lockbylock-XHLJ2022",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "RSA 三传协议（Massey-Omura 风格 lock/unlock 对白），Alice/Bob 两把 Lock 共用同一 p,q（同 n）；e=random.randint(1e14,1e15)≈50bit；每连接输出 secure 3 值 + 2 次 proxy 选择明文甲骨文（各 3 值）；docker 9999 端口服务、$FLAG 动态注入",
+  "commands": [],
+  "signals": "RSA 三传协议（Massey-Omura 风格 lock/unlock 对白），Alice/Bob 两把 Lock 共用同一 p,q（同 n）；e=random.randint(1e14,1e15)≈50bit；每连接输出 secure 3 值 + 2 次 proxy 选择明文甲骨文（各 3 值）；docker 9999 端口服务、$FLAG 动态注入",
+  "effective": "①平方关系恢复 n：三关系(a/b/c 各一组)gcd 免 factorb 查小因子 k（公开题解 GCD(...)//19 需 factorb）；②50bit 小指数 DLP：2.3GB 空闲内存下 BSGS 3e7 表不可行，kangaroo 分区点 O(√W) 常数内存等价 sage discrete_log_lambda；③gcd(eA,eB)≠1 时重连刷新实例（每连接 ~61% 概率互素）",
+  "failure_paths": "纯 Python 真实 1e15 区间 kangaroo 5 分钟超时（全程 ~10-20 分钟量级）——算力边界非方法错误；43bit 中档区间 34s 端到端 PASS 证明链路正确",
+  "limits": "复放验证于 256bit 素数+真实指数区间下采样（128bit 素数小档、256bit 素数 43bit 指数中档均全链 PASS）；未连在线靶机，flag 动态注入不可静态获得",
+  "untested": "1024bit 素数全参数运行（时间盒外）；gcd(eA,eB)>1 重连概率实测统计",
+  "tags": {
+    "识别信号": "三传协议对白+双 Lock 共用同 n+50bit e+恰好 2 次选择明文甲骨文",
+    "陷阱类型": "compose 明文 flag 被 raw-echo 门控拦截、n 倍数 gcd 含小因子 k 需剥离、纯 Python 全参数算力超盒",
+    "可迁移模式": "「(x,x²) 甲骨文→gcd 恢复 n + 小指数 kangaroo DLP + 共模还原」三件套，凡\"共享模数双密钥小指数\"题型通用",
+    "变体预测": "换更大 e 界需 BSGS/更久 kangaroo，proxy 次数不足 2 则失去 n 恢复通道，eA/eB 不互素走重连刷新\n- 可固化性: 否（核心为算力型 DLP，非确定性字节特征检测）"
+  },
+  "fixable": "否（核心为算力型 DLP，非确定性字节特征检测）",
+  "version": 1,
+  "created_at": 1794720907.0446732
+}

@@ -1,0 +1,21 @@
+{
+  "name": "hideandseek-MTGXS2022",
+  "category": "pwn",
+  "technique": "ROP / ret2* chain",
+  "when_to_use": "41KB ELF64 no-PIE/NX/PartialRELRO/无canary，符号齐全；backdoor@0x40132c=lea \"/bin/sh\"+call system@plt；main 26KB 由 ~64 个谜题块组成，input_val(getchar空格分隔→atoi) 与 input_line(恰读size字节+强制补dest[size]=0)、fksth(逐字节差求和,相等=0) 三原语；题名\"捉迷藏/你能找到藏到哪里吗\"",
+  "commands": [],
+  "signals": "41KB ELF64 no-PIE/NX/PartialRELRO/无canary，符号齐全；backdoor@0x40132c=lea \"/bin/sh\"+call system@plt；main 26KB 由 ~64 个谜题块组成，input_val(getchar空格分隔→atoi) 与 input_line(恰读size字节+强制补dest[size]=0)、fksth(逐字节差求和,相等=0) 三原语；题名\"捉迷藏/你能找到藏到哪里吗\"",
+  "effective": "控制流迷宫=检查点二分图BFS（对/错均为可控边，答错可能才是正路）；XOR自逆性一步还原串校验输入；裸ret gadget 修 16 字节栈对齐防 glibc system movaps 崩；input_line 型\"恰读N字节+补NUL\"判溢出只看 size vs 缓冲间距",
+  "failure_paths": "ctfpilot auto 上轮已跑 NOT SOLVED（无pwn迷宫检测器，raw-echo 门控正确拦截 compose 明文 flag，误分类 web）；BFS 首版漏\"块内直线推进\"NO PATH，补线性扫描即通",
+  "limits": "未在真实 glibc 环境动态验证（任务边界禁执行题目二进制）；exp 源码 .temp/hideandseek_exp.py 待靶机复放",
+  "untested": "各假分支双侧 exit 的迷惑块未逐一枚举（BFS 天然剪枝）；Dockerfile 基础镜像 glibc 版本未核（对齐垫片已兼容两种情况）",
+  "tags": {
+    "识别信号": "no-PIE+自带backdoor符号+main巨型谜题链+题名捉迷藏",
+    "陷阱类型": "首关答对反而偏路(正确走法先答错)+多假分支双侧exit+溢出点藏在迷宫末端",
+    "可迁移模式": "检查点二分图BFS解对错双向迷宫+input=target^xormap逆变换+ret垫片对齐",
+    "变体预测": "迷宫改单向hash验证/溢出点换 more block/串校验改逐位反馈 oracle\n- 可固化性: 候选——\"input_line 恰读size+补NUL 的 size-vs-缓冲间距溢出审计器\"（静态扫描调用点 lea buf 与 size 即可判定，全 org 仓库通用）"
+  },
+  "fixable": "候选——\"input_line 恰读size+补NUL 的 size-vs-缓冲间距溢出审计器\"（静态扫描调用点 lea buf 与 size 即可判定，全 org 仓库通用）；BFS 迷宫求解属通用方法不入检测器",
+  "version": 1,
+  "created_at": 1794724485.3771183
+}

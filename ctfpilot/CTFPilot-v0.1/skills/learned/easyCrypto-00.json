@@ -1,0 +1,18 @@
+{
+  "name": "easyCrypto",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "task.py 三件套——P=(p-q)&(2^130-1)、leak_p=p>>256、c=pow(1+Pn, m, n3)；512bit p/q、n 1024bit，m=bytes_to_long(FLAG)",
+  "commands": [],
+  "signals": "task.py 三件套——P=(p-q)&(2^130-1)、leak_p=p>>256、c=pow(1+Pn, m, n3)；512bit p/q、n 1024bit，m=bytes_to_long(FLAG)",
+  "effective": "",
+  "failure_paths": "①环境缺格库，known-high-bits 边界格全尺寸不可行；②选题轮网络三连降级（api.github.com 限流60/h耗尽→jsDelivr data API 对 2023/2024 段无缓存仓全 404→codeload 整仓 zip 兜底）耗 ~12 分钟，压缩了解题盒",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "task.py 三件套——P=(p-q)&(2^130-1)、leak_p=p>>256、c=pow(1+Pn, m, n3)；512bit p/q、n 1024bit，m=bytes_to_long(FLAG)"
+  },
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794737602.7867985
+}

@@ -1,0 +1,16 @@
+{
+  "name": "HW-LongjianCup2023",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'HW-LongjianCup2023'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "盒内未独立解出最终答案（推导已至\"冰蝎+key=md5(密码)[:16]\"，卡在手写 AES 三连 bug 消耗时间盒），答案由赛事 README 题面获得后回验闭环；解密验证完整通过（class 魔数实证）。；> AI生成",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794731653.6341808
+}

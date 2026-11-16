@@ -1,0 +1,16 @@
+{
+  "name": "PixMatrix",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'PixMatrix'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "未解出的核心卡点：①\"转置\"粒度不确定——README 8x8 示意图仅 2x2 块矩阵，真实图 512x72 与示意比例不符，枚举的十字/块矩阵/像素级转置均未恢复；②视觉判读不可靠，三候选的\"未恢复\"结论可能误杀正确候选（正确恢复的文字图也可能因块内像素转置不完整而残破）；③时间盒耗尽前未做\"尺寸不变性\"约束推导（块比例 9:64 候选集），也未尝试以逻辑位图矩阵为单位的 8x8 块整体转置输出 72x512（与已试的纯像素转置差异在块内像素是否跟随）。；> AI生成",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794739798.9301414
+}

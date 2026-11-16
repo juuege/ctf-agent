@@ -1,0 +1,21 @@
+{
+  "name": "b4bycoffee",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "Spring Boot 2.7.2 可执行 jar 18MB（含 ROME 1.7.0），POST /b4by/coffee Base64→AntObjectInputStream.readObject，黑名单封 ObjectBean/ToStringBean/TemplatesImpl/BadAttributeValueExpException/Runtime 五类",
+  "commands": [],
+  "signals": "Spring Boot 2.7.2 可执行 jar 18MB（含 ROME 1.7.0），POST /b4by/coffee Base64→AntObjectInputStream.readObject，黑名单封 ObjectBean/ToStringBean/TemplatesImpl/BadAttributeValueExpException/Runtime 五类",
+  "effective": "黑名单只封标准 gadget——审计应用自带 model 类找 defineClass 后门（天然免检）+ 找漏网触发器（EqualsBean 未 ban）；无 Java 环境时纯 Python 解析 class 常量池 UTF8 即可还原类逻辑",
+  "failure_paths": "codeload zipball 下载 18MB jar 超时×2、jsDelivr CDN 403、contents API 大文件 IncompleteRead；改走 git trees + HTTP Range 精准提取 BOOT-INF/classes 12 个业务类（仅几十 KB）成功",
+  "limits": "无 Java 运行时无法生成序列化 payload，未本地复放验证；链骨架与官方题解（CSDN uuzeray 复现）逐点对照一致",
+  "untested": "venti/espresso 双参数字段具体取用、CoffeeModel/Venti 接口角色、SpringEcho 头注入实测",
+  "tags": {
+    "识别信号": "Spring Boot jar+ROME依赖+自定义ObjectInputStream黑名单+应用model类含defineClass",
+    "陷阱类型": "黑名单封sink不封触发器(EqualsBean/ObjectBean漏网)",
+    "可迁移模式": "Java反序列化黑名单绕过先找应用自带toString/defineClass后门类再配漏网触发器",
+    "变体预测": "改ban EqualsBean/HashMap、ClassByte字段加密\n- 可固化性: 否（Java反序列化payload构造需JDK+序列化环境，超出纯标准库固化边界）\n\n> AI生成"
+  },
+  "fixable": "否（Java反序列化payload构造需JDK+序列化环境，超出纯标准库固化边界）",
+  "version": 1,
+  "created_at": 1794722079.3240817
+}

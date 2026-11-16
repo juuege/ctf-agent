@@ -1,0 +1,16 @@
+{
+  "name": "Stm32-fjsdxssjan2023",
+  "category": "web",
+  "technique": "XSS payload crafting",
+  "when_to_use": "challenge looks like web; recall from writeup 'Stm32-fjsdxssjan2023'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794687269.2377615
+}

@@ -1,0 +1,16 @@
+{
+  "name": "gza_Cracker",
+  "category": "crypto",
+  "technique": "constraint solving with z3",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'gza_Cracker'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "无（解出）。中间弯路：标准哥斯拉 md5 链与 b64 字符集假设各耗约 3 分钟；REQ11 污染排查约 1 分钟。；> AI生成",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794747584.692423
+}

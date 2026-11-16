@@ -1,0 +1,16 @@
+{
+  "name": "9.ezTraffic",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup '9.ezTraffic'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "①视觉模型直接读随机点图得 flag{573r30gr4m_15_fun}；②阈值 bs>41 深度图得 flag{3y3s_d0n7_l13}；③39-41 层图得 flag{3d51r5d2}——三次互不一致，判定为幻觉/噪声误读；公开题解两轮检索（CSDN 龙信杯 wp 均为\"流量分析\"取证模块 lxb.pcapng/CS 流量，非本题）无对照",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794670417.11876
+}

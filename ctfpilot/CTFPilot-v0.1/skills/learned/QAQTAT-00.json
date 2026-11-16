@@ -1,0 +1,18 @@
+{
+  "name": "QAQTAT",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "challenge looks like crypto; recall from writeup 'QAQTAT'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "可迁移模式": "矩阵共轭类加密（QAQ 型）通式：密钥矩阵若是公钥矩阵的幂（或与其交换），先参数化到中心化子 Z(G)=span{I,G,G²}，再把 X·A·X=T 改写成 (AX)²=AT 做单项式线性化，二次问题降为线性方程组，完全避开矩阵 DLP/平方根的 Tonelli-Shanks；GF(p²)（p≡3 mod 4）开方有显式三步公式，纯标准库可写"
+  },
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794744417.2701929
+}

@@ -1,0 +1,21 @@
+{
+  "name": "one_and_more",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "just one and more than two.py；flag 对半分 m1/m2；e=65537；p/q/r 三个 512bit 素数全给出；c1=m1^e mod p（单素数模）、c2=m2^e mod N=pqr（三素数模），\"一少一多\"双模 RSA",
+  "commands": [],
+  "signals": "just one and more than two.py；flag 对半分 m1/m2；e=65537；p/q/r 三个 512bit 素数全给出；c1=m1^e mod p（单素数模）、c2=m2^e mod N=pqr（三素数模），\"一少一多\"双模 RSA",
+  "effective": "单素数模即群阶 p−1 的退化 RSA（无需\"分解\"，素数给模直接求逆）；多素数 φ(N)=∏(p_i−1) 三项连乘；纯标准库 int.to_bytes 替代 pycryptodome 的 long_to_bytes",
+  "failure_paths": "首版脚本 import Crypto.Util 触发 ModuleNotFoundError（本机纯标准库环境）→ 改 m.to_bytes 一行修复；解题无弯路，从读题到 flag 约 4 分钟",
+  "limits": "实测 NewStarCTF2024 Week2「Just one and more than two」；要求 e 与 p−1 及 φ(N) 互素（e=65537 素数时几乎必然）",
+  "untested": "m1 接近 p 尺寸时 to_bytes 截断风险（本题 m1=25B 远小于 64B 安全）",
+  "tags": {
+    "识别信号": "源码含 c1=pow(m1,e,p)+c2=pow(m2,e,N=pqr) 且 p/q/r 全部直接给出的双模 RSA",
+    "陷阱类型": "多素数 φ 误作两项相乘漏因子、单素数模误以为需要分解",
+    "可迁移模式": "部分因子解密——明文 < 已知因子子集之积时，仅用该子集的 φ 与模数即可解密，未知因子（本题 r）是烟雾弹",
+    "变体预测": "附件只给部分因子时按\"明文上界 < 因子积\"判定可解性\n- 可固化性: 是——特征：crypto triage 源码正则命中 pow\\(\\w+, e, p\\) 与 N=p\\q\\r 且 p/q/r 为直接十进制赋值"
+  },
+  "fixable": "是——特征：crypto triage 源码正则命中 pow\\(\\w+, e, p\\) 与 N=p\\q\\r 且 p/q/r 为直接十进制赋值；判定：抽取 p,q,r,e,c1,c2 重放双 RSA 幂运算，秒级确定性解出",
+  "version": 1,
+  "created_at": 1794747916.1156123
+}

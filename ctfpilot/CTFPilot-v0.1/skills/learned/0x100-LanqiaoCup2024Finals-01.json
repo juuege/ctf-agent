@@ -1,0 +1,16 @@
+{
+  "name": "0x100-LanqiaoCup2024Finals",
+  "category": "forensics",
+  "technique": "steganography extraction",
+  "when_to_use": "challenge looks like forensics; recall from writeup '0x100-LanqiaoCup2024Finals'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794677175.4999483
+}

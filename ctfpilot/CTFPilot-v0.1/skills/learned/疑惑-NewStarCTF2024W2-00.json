@@ -1,0 +1,21 @@
+{
+  "name": "疑惑-NewStarCTF2024W2",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "task.py 裸 RSA（n=1024bit、e=65537、c）+ hint=p^e+10086；hint≈505bit，与 p 同量级而非 p^e 幂量级；题名\"这是几次方？疑惑！\"双关暗示",
+  "commands": [],
+  "signals": "task.py 裸 RSA（n=1024bit、e=65537、c）+ hint=p^e+10086；hint≈505bit，与 p 同量级而非 p^e 幂量级；题名\"这是几次方？疑惑！\"双关暗示",
+  "effective": "hint 量级判定先行（hint bit 长度≈素数 bit 长度而非乘 e 倍即排除幂）；Python 优先级算术>位运算；XOR 对合性直接反解素数",
+  "failure_paths": "先按 hint=(p^e)+10086 还原 p，n%p≠0 否决——错因是 +10086 实际并入 XOR 右操作数，优先级陷阱在操作数归属而非 XOR 语义本身",
+  "limits": "已验证 NewStarCTF2024 Week2 本题实测 flag；源码明文可读、hint 无模运算",
+  "untested": "其他位运算混算术组合（&、|、<<）及多变量表达式同型题",
+  "tags": {
+    "识别信号": "task.py RSA+hint=p^e+常量且 hint 位数与 p 同量级",
+    "陷阱类型": "Python ^ 语义（XOR 非幂）叠加运算符优先级（+ 先结合）",
+    "可迁移模式": "hint 量级矛盾先行判 ^ 语义，素数还原失败先查操作数结合顺序再换思路",
+    "变体预测": "hint=q^e+c、双位运算链、sage/python 混写同陷阱\n- 可固化性: 是——特征：crypto triage 命中 RSA 且源码含 hint=<素数变量>^<表达式>+<常数> 且输出 hint 位数不超素数位数+20bit"
+  },
+  "fixable": "是——特征：crypto triage 命中 RSA 且源码含 hint=<素数变量>^<表达式>+<常数> 且输出 hint 位数不超素数位数+20bit；判定：量级矛盾排除幂 → AST 按优先级归位 XOR 操作数 → 反解素数整除验证后走 RSA 解密链",
+  "version": 1,
+  "created_at": 1794715368.5966384
+}

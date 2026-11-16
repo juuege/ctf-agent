@@ -1,0 +1,21 @@
+{
+  "name": "一眼秒了-NewStarCTF2024W1",
+  "category": "crypto",
+  "technique": "RSA modulus/factoring analysis",
+  "when_to_use": "task.py 裸 RSA（p,q=getPrime(512)，n 1023bit，e=65537），注释直接给 n、c；题名\"一眼秒了\"暗示 n 可瞬间分解",
+  "commands": [],
+  "signals": "task.py 裸 RSA（p,q=getPrime(512)，n 1023bit，e=65537），注释直接给 n、c；题名\"一眼秒了\"暗示 n 可瞬间分解",
+  "effective": "纯标准库 Fermat（a=math.isqrt(n)+1 起步，b2=a²−n 判完全平方），q−p=672 极小时首轮命中；pq==n 断言验证因子真实性",
+  "failure_paths": "引擎 auto 2.1s/50 尝试 NOT SOLVED（无 RSA 因数检测器；chain/caesar/xor 对 py 源码全 miss 属正确不误判）",
+  "limits": "仅验证 p、q 同为 512bit 且 |q−p|<10^4 的构造题；迭代上限 2×10^5 内",
+  "untested": "|q−p| 更大时的收敛性；非近素数降级到 factordb/Pollard p−1 的分支",
+  "tags": {
+    "识别信号": "裸 RSA 1024bit n+c+e=65537、题名暗示秒解、q−p 极小",
+    "陷阱类型": "无（构造直白）",
+    "可迁移模式": "大 n 裸 RSA 先跑 Fermat 近素数（isqrt 循环 1e5 次内）命中即秒解，勿先依赖 factordb",
+    "变体预测": "p−1 光滑（Pollard）、共模攻击、小指数\n- 可固化性: 是"
+  },
+  "fixable": "是；\"py 源码含两个 300+ 位十进制大数 + powmod(m,e,n) 结构 → 提取 n → Fermat(1e5) → 命中即 φ 求逆解密\"确定性检测器",
+  "version": 1,
+  "created_at": 1794711853.3088226
+}

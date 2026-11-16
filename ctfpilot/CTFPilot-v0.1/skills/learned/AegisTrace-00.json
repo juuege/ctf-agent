@@ -1,0 +1,16 @@
+{
+  "name": "AegisTrace",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'AegisTrace'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "线上 9999 无地址且赛后关闭；本地 Windows 无 Linux ELF 运行时；时间盒内未完成密钥表派生算法（0x2000 区域生成函数）与 pcap 68 字节反变换的对应复原",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794674821.352523
+}

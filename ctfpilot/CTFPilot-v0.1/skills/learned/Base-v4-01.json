@@ -1,0 +1,20 @@
+{
+  "name": "Base",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "hex 串尾部 3D3D3D 是 hex 编码的 ===（base32 padding 指纹）；hex 解出后字符集 ∈ A-Z/2-7",
+  "commands": [],
+  "signals": "hex 串尾部 3D3D3D 是 hex 编码的 ===（base32 padding 指纹）；hex 解出后字符集 ∈ A-Z/2-7",
+  "effective": "字符集判层口诀——A-Z2-7→base32、大小写混合+/→base64，按字符集定层而非枚举层序",
+  "failure_paths": "无（快通道一次命中）",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "hex 串尾 3D3D3D=base32 padding 的 hex 指纹，题面仅一行密文",
+    "陷阱类型": "人工猜层序 b64/b32 顺序反了得乱码，按字符集判层即免错",
+    "可迁移模式": "hex 先剥、字符集定层（A-Z2-7→b32，混合+/→b64）\n\n## 一得\n\n编码链层级判据口诀\"hex 先剥、字符集定层\"比枚举层序快且零试错"
+  },
+  "fixable": "无需固化，快通道 chain-decode 已是确定性检测器",
+  "version": 4,
+  "created_at": 1794738335.0504727
+}

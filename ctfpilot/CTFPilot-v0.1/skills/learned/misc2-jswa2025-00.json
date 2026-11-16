@@ -1,0 +1,16 @@
+{
+  "name": "misc2-jswa2025",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "challenge looks like misc; recall from writeup 'misc2-jswa2025'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "①引擎无 PNG 宽高修复/IDAT 拼接检测器；②时间盒内未确定「部分流+高熵尾」的加密方案（64hex 与 tail/raw 的对应关系未破）；③GitHub API 60/h 限流在选题探测阶段耗尽，下载改走 ghfast.top 镜像整仓库 zip，多花约 2 分钟",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794673864.9912896
+}

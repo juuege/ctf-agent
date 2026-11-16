@@ -1,0 +1,16 @@
+{
+  "name": "2023-fjsdxssjan-Misc-RFID",
+  "category": "crypto",
+  "technique": "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)",
+  "when_to_use": "challenge looks like crypto; recall from writeup '2023-fjsdxssjan-Misc-RFID'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "引擎 auto 13.5s NOT SOLVED（736 尝试，无 RFID/NTAG 检测器）；api.github.com 树/README 403 限流；jsDelivr flat API 404；ghfast.top 404",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794683256.3892126
+}

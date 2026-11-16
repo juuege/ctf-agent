@@ -1,0 +1,21 @@
+{
+  "name": "2025-jswa__misc1-yjshell",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "5.2MB pcapng、15049 包；192.168.200.63 先 multipart POST /upload.php 上传，再对 /uploads/10dbd7da6dbf527ef5576d583ca446b0.php 连发 POST（随机参数名 b7a9e12443f8fa / d983d0937f137f / v9961478e331bd，值像 base64）；响应 chunked 且每段以 GIF8;\\n 伪装、Content-Type 为 image/gif",
+  "commands": [],
+  "signals": "5.2MB pcapng、15049 包；192.168.200.63 先 multipart POST /upload.php 上传，再对 /uploads/10dbd7da6dbf527ef5576d583ca446b0.php 连发 POST（随机参数名 b7a9e12443f8fa / d983d0937f137f / v9961478e331bd，值像 base64）；响应 chunked 且每段以 GIF8;\\n 伪装、Content-Type 为 image/gif",
+  "effective": "① 蚁剑 PHP payload 结构 = 2 字符随机前缀 + base64(命令)，必须先去 2 字符再解码；② 响应是 HTTP chunked，<hexlen>\\r\\n 前缀要剥离，且开头 GIF8;\\n 是 shell 端伪装头，不属命令输出；③ 参数名每次请求随机，按\"值是 base64 且解码可读\"识别命令字段，不要按固定参数名找；④ 攻击链完整：upload.php 的 md5(文件名+rand) 命名 → 访问 webshell → 执行 id/whoami → 写 flag",
+  "failure_paths": "引擎快通道无 pcapng 检测器，0.0s NOT SOLVED；直接对原始字节 regex 搜 flag{ 无命中——命令字段是 base64 且 URL 编码，必须先解码",
+  "limits": "仅验证该 pcapng（1 个接口、Ethernet、无 VLAN、无 IP 分片）；未处理 TCP 重传/乱序（本样本 seq 单调可直接排序拼接）",
+  "untested": "未验证 gzip/deflate 响应体（本样本无 Content-Encoding）；未处理 HTTP/2 或 TLS 内流量",
+  "tags": {
+    "识别信号": "pcapng+80端口+multipart upload.php+随机参数名+base64值+GIF8",
+    "陷阱类型": "payload 2字符前缀、chunked 长度前缀、明文搜 flag 搜不到",
+    "可迁移模式": "\"webshell 流量题：重组 TCP → urldecode → 去前缀 base64 → 逐条读命令\"",
+    "变体预测": "冰蝎 AES 加密 body、gzip 压缩响应、参数名固定但值加盐\n- 可固化性: 是"
+  },
+  "fixable": "是；特征=HTTP POST body 含 =<2字符><base64> 且解码后出现 @ini_set/cd \"/echo → 判定=逐请求输出解码命令与 chunked 响应，命中 flag 正则即报",
+  "version": 1,
+  "created_at": 1794553749.5683904
+}

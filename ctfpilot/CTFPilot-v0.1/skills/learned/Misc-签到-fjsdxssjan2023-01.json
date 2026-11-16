@@ -1,0 +1,21 @@
+{
+  "name": "Misc-签到-fjsdxssjan2023",
+  "category": "crypto",
+  "technique": "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)",
+  "when_to_use": "目录仅 README.txt（160B）无附件；文本内联 base64 密文以 U2FsdGVkX1 开头（= OpenSSL Salted__ 封装）；题面明示\"密码为secret，采用的方式是aes-256-cbc\"",
+  "commands": [],
+  "signals": "目录仅 README.txt（160B）无附件；文本内联 base64 密文以 U2FsdGVkX1 开头（= OpenSSL Salted__ 封装）；题面明示\"密码为secret，采用的方式是aes-256-cbc\"",
+  "effective": "hashlib.md5 级联 KDF（D_i=MD5(D_{i-1}||password||salt)）+ pycryptodome AES（装入 ctf-20min\\.temp-pkgs，不动全局）；等价 openssl CLI：openssl enc -aes-256-cbc -d -a -pass pass:secret",
+  "failure_paths": "引擎 auto 1.9s/30 attempts NOT SOLVED（无 OpenSSL-enc 检测器，预期边界）；错误密码对照 Secret/SECRET/aes-256-cbc 三组 PKCS7 全失败，佐证 secret 唯一正确",
+  "limits": "OpenSSL enc 未显式 -md 时默认 MD5 派生；密码明文给在题面；密文仅 3 块（48B）未涉大数据量",
+  "untested": "-md sha256 显式指定、aes-128/192、CBC 之外模式（CTR/GCM）、openssl 3.x 默认 digest 差异",
+  "tags": {
+    "识别信号": "base64 串前缀 U2FsdGVkX1=Salted__，题面含「密码为X…方式是aes-N-cbc」句式",
+    "陷阱类型": "无（签到直给参数）",
+    "可迁移模式": "OpenSSL enc 题先从题面全文提密码，再 EVP_BytesToKey(MD5)+对应模式解密，PKCS7 是否成立即密码正误判定器",
+    "变体预测": "密码不直给（谐音/藏图）、改 KDF digest、多层 openssl enc 套娃\n- 可固化性: 是"
+  },
+  "fixable": "是；特征检测条件=文件含 U2FsdGVkX1 前缀 base64 且同目录文本有密码候选词（密码/password/secret/秘钥）；确定性判定逻辑=提取候选→EVP_BytesToKey(MD5)+AES--CBC 解密→PKCS7 校验→flag 正则，多候选逐试（首见此形态，fixations 频次未达标 3，暂登记候选不固化）",
+  "version": 1,
+  "created_at": 1794685474.6131134
+}
