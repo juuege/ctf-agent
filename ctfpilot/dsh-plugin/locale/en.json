@@ -1,6 +1,7 @@
 {
   "meta": {
     "title": "CTFPilot CTF solving tool",
-    "description": "Expose the local CTFPilot engine: solve challenges on the fast path, recall past experience, and record fixed knowledge."
+    "description": "Local dual-channel CTF solving engine: a deterministic fast path solves encoding chains, classical ciphers, XOR, archives and PNG LSB stego in seconds; misses fall through to the deep strategy loop. Includes experience recall, writeup learning and stats. Before recording a flag the model proposes a submit that the user confirms via a card under the answer; only confirmed flags reach the engine ledger — nothing is recorded without human confirmation. Tool entry: /ctfpilot; the sidebar icon opens the main-column dashboard panel.",
+    "detail": "docs/DETAIL.md"
   }
 }

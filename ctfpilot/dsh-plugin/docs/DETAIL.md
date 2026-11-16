@@ -1,0 +1,1 @@
+![CTFPilot dashboard panel and submit-confirmation card](preview.svg)

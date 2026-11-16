@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300">
+  <!-- Left: main-column dashboard panel schematic -->
+  <g transform="translate(24,40)">
+    <rect x="0" y="0" width="330" height="224" rx="12" fill="#ffffff" stroke="#d9e2ec" stroke-width="2"/>
+    <rect x="20" y="18" width="180" height="14" rx="7" fill="#247bbf"/>
+    <rect x="20" y="42" width="240" height="8" rx="4" fill="#e1e8f0"/>
+    <g>
+      <rect x="20" y="64" width="68" height="34" rx="6" fill="#eef4fb"/>
+      <rect x="30" y="74" width="36" height="7" rx="3.5" fill="#247bbf"/>
+      <rect x="30" y="85" width="24" height="5" rx="2.5" fill="#aac6e2"/>
+    </g>
+    <g>
+      <rect x="96" y="64" width="68" height="34" rx="6" fill="#e8f5ee"/>
+      <rect x="106" y="74" width="36" height="7" rx="3.5" fill="#2f9e63"/>
+      <rect x="106" y="85" width="24" height="5" rx="2.5" fill="#a5cfb6"/>
+    </g>
+    <g>
+      <rect x="172" y="64" width="68" height="34" rx="6" fill="#fdf3e3"/>
+      <rect x="182" y="74" width="36" height="7" rx="3.5" fill="#e09a2e"/>
+      <rect x="182" y="85" width="24" height="5" rx="2.5" fill="#ecd3a1"/>
+    </g>
+    <g>
+      <rect x="248" y="64" width="62" height="34" rx="6" fill="#f3f4f7"/>
+      <rect x="258" y="74" width="36" height="7" rx="3.5" fill="#5b6472"/>
+      <rect x="258" y="85" width="24" height="5" rx="2.5" fill="#c6ccd4"/>
+    </g>
+    <!-- category progress rows -->
+    <rect x="20" y="112" width="290" height="10" rx="5" fill="#eef1f5"/>
+    <rect x="20" y="112" width="150" height="10" rx="5" fill="#2f9e63"/>
+    <rect x="20" y="132" width="290" height="10" rx="5" fill="#eef1f5"/>
+    <rect x="20" y="132" width="105" height="10" rx="5" fill="#2f9e63"/>
+    <rect x="20" y="152" width="290" height="10" rx="5" fill="#eef1f5"/>
+    <rect x="20" y="152" width="60" height="10" rx="5" fill="#2f9e63"/>
+    <!-- ledger rows -->
+    <circle cx="28" cy="184" r="5" fill="#2f9e63"/>
+    <rect x="42" y="181" width="120" height="7" rx="3.5" fill="#31465a"/>
+    <rect x="170" y="179" width="52" height="11" rx="5.5" fill="#dbe7f5"/>
+    <circle cx="28" cy="204" r="5" fill="#d9e2ec"/>
+    <rect x="42" y="201" width="90" height="7" rx="3.5" fill="#aab6c5"/>
+    <rect x="142" y="199" width="52" height="11" rx="5.5" fill="#eef1f5"/>
+    <circle cx="28" cy="224" r="5" fill="#d9e2ec"/>
+    <rect x="42" y="221" width="140" height="7" rx="3.5" fill="#aab6c5"/>
+    <rect x="196" y="219" width="52" height="11" rx="5.5" fill="#eef1f5"/>
+  </g>
+  <!-- Right: submit-confirmation card under an answer -->
+  <g transform="translate(396,84)">
+    <rect x="0" y="0" width="216" height="136" rx="10" fill="#ffffff" stroke="#d9e2ec" stroke-width="2"/>
+    <rect x="16" y="16" width="118" height="9" rx="4.5" fill="#31465a"/>
+    <rect x="150" y="13" width="50" height="15" rx="7.5" fill="#dbe7f5"/>
+    <rect x="16" y="32" width="186" height="6" rx="3" fill="#aab6c5"/>
+    <rect x="16" y="46" width="150" height="14" rx="4" fill="#0f2437"/>
+    <rect x="16" y="68" width="80" height="22" rx="6" fill="#2f9e63"/>
+    <path d="M33 78 L38 83 L48 71" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="104" y="68" width="64" height="22" rx="6" fill="#eef1f5"/>
+    <!-- connector: answer bubble above the card -->
+    <rect x="60" y="-56" width="96" height="34" rx="10" fill="#f0f3f8"/>
+    <rect x="72" y="-44" width="48" height="6" rx="3" fill="#aab6c5"/>
+    <rect x="76" y="-32" width="40" height="5" rx="2.5" fill="#cdd5de"/>
+  </g>
+</svg>

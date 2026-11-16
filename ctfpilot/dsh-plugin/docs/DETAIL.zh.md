@@ -1,0 +1,1 @@
+![CTFPilot 解题看板与提交确认卡片](preview.svg)

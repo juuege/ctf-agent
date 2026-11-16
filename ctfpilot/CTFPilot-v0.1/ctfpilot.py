@@ -540,20 +540,47 @@ def build_dashboard_data(cfg):
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
-    stats_row = conn.execute(
-        "SELECT COUNT(*) AS total, SUM(solved) AS solved FROM challenges").fetchone()
+    # 台账按「题」去重：同名题每次 solve 都插新行（见 TrajStore.new_challenge），
+    # 每题的当前状态取 id 最大（最新）那一行；轨迹事件本身不删，只在展示层聚合。
+    # 口径：mode='learn' 行是学 writeup 的导入记录，不是真实解题——KPI/分类/
+    # 模式统计只计真实解题（存在任一非 learn 行的题即算解题题）；同名若只有
+    # learn 行则 kind='learn'，侧栏打标「学习导入」且默认隐藏。
+    latest_cte = """
+WITH latest AS (
+    SELECT name, MAX(id) AS id FROM challenges GROUP BY name
+),
+ledger AS (
+    SELECT c.id, c.name, c.category, c.solved, c.flag, c.mode, c.summary,
+           datetime(c.created_at, 'unixepoch', 'localtime') AS ts_str
+    FROM challenges c JOIN latest l ON l.id = c.id
+),
+rowkind AS (
+    SELECT d.name,
+           CASE WHEN EXISTS (
+               SELECT 1 FROM challenges x
+               WHERE x.name = d.name AND COALESCE(x.mode, '') <> 'learn'
+           ) THEN 'solve' ELSE 'learn' END AS kind
+    FROM (SELECT DISTINCT name FROM ledger) d
+)
+"""
+    stats_row = conn.execute(latest_cte + """
+        SELECT COUNT(*) AS total, SUM(solved) AS solved
+        FROM ledger ld JOIN rowkind k ON k.name = ld.name
+        WHERE k.kind = 'solve'
+    """).fetchone()
     total = stats_row[0] or 0
     solved = stats_row[1] or 0
 
-    bycat_rows = conn.execute("""
+    bycat_rows = conn.execute(latest_cte + """
         SELECT category, COUNT(*) AS total, SUM(solved) AS solved
-        FROM challenges GROUP BY category ORDER BY total DESC
+        FROM ledger ld JOIN rowkind k ON k.name = ld.name
+        WHERE k.kind = 'solve' GROUP BY category ORDER BY total DESC
     """).fetchall()
 
-    chall_rows = conn.execute("""
-        SELECT id, name, category, solved, flag, mode,
-               datetime(created_at, 'unixepoch', 'localtime') AS ts_str
-        FROM challenges ORDER BY id DESC LIMIT 200
+    chall_rows = conn.execute(latest_cte + """
+        SELECT ld.id, ld.name, ld.category, ld.solved, ld.flag, ld.mode, ld.ts_str, k.kind
+        FROM ledger ld JOIN rowkind k ON k.name = ld.name
+        ORDER BY ld.id DESC LIMIT 200
     """).fetchall()
 
     lesson_rows = conn.execute("""
@@ -572,9 +599,21 @@ def build_dashboard_data(cfg):
     checkpoint_count = conn.execute("SELECT COUNT(*) FROM checkpoints").fetchone()[0]
     lesson_count = conn.execute("SELECT COUNT(*) FROM lessons").fetchone()[0]
 
-    mode_rows = conn.execute("""
-        SELECT mode, COUNT(*) AS cnt FROM challenges
-        GROUP BY mode ORDER BY cnt DESC
+    # 失败画像：只有真实解题（solve 行）才进入归因口径；'learn' 导入行的失败
+    # 不反映真实做题难度。语义类（semantic:*）才是可行动信号，过程类只作背景。
+    error_rows = conn.execute(latest_cte + """
+        SELECT a.error_class, COUNT(*) AS cnt, SUM(a.success) AS ok
+        FROM attempts a JOIN ledger ld ON ld.id = a.challenge_id
+        JOIN rowkind k ON k.name = ld.name
+        WHERE k.kind = 'solve' AND COALESCE(a.error_class, '')
+              NOT IN ('', 'ok')
+        GROUP BY a.error_class ORDER BY cnt DESC LIMIT 12
+    """).fetchall()
+
+    mode_rows = conn.execute(latest_cte + """
+        SELECT mode, COUNT(*) AS cnt FROM ledger ld
+        JOIN rowkind k ON k.name = ld.name
+        WHERE k.kind = 'solve' GROUP BY mode ORDER BY cnt DESC
     """).fetchall()
 
     rate = round(solved * 100 / max(total, 1))
@@ -583,7 +622,8 @@ def build_dashboard_data(cfg):
               "solved": r["solved"] or 0} for r in bycat_rows]
     challs = [{"id": r["id"], "name": r["name"], "cat": r["category"],
                "mode": r["mode"] or "", "solved": bool(r["solved"]),
-               "flag": r["flag"] or "", "time": r["ts_str"] or ""
+               "flag": r["flag"] or "", "time": r["ts_str"] or "",
+               "kind": r["kind"]
               } for r in chall_rows]
     lessons = [{"cat": r["category"], "tech": r["technique"],
                "src": r["when_to_use"], "snippet": (r["snippet"] or "")[:300],
@@ -592,6 +632,11 @@ def build_dashboard_data(cfg):
     detectors = [{"phase": r["phase"], "detector": r["detector"],
                   "attempts": r["attempts"], "hits": r["hits"] or 0
                  } for r in det_rows]
+    errors = [{"class": ("semantic:" + r["error_class"])
+               if r["error_class"] == "raw-echo"
+               else (r["error_class"] or "unknown"),
+               "count": r["cnt"], "ok": r["ok"] or 0
+              } for r in error_rows]
     modes = [{"mode": r["mode"] or "unknown", "count": r["cnt"]} for r in mode_rows]
 
     data_blob = {
@@ -603,7 +648,7 @@ def build_dashboard_data(cfg):
                   "distinct": len(set(c["name"] for c in challs)),
                   "challs": len(challs)},
         "bycat": bycat, "modes": modes, "challs": challs,
-        "lessons": lessons, "detectors": detectors,
+        "lessons": lessons, "detectors": detectors, "errors": errors,
     }
     conn.close()
     return data_blob
@@ -652,6 +697,75 @@ def do_record_win(args, cfg):
                      "worked on '%s' (human-confirmed flag)" % name, "")
     store.bump_success(category, "confirm-gate")
     log("[result] RECORD-WIN: %s (%s) — flag %s" % (name, category, flag))
+    return 0
+
+
+def do_challenge_detail(args, cfg):
+    """One challenge's full ledger record: metadata + attempt timeline + its lessons.
+    JSON to stdout so the sidebar detail page can render it verbatim (no logs mixed in)."""
+    import sqlite3
+    import datetime as _dt
+    db_path = os.environ.get("CTFPILOT_DB") or path_under_project(cfg["memory"]["db_path"])
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    row = None
+    if getattr(args, "id", None):
+        row = conn.execute("SELECT * FROM challenges WHERE id=?",
+                           (int(args.id),)).fetchone()
+    if row is None and getattr(args, "name", None):
+        cand = conn.execute("SELECT * FROM challenges WHERE name=? ORDER BY id DESC",
+                            (str(args.name),)).fetchall()
+        if cand:
+            row = cand[0]
+    if row is None:
+        log("[error] challenge not found (pass --id N or --name NAME)")
+        return 2
+
+    cid = row["id"]
+    att_rows = conn.execute("""
+        SELECT phase, detector, detail, success, flag, error_class,
+               datetime(ts,'unixepoch','localtime') AS ts_str
+        FROM attempts WHERE challenge_id=? ORDER BY ts ASC""",
+                            (cid,)).fetchall()
+    les_rows = conn.execute("""
+        SELECT technique, when_to_use, snippet, tags,
+               datetime(ts,'unixepoch','localtime') AS ts_str
+        FROM lessons WHERE challenge_id=? ORDER BY ts ASC""",
+                             (cid,)).fetchall()
+
+    ca = row["created_at"]
+    created_str = ""
+    try:
+        created_str = _dt.datetime.fromtimestamp(float(ca)).strftime("%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError, OSError):
+        created_str = str(ca) if ca else ""
+
+    record = {
+        "id": cid,
+        "name": row["name"],
+        "category": row["category"],
+        "mode": row["mode"] or "",
+        "solved": bool(row["solved"]),
+        "flag": row["flag"] or "",
+        "summary": row["summary"] or "",
+        "created_at": created_str,
+        "attempts": [
+            {"phase": r["phase"] or "", "detector": r["detector"] or "",
+             "detail": r["detail"] or "", "success": bool(r["success"]),
+             "flag": r["flag"] or "", "error_class": r["error_class"] or "",
+             "time": r["ts_str"] or ""}
+            for r in att_rows
+        ],
+        "lessons": [
+            {"tech": r["technique"] or "", "src": r["when_to_use"] or "",
+             "snippet": (r["snippet"] or "")[:300], "tags": r["tags"] or "",
+             "time": r["ts_str"] or ""}
+            for r in les_rows
+        ],
+        "attempt_count": len(att_rows),
+    }
+    sys.stdout.write(json.dumps(record, ensure_ascii=False))
     return 0
 
 
@@ -1203,6 +1317,10 @@ def main():
     p.add_argument("--mode", default="manual", help="mode label for the ledger row")
     p.add_argument("--summary", default="", help="optional one-line summary")
 
+    p = sub.add_parser("challenge-detail")
+    p.add_argument("--id", type=int, default=None, help="challenge ledger id")
+    p.add_argument("--name", default=None, help="challenge name (latest record)")
+
 
     args = ap.parse_args()
     cfg = load_config()
@@ -1228,6 +1346,8 @@ def main():
         sys.exit(do_dashboard(args, cfg))
     elif args.cmd == "record-win":
         sys.exit(do_record_win(args, cfg))
+    elif args.cmd == "challenge-detail":
+        sys.exit(do_challenge_detail(args, cfg))
 
 
 if __name__ == "__main__":

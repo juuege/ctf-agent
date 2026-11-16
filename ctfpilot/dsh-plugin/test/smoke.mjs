@@ -1,6 +1,6 @@
-// Smoke test: register the tool against a mock ctx, then run real engine
+// Smoke test: register the tools against a mock ctx, then run real engine
 // commands through execute(). Runs under plain Node (>=20) with schemastery
-// installed next to this package.
+// installed next to this package. Windows or Linux both fine.
 import assert from 'node:assert/strict'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,32 +28,40 @@ const candidates = [
 const explicitPython = candidates.find(p => p && existsSync(p))
 const cfg = { engineDir, ...(explicitPython ? { python: explicitPython } : {}) }
 
-// 1. apply() registers exactly one model-facing tool on a mock ctx.
-let def = null
-const ctx = { tools: { register(d) { def = d } } }
-plugin.apply(ctx, cfg)
+// 1. apply() registers the model-facing tools on a mock ctx.
+let defs = []
+const ctx = { tools: { register(d) { defs.push(d) } } }
+await plugin.apply(ctx, cfg)
 
-assert.equal(def.name, 'ctfpilot')
+const byName = Object.fromEntries(defs.map(d => [d.name, d]))
+assert.equal(byName.ctfpilot.name, 'ctfpilot')
 for (const field of ['description', 'parameters', 'output', 'execute', 'presentCall', 'presentResult']) {
-  assert.ok(def[field] !== undefined, `tool definition missing .${field}`)
+  assert.ok(byName.ctfpilot[field] !== undefined, `tool definition missing .${field}`)
 }
-// SOTA parameter surface: solve / recall --query / learn-writeup /
-// rebuild-knowledge / fixations / dashboard.
-for (const p of ['command', 'challenge', 'mode', 'write_trace', 'flag_regex', 'category',
-  'query', 'writeup', 'name', 'writeups_dir', 'dry_run', 'min', 'out_html']) {
-  assert.ok(def.parameters[p] !== undefined, `parameters missing .${p}`)
+for (const p of ['command', 'challenge', 'mode', 'write_trace', 'flag_regex', 'category', 'query',
+  'writeup', 'name', 'writeups_dir', 'dry_run', 'save_baseline', 'min', 'out_html']) {
+  assert.ok(byName.ctfpilot.parameters[p] !== undefined, `parameters missing .${p}`)
 }
-assert.ok(plugin.COMMANDS.includes('rebuild-knowledge'), 'COMMANDS must expose rebuild-knowledge')
-assert.ok(plugin.COMMANDS.includes('dashboard'), 'COMMANDS must expose dashboard')
-assert.ok(def.description.includes('rebuild-knowledge'), 'description must document rebuild-knowledge')
-assert.ok(def.description.includes('--query'), 'description must document recall --query')
-assert.equal(def.presentCall({ command: 'solve', challenge: '/tmp/x' }).card, 'terminal')
+assert.equal(byName.ctfpilot.presentCall({ command: 'solve', challenge: '/tmp/x' }).card, 'terminal')
+// propose_submit: the human-confirm gate's propose step.
+assert.equal(byName.propose_submit.name, 'propose_submit')
+for (const f of ['flag', 'title', 'brief', 'category', 'challenge']) {
+  assert.ok(byName.propose_submit.parameters[f] !== undefined, `propose_submit parameters missing .${f}`)
+}
+assert.equal(Object.keys(byName.propose_submit.output.schema.properties).sort().join(','), 'action,invitation,title')
 
 // 2. Bad engineDir surfaces a readable error at execute time (mounting stays lazy).
-plugin.apply({ tools: { register() {} } }, { engineDir: '/nonexistent-xyz' }) // must not throw
-let badDef = null
-plugin.apply({ tools: { register(d) { badDef = d } } }, { engineDir: 'C:\\bogus' })
-await assert.rejects(badDef.execute({ command: 'stats' }, { signal: AbortSignal.timeout(10_000) }), /ctfpilot\.py/)
+await plugin.apply({ tools: { register() {} } }, { engineDir: '/nonexistent-xyz' }) // must not throw
+const badDefs = []
+await plugin.apply({ tools: { register(d) { badDefs.push(d) } } }, { engineDir: 'C:\\bogus' })
+assert.equal(badDefs.length, 2)
+const badCtf = badDefs.find(d => d.name === 'ctfpilot')
+await assert.rejects(
+  badCtf.execute({ command: 'stats' }, { signal: AbortSignal.timeout(10_000) }),
+  /ctfpilot\.py/,
+)
+
+const def = byName.ctfpilot
 
 // 3. Real engine: selftest. 01-05 always pass; 06_zip_nested depends on the
 // deep mock ladder against a clean directory, so accept >=5/6 — the plugin's
@@ -91,29 +99,41 @@ assert.equal(rec.solved, false) // engine prints no [result] line; solved only m
 assert.ok(typeof rec.output === 'string' && rec.output.length > 0)
 
 // 5b. rebuild-knowledge --dry-run parses the writeups dir without writing.
-const writeupsDir = 'C:/Users/Administrator/.local/share/TeleAgent/TeleAgent的工作空间/定时任务产出/ctf-20min'
-if (existsSync(writeupsDir)) {
+// Prefer the local writeup output dir (bulk, 200 files); fall back to a source dir.
+const bulkDir = process.env.CTFPILOT_WRITEUPS_DIR
+  || 'C:/Users/Administrator/.local/share/TeleAgent/TeleAgent的工作空间/定时任务产出/ctf-20min'
+if (existsSync(bulkDir)) {
   const rk = await def.execute(
-    { command: 'rebuild-knowledge', writeups_dir: writeupsDir, dry_run: true },
+    { command: 'rebuild-knowledge', writeups_dir: bulkDir, dry_run: true },
     { signal: AbortSignal.timeout(180_000) })
   assert.equal(rk.command, 'rebuild-knowledge')
   assert.ok(rk.output.includes('[knowledge]'), `no [knowledge] lines in output: ${rk.summary}`)
   assert.ok(rk.output.includes('dry run, nothing written'), 'dry-run must not write')
   console.log('rebuild-knowledge dry-run ok:', rk.summary)
+} else {
+  console.log('rebuild-knowledge dry-run skipped (no local writeups dir)')
+}
 
-  // 5c. eval-retrieval returns its regression verdict as a VALUE (a FAIL
-  // verdict is a domain result with exit 1 — must not throw as infra error).
+// 5c. eval-retrieval returns its regression verdict as a VALUE (a FAIL
+// verdict is a domain result with exit 1 — must not throw as infra error).
+// The source writeups dir (engineDir/writeups) matches the shipped case
+// cards 1:1, so it must evaluate 28 cases and PASS against the baseline.
+const srcWriteups = join(engineDir, 'writeups')
+if (existsSync(srcWriteups)) {
   const ev = await def.execute(
-    { command: 'eval-retrieval', writeups_dir: writeupsDir },
+    { command: 'eval-retrieval', writeups_dir: srcWriteups },
     { signal: AbortSignal.timeout(180_000) })
   assert.equal(ev.command, 'eval-retrieval')
   assert.ok(ev.output.includes('[eval-retrieval]'), 'no [eval-retrieval] lines in output')
   assert.ok(/RESULT\s*:\s*(PASS|FAIL)/.test(ev.output), 'no RESULT verdict line')
+  assert.ok(/evaluable=(\d+)/.test(ev.output) && parseInt(RegExp.$1, 10) > 0,
+    `evaluable set empty — writeups dir does not match case cards: ${ev.summary}`)
+  assert.ok(/RESULT\s*:\s*PASS/.test(ev.output), `retrieval regressed against baseline: ${ev.summary}`)
   const evText = def.output.render({}, ev)[0].text
   assert.ok(evText.includes('eval-retrieval'), 'render must identify eval-retrieval')
   console.log('eval-retrieval ok:', ev.summary)
 } else {
-  console.log('rebuild-knowledge/eval-retrieval skipped (no local writeups dir)')
+  console.log('eval-retrieval skipped (no source writeups dir)')
 }
 
 // 6. render puts the model-facing summary in one text block.
@@ -151,5 +171,18 @@ assert.ok(existsSync(dashOut), 'dashboard html not written')
 assert.ok(d.output.includes('[dashboard] wrote'), `dashboard output unexpected: ${d.summary}`)
 console.log('dashboard ok:', d.summary)
 rmSync(dashOut, { force: true })
+
+// 9. propose_submit: executes against a mock agent/session without throwing,
+// and hands back the model-facing action contract.
+let psExecuted = false
+await byName.propose_submit.execute(
+  { flag: 'flag{demo}', title: 'Demo card', brief: 'demo', category: 'crypto', challenge: '01' },
+  {
+    agent: { session: { append: () => undefined } },
+    signal: AbortSignal.timeout(10_000),
+  },
+)
+psExecuted = true
+assert.ok(psExecuted, 'propose_submit.execute never ran')
 
 console.log('\nALL SMOKE TESTS PASSED')

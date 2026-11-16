@@ -15,7 +15,7 @@ const Config = z.object({
 })
 
 const name = 'ctfpilot'
-const inject = ['tools']
+const inject = ['tools', 'sessionProjections', 'commands']
 //#endregion
 
 //#region command mapping
@@ -338,7 +338,7 @@ function commandWireName(args) {
   }
 }
 
-function registerCtfpilot(ctx, config = {}) {
+async function registerCtfpilot(ctx, config = {}) {
   // Normalize config: cordis validates via exported Config before apply(), but
   // direct programmatic calls pass raw objects, so defaults live here too.
   const cfg = {
@@ -351,20 +351,25 @@ function registerCtfpilot(ctx, config = {}) {
     name: 'ctfpilot',
     description: toolDescription(),
     parameters: {
-      command: { type: 'string', required: true, description: 'Engine subcommand.' },
-      challenge: { type: 'string', description: 'solve: challenge directory (absolute path).' },
-      mode: { type: 'string', description: 'solve: engine mode. fast = deterministic detectors only; deep = strategy ladder; auto = fast then deep. Default auto.' },
-      write_trace: { type: 'boolean', description: 'solve: write _ctfpilot_trace.json for replay/retro (written on success AND failure). Default false.' },
-      flag_regex: { type: 'string', description: 'solve: extra flag pattern for non-flag{} formats.' },
-      category: { type: 'string', description: 'recall: category filter (crypto|web|reverse|misc|forensics|pwn|osint).' },
-      query: { type: 'string', description: 'recall: signal keywords (magic numbers / protocol names / key filenames / technique names) that rank case cards by relevance, e.g. "NTRU lattice LLL" or "pcap Modbus".' },
-      writeup: { type: 'string', description: 'learn-writeup: path to the markdown writeup file.' },
-      name: { type: 'string', description: 'learn-writeup: challenge name used for the stored card.' },
-      writeups_dir: { type: 'string', description: 'rebuild-knowledge / eval-retrieval: directory of writeup markdown files (e.g. the ctf-20min output dir).' },
-      dry_run: { type: 'boolean', description: 'rebuild-knowledge: parse and report without writing anything. Default false.' },
-      save_baseline: { type: 'boolean', description: 'eval-retrieval: store current scores as the new baseline (after intentional improvements). Default false.' },
-      min: { type: 'number', description: 'fixations: minimum hit count filter. Default from engine.' },
-      out_html: { type: 'string', description: 'dashboard: output HTML file path (default: CTFPilot-看板.html in engineDir)' },
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Engine subcommand.' },
+        challenge: { type: 'string', description: 'solve: challenge directory (absolute path).' },
+        mode: { type: 'string', description: 'solve: engine mode. fast = deterministic detectors only; deep = strategy ladder; auto = fast then deep. Default auto.' },
+        write_trace: { type: 'boolean', description: 'solve: write _ctfpilot_trace.json for replay/retro. Default false.' },
+        flag_regex: { type: 'string', description: 'solve: extra flag pattern for non-flag{} formats.' },
+        category: { type: 'string', description: 'recall: category filter (crypto|web|reverse|misc|forensics|pwn|osint).' },
+        query: { type: 'string', description: 'recall: signal keywords (magic numbers / protocol names / key filenames / technique names) that rank case cards by relevance, e.g. "NTRU lattice LLL" or "pcap Modbus".' },
+        writeup: { type: 'string', description: 'learn-writeup: path to the markdown writeup file.' },
+        name: { type: 'string', description: 'learn-writeup: challenge name used for the stored card.' },
+        writeups_dir: { type: 'string', description: 'rebuild-knowledge / eval-retrieval: directory of writeup markdown files (e.g. the ctf-20min output dir).' },
+        dry_run: { type: 'boolean', description: 'rebuild-knowledge: parse and report without writing anything. Default false.' },
+        save_baseline: { type: 'boolean', description: 'eval-retrieval: store current scores as the new baseline (after intentional improvements). Default false.' },
+        min: { type: 'number', description: 'fixations: minimum hit count filter. Default from engine.' },
+        out_html: { type: 'string', description: 'dashboard: output HTML file path (default: CTFPilot-看板.html in engineDir)' },
+      },
+      required: ['command'],
+      additionalProperties: false,
     },
     output: {
       schema: {
@@ -410,7 +415,7 @@ function registerCtfpilot(ctx, config = {}) {
         throw new Error('learn-writeup requires `writeup`: path to the markdown writeup file')
       }
       if (args.command === 'rebuild-knowledge' && !args.writeups_dir) {
-        throw new Error('rebuild-knowledge requires `writeups_dir`: directory containing writeup markdown files')
+        throw new Error('rebuild-knowledge requires `writeups_dir`: directory of writeup markdown files')
       }
       const engineDir = resolveEngine(cfg.engineDir)
       const python = cfg.python || resolvePython(engineDir)
@@ -465,6 +470,239 @@ function registerCtfpilot(ctx, config = {}) {
       }
     },
   })
+
+  // ------------------------------------------------------------------
+  // submit-confirmation gate: model proposes a submit; a human card
+  // under the answer confirms before anything reaches the ledger.
+  // ------------------------------------------------------------------
+
+  // The plugin cannot import zod (not installed next to it); the registry
+  // only duck-types `.parse()` on the schemas, and the wire payloads are
+  // built by hand from session events below, so a minimal shim is enough.
+  const zod = {
+    object: fields => ({ parse: v => v }),
+    string: () => ({ parse: v => v }),
+    number: () => ({ parse: v => v }),
+    boolean: () => ({ parse: v => v }),
+    array: item => ({ parse: v => v }),
+    record: (key, value) => ({ parse: v => v }),
+    union: parts => ({ parse: v => v }),
+    null: () => ({ parse: v => v }),
+    literal: () => ({ parse: v => v }),
+  }
+
+  /** Parse tool arguments JSON (best-effort; the fold treats parse errors as unadmitted). */
+  function parseArguments(raw) {
+    try { return JSON.parse ? JSON.parse(String(raw || '')) : null } catch { return null }
+  }
+
+  ctx.tools.register({
+    name: 'propose_submit',
+    description: [
+      'Submit one confirmed flag to CTFPilot for human-verified accounting.',
+      'Call this when you hold a flag the user should confirm before it is recorded into the engine ledger.',
+      'After the call, a confirmation card appears below your answer; the user confirms there before anything is recorded.',
+      'Do NOT print the flag again in prose afterwards — the card carries it.',
+      'Parameters: flag (the flag string, required), title (short card heading), brief (one-line description of what was solved),',
+      'category (one of crypto/web/reverse/misc/forensics/pwn/osint), challenge (challenge name/path for the ledger row).',
+    ].join(' '),
+    parameters: {
+      type: 'object',
+      properties: {
+        flag: { type: 'string', description: 'The flag string to submit.' },
+        title: { type: 'string', description: 'Short card heading (e.g. "Crypto Easy").' },
+        brief: { type: 'string', description: 'One-line description of what was solved.' },
+        category: { type: 'string', description: 'Category: crypto|web|reverse|misc|forensics|pwn|osint.' },
+        challenge: { type: 'string', description: 'Challenge name or path, used for the ledger row.' },
+      },
+      required: ['flag', 'title', 'brief', 'category'],
+      additionalProperties: false,
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          action: { type: 'string' },
+          title: { type: 'string' },
+          invitation: { type: 'string' },
+        },
+      },
+      render: (_args, value) => [{ type: 'text', text: 'Card shown below your answer. Do not restate it. ' + value.invitation }],
+    },
+    async execute(args, exec) {
+      // NOTE: do NOT session.append tool/call or tool/result here — the tool
+      // executor batch logs both around this body (batch.ts start/commit);
+      // duplicate entries would corrupt the log. The fold below reads the
+      // framework-logged events; nothing else is needed for admission.
+      const agent = exec && exec.agent
+      const session = agent && agent.session
+      void session
+      const title = String(args.title || '提交确认')
+      return {
+        action: 'submit',
+        title,
+        invitation: 'The user confirms the flag via the card below before it is recorded.',
+      }
+    },
+    presentCall(args) {
+      const flagPart = args.flag ? ` ${String(args.flag).slice(0, 60)}` : ''
+      return { card: 'terminal', title: 'propose_submit · ' + (args.title || ''), description: 'propose a submit ' + flagPart }
+    },
+    presentResult(args, { isError, content }) {
+      const value = typeof content === 'object' ? content : {}
+      return {
+        card: 'terminal',
+        title: 'propose_submit · ' + (args.title || ''),
+        rawOutput: `${value.invitation || ''}`,
+        exit: { code: isError ? 1 : 0 },
+      }
+    },
+  })
+
+  // Session projection unit keyed `ctfpilot`: live proposals folded from
+  // tool/call + tool/result, confirmed rows folded from command/run + done.
+  // The browser half reads it through useProjection('ctfpilot'). Guarded:
+  // a non-web profile may not expose the registry.
+  if (ctx.sessionProjections && typeof ctx.sessionProjections.register === 'function') {
+    await ctx.sessionProjections.register({
+      key: 'ctfpilot',
+    stateSchema: zod.object({}),
+    stateVersion: 1,
+    init: () => ({ live: {}, confirmed: [] }),
+    apply: (state, event) => {
+      switch (event.type) {
+        case 'tool/call': {
+          // The executor logs this BEFORE execute runs (batch.ts start), with
+          // the model's raw arguments — folding it admits the proposal.
+          const d = event.data || {}
+          if (d.name !== 'propose_submit') return state
+          const args = parseArguments(d.arguments)
+          if (!args || !args.flag) return state
+          const id = String(d.callId)
+          const cur = state.live[id]
+          if (!cur || !cur.proposal) {
+            const entry = { callId: id, turn: d.turn, title: String(args.title || '提交确认'),
+              brief: String(args.brief || ''), flag: String(args.flag), category: String(args.category || ''),
+              challenge: String(args.challenge || '') }
+            const live = Object.assign({}, state.live)
+            live[id] = { proposal: entry }
+            return { live, confirmed: state.confirmed }
+          }
+          return state
+        }
+        case 'command/run': {
+          // The human gate executes /ctf-record-win; its lifecycle events are
+          // folded into the confirmed ledger that drives card settlement.
+          // Logged name = the slash command name (dsh-commands:375).
+          const d = event.data || {}
+          if (d.name !== 'ctf-record-win') return state
+          const args = (d.args || '').match(/--flag\s+(\S+)/)
+          const cat = (d.args || '').match(/--category\s+(\S+)/)
+          const nameM = (d.args || '').match(/--name\s+(\S+)/)
+          if (!args) return state
+          const at = event.seq ?? 0
+          const confirmed = [].concat(state.confirmed)
+          let found = false
+          for (const c of confirmed) {
+            if (c.flag === args[1] && c.category === String((cat && cat[1]) || '')) { c.at = at; found = true }
+          }
+          if (!found) {
+            confirmed.push({ flag: args[1], category: String((cat && cat[1]) || ''), name: String((nameM && nameM[1]) || ''), at })
+          }
+          return { live: state.live, confirmed }
+        }
+        default:
+          return state
+      }
+    },
+    wire: {
+      viewSchema: zod.object({}),
+      view: s => ({
+        proposals: Object.fromEntries(
+          Object.entries(s.live || {})
+            .filter(([, r]) => r && r.proposal)
+            .map(([callId, r]) => [callId, r.proposal])),
+        confirmed: s.confirmed || [],
+      }),
+    },
+  })
+  }
+
+  // Human commands (browser-invocable): the confirmation card executes
+  // `/ctf-record-win --name ... --category ... --flag ...` through
+  // ctx.remote.commands.execute; `/ctf-dashboard` feeds the sidebar panel.
+  // Guarded like the projection above — non-web profiles lack the registry.
+  function engineRoot() {
+    return resolveEngine(config.engineDir || '')
+  }
+
+  async function engineDashboard() {
+    const dir = engineRoot()
+    const python = config.python || resolvePython(dir)
+    const { stdout } = await runEngine(['dashboard', '--json'], {
+      python, engineDir: dir, timeoutMs: 30000, maxOutputChars: 500000,
+    })
+    return JSON.parse(stdout)
+  }
+
+  if (ctx.commands && typeof ctx.commands.register === 'function') {
+  ctx.commands.register({
+    name: 'ctf-record-win',
+    description: 'Record a user-confirmed solve into the CTFPilot engine ledger.',
+    input: { hint: '--name N --category C --flag F [--mode M] [--summary S]' },
+    handler: async ({ agent, rawInput }) => {
+      const line = String(rawInput || '').trim()
+      const nameM = line.match(/--name\s+"?([^"\s]+)"?/)
+      const catM = line.match(/--category\s+"?([^"\s]+)"?/)
+      const flagM = line.match(/--flag\s+"?([^"\s]+)"?/)
+      if (!nameM || !catM || !flagM) {
+        return { kind: 'error', text: 'ctf-record-win 需要 --name、--category 和 --flag；卡片会自动补齐。' }
+      }
+      const argv = ['record-win', '--name', nameM[1], '--category', catM[1], '--flag', flagM[1]]
+      const modeM = line.match(/--mode\s+(\S+)/)
+      if (modeM) argv.push('--mode', modeM[1])
+      const sumM = line.match(/--summary\s+(.+)$/)
+      if (sumM) argv.push('--summary', sumM[1].trim().replace(/["']+$/g, ''))
+      const engineDir = engineRoot()
+      const python = config.python || resolvePython(engineDir)
+      try {
+        await runEngine(argv, { python, engineDir, timeoutMs: 120000, maxOutputChars: 8000 })
+        return { kind: 'success', text: `已记入引擎账本：${nameM[1]}（${catM[1]}）— ${flagM[1]}` }
+      } catch (err) {
+        return { kind: 'error', text: `记录失败：${err.message || err}` }
+      }
+    },
+  })
+
+  ctx.commands.register({
+    name: 'ctf-dashboard',
+    description: 'Load the CTFPilot engine dashboard data (challenges, detectors, lessons) as JSON.',
+    handler: async () => {
+      try {
+        const blob = await engineDashboard()
+        return { kind: 'success', text: JSON.stringify(blob, null, 2) }
+      } catch (err) {
+        return { kind: 'error', text: `CTFPilot 数据读取失败：${err.message || err}` }
+      }
+    },
+  })
+
+  ctx.commands.register({
+    name: 'ctf-stats',
+    description: 'Show compact CTFPilot engine statistics.',
+    handler: async () => {
+      const engineDir = engineRoot()
+      const python = config.python || resolvePython(engineDir)
+      try {
+        const { stdout } = await runEngine(['stats'], { python, engineDir, timeoutMs: 30000, maxOutputChars: 4000 })
+        return { kind: 'success', text: String(stdout || '').trim() }
+      } catch (err) {
+        return { kind: 'error', text: `stats 读取失败：${err.message || err}` }
+      }
+    },
+  })
+  }
 }
 
 /** Probe a python that can actually run the engine (3.10+, stdlib only). */
@@ -487,7 +725,7 @@ function testPython(candidate) {
 }
 
 function apply(ctx, config = {}) {
-  registerCtfpilot(ctx, config)
+  return registerCtfpilot(ctx, config)
 }
 
 export { Config, apply, name, inject, COMMANDS }

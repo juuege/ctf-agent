@@ -1,6 +1,7 @@
 {
   "meta": {
     "title": "CTFPilot CTF 解题工具",
-    "description": "将本地 CTFPilot 引擎暴露为工具：快通道解题、经验召回与固化知识沉淀。"
+    "description": "本地 CTFPilot 双通道解题引擎：确定性快通道秒解编码链、古典密码、XOR、压缩包与 PNG LSB 隐写，未命中再进深通道策略循环；附经验召回、writeup 固化与统计看板。模型提交 Flag 前经「提交确认」卡片请用户人工确认，确认后才记入引擎账本，不会出现未经确认的自动记账。工具入口：/ctfpilot；侧边栏图标打开主列「CTFPilot 解题看板」。",
+    "detail": "docs/DETAIL.zh.md"
   }
 }

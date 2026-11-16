@@ -12,17 +12,23 @@ ctfpilot(command, ...)
 
 | command | 专有参数 | 作用 |
 |---|---|---|
-| `solve` | `challenge`(必填)、`mode`(auto/fast/deep)、`write_trace`、`flag_regex` | 解题；快通道 0-2s 出编码链/凯撒/XOR/解压/LSB 类；成功与失败都写 trace；raw-echo flag（与原文件逐字相同）不计成功 |
-| `recall` | `category`、`query`(信号词，如 "NTRU lattice LLL"、"pcap Modbus") | 按题面信号相关度检索经验与案例卡；案例卡带证据指针（source 指向写库原文），缺细节/失败来源/冲突/上一步失败时下钻读原文 |
-| `learn-writeup` | `writeup`(必填)、`name` | 把题解 markdown 入库为版本化技能卡+检查点（自动解析题型/信号/失败路径/标签） |
-| `rebuild-knowledge` | `writeups_dir`(必填)、`dry_run` | 从写库目录批量重建案例卡知识库（cases.jsonl，四格式解析，幂等）；写库更新后重跑 |
-| `eval-retrieval` | `writeups_dir`、`save_baseline` | 检索回归评测（改检索/卡片后必跑）：top1/top3/MRR 与基线对比，降超 5pp 报 FAIL；故意改进后 `save_baseline` 存新基线 |
+| `solve` | `challenge`(必填)、`mode`(auto/fast/deep)、`write_trace`、`flag_regex` | 解题；快通道 0-2s 出编码链/凯撒/XOR/解压/LSB 类；深通道注入 top-3 相关案例卡并每 4 步/2 次失败重检索 |
+| `recall` | `category`、`query`(信号词) | 召回同题型历史检查点；`query` 按信号相关度排序（魔数/协议名/技术名，如 "NTRU lattice LLL"） |
+| `learn-writeup` | `writeup`(必填)、`name` | 把题解 markdown 入库为版本化技能卡/检查点 |
+| `rebuild-knowledge` | `writeups_dir`(必填)、`dry_run` | 从题解目录批量重建案例卡知识库（4 格式解析、幂等） |
+| `eval-retrieval` | `writeups_dir`、`save_baseline` | 检索回归门禁：top1/top3/MRR 对基线，超 5pp 容差报 FAIL；改检索/卡片后必跑 |
 | `stats` | — | 引擎台账统计 |
-| `selftest` | — | 6 道冒烟题自检（独立记忆库，不污染生产经验） |
-| `fixations` | `min` | 列出反复命中/反复成功的技术（固化候选，频次来自轨迹库） |
-| `dashboard` | `out_html` | 从 SQLite 轨迹数据生成交互式 HTML 看板（浏览器打开） |
+| `selftest` | — | 6 道冒烟题自检（安装验证，独立记忆库） |
+| `fixations` | `min` | 列出反复命中的固化候选技术 |
+| `dashboard` | `out_html` | 生成交互式 HTML 看板（SQLite 轨迹数据） |
 
-返回规范 JSON：`{command, solved, flag, elapsed, summary, output, category, confidence, evidence, steps}`——`steps` 是结构化过程时间线（来自引擎 `[meta]` 机器可读行：fast 检测器逐项 + deep 每步策略与结果），供 UI 卡片与程序化消费。
+返回规范 JSON：`{command, solved, flag, elapsed, summary, output, category, confidence, evidence_count, steps[]}`。`steps` 来自引擎的机器可读 `[meta]` 行（快通道/深预检/深执行/规划），UI 卡片据此渲染过程时间线。
+
+## 人类确认卡与斜杠命令
+
+- `propose_submit`：模型提交 flag 时先出确认卡，用户在卡片上确认后才写入引擎台账（`ctf-record-win`）。
+- 斜杠命令：`/ctf-record-win --name N --category C --flag F`、`/ctf-dashboard`（拉取 `dashboard --json` 数据）、`/ctf-stats`。
+- 会话投影 `ctfpilot`：从 `tool/call`、`tool/result`、`command/run` 事件折叠出 pending 提交与已确认台账，供前端卡片结算。
 
 ## 安装与挂载
 
@@ -93,7 +99,7 @@ dsh tui --patch ctfpilot-overlay.yml
 ```bash
 cd dsh-plugin
 npm install              # 仅装 schemastery
-node test/smoke.mjs      # 注册面 + 真实引擎 selftest/solve/recall 端到端
+node test/smoke.mjs      # 注册面 + 真实引擎 selftest/solve/recall/rebuild-knowledge/eval-retrieval/dashboard 端到端
 ```
 
 要求引擎目录与 dsh-plugin 平级（同仓库布局）。挂载级验证：
