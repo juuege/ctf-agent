@@ -25,6 +25,7 @@ import random
 import re
 import subprocess
 import time
+import http.client
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -75,7 +76,8 @@ def _api(path, raw=False, token=""):
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             raise SourceError("HTTP %s on %s" % (e.code, url))
-        except (urllib.error.URLError, OSError, ValueError) as e:
+        except (urllib.error.URLError, OSError, ValueError,
+                http.client.IncompleteRead, http.client.HTTPException) as e:
             last = e
             time.sleep(2)
     raise SourceError("api unreachable: %s (%s)" % (url, last))
