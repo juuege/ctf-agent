@@ -139,6 +139,21 @@ class TrajStore:
             "WHERE category=? AND technique=?", (category, technique))
         self.conn.commit()
 
+    def bump_success_by_ids(self, lesson_ids):
+        """Recall-effectiveness accounting: a lesson present in the retrieval
+        context when the challenge got SOLVED is evidence the card works.
+        Previously success_count could never move for case cards (their
+        technique is 'case:<name>', which never equals a detector name), so
+        the fixation trigger only ever counted re-use, not verified value."""
+        ids = [int(i) for i in (lesson_ids or []) if i]
+        if not ids:
+            return 0
+        q = ("UPDATE lessons SET success_count=COALESCE(success_count,0)+1 "
+             "WHERE id IN (%s) AND technique LIKE 'case:%%'" % ",".join("?" * len(ids)))
+        cur = self.conn.execute(q, ids)
+        self.conn.commit()
+        return cur.rowcount
+
     def recall_lessons(self, category, top_k=3, query_tokens=None):
         """Writeup-quality lessons only (snippet or tags non-empty): bare auto
         solve records ("worked on ...", snippet='') stay out of recall but
@@ -171,7 +186,7 @@ class TrajStore:
             seen.add(r[2])
             ids.append(r[0])
             out.append({"category": r[1], "technique": r[2], "when_to_use": r[3],
-                        "snippet": r[4] or "", "tags": r[5] or ""})
+                        "snippet": r[4] or "", "tags": r[5] or "", "id": r[0]})
             if len(out) >= top_k:
                 break
         now = time.time()

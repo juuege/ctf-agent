@@ -30,6 +30,16 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
     lessons = store.recall_lessons(routing["category"],
                                    int(cfg.get("memory", {}).get("recall_top_k", 3)),
                                    query_tokens=qtokens)
+    # Recall-effectiveness accounting (口径修正 2026-11-16): keep the ids of
+    # every lesson that entered the context, so a SOLVE credits them with
+    # success_count. Without this, case cards ('case:<name>' technique) never
+    # matched bump_success(category, detector) and success_count stayed 0.
+    recalled_ids = set()
+
+    def _track(ls):
+        recalled_ids.update(l.get("id") for l in ls if l.get("id"))
+
+    _track(lessons)
 
     # Strategy 0: rerun fast path (cheap, and records what was tried)
     flag, fast_attempts = fp.run_quick_pass(chall_dir, files, checker)
@@ -37,6 +47,7 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
         attempts.append(a)
         store.log_attempt(cid, "deep-pre", a.detector, a.detail, a.success, a.flag)
     if flag:
+        store.bump_success_by_ids(recalled_ids)
         return flag, attempts
 
     from deep.planner import next_action as _na  # noqa: F401  (explicit path check)
@@ -64,6 +75,7 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
                 lessons = store.recall_lessons(routing["category"],
                                                int(cfg.get("memory", {}).get("recall_top_k", 3)),
                                                query_tokens=qtokens | _tok(tried_summary))
+                _track(lessons)
                 fails_in_row = 0
                 log("[deep] step %d: lessons re-recalled with progress tokens" % step)
             except ImportError:
@@ -152,6 +164,7 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
 
         if found:
             log("[deep] FLAG FOUND at step %d via %s" % (step, strategy))
+            store.bump_success_by_ids(recalled_ids)
             return found, attempts
 
         # Diagnosis note for next iteration

@@ -1,0 +1,21 @@
+{
+  "name": "xor_periodic_crib",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "100B 无魔数 .bin；README 声称\"初步判断单字节 XOR\"（误导）；题名含 periodic/crib 信号",
+  "commands": [],
+  "signals": "100B 无魔数 .bin；README 声称\"初步判断单字节 XOR\"（误导）；题名含 periodic/crib 信号",
+  "effective": "自相关 xor<0x40 比率找周期（峰/次峰比 ≥1.5 判定）；crib 长=周期时单次放置即完整推导 key",
+  "failure_paths": "①单字节 XOR 256 key 全 miss（题面\"初步判断\"不可信）；②引擎 xor-single 只查 flag 模式不做可读性评分，周期密钥不在其搜索空间",
+  "limits": "已在密钥周期≤30、密文≥100B、含 flag{} 明文 crib 场景验证",
+  "untested": "周期>30；flag 格式非 flag{}；密文更短",
+  "tags": {
+    "识别信号": "README 与题名矛盾（\"单字节\"vs\"periodic\"）+无魔数短二进制",
+    "陷阱类型": "题面故意误导加密方式",
+    "可迁移模式": "短密文先自相关找周期再 crib，题面\"初步判断\"是噪声不是证据",
+    "变体预测": "周期更长/crib 换 \"the \"/flag 缺头部/多轮 XOR\n- 可固化性: 是"
+  },
+  "fixable": "是；特征检测条件=无魔数纯二进制+题面出现 XOR 词；确定性判定逻辑=自相关 shift 1..30 取 xor<0x40 比率最大峰，峰值为次峰≥1.5 倍即判周期 k，再用 \"flag{\" 滑动 crib（crib 位置 mod k 覆盖全部余类）推导 key，回环校验",
+  "version": 1,
+  "created_at": 1794801903.6905804
+}
