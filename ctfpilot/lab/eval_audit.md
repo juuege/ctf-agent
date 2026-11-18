@@ -63,4 +63,48 @@
   待补验证清单更新：#1 留出隔离已完成（今日核验配对有效）；#4 evaluable=16 →
   单题分辨率 6.25pp，5pp 门禁不足 1 题分辨率，扩留出集仍是首要事项。
 
+- 2026-11-16 18:19 pwn 哑弹卡入库（RSI rsi-024）+ poison 陈旧基线伪影复测：
+  变更——pwn 专项触发（hgame week1/week2 连续两道同类 NOT SOLVED）；
+  writeup「hgame2023-pwn-归档哑弹」learn 入库（cases 136→137，pwn 池 15→16，
+  evaluable 16→17）；属意图性知识提升，按规程重锚基线 47.06/82.35/0.619/17。
+  四探针——leak=ok（互命中 6.6%==零假设 6.6%，近重复 0，悬空 0，carrier 中位 0.09）/
+  poison=ALARM（首轮 Δ+3.4pp：+3.3pp 为哑弹卡合法提升混入陈旧基线，即本审计已记录
+  的「陈旧基线污染」伪影类型；重锚后复测纯毒效应 Δtop1+0.0pp/Δtop3−0.1pp，与 v0
+  真局限一致，非本轮退化；hash 恢复一致）/ holdout-split=重跑同 seed 在 137 文件池
+  重抽样（20 项中 6 项与原清单重合，contaminated 20/20 债不变，未含新 writeup；
+  上午的隔离库配对核验快照对应旧清单，结论仅属当时时刻）/ report=PASS（对旧基线
+  drift +3.3pp 正向；对重锚后基线 0.0pp）。
+  结论——poison v0 对照必须同刻重锚基线的论断再次被实证：任何合法知识提升都会
+  伪装成「评测不敏感」证据；v2 需求不变。哑弹卡三组签名查询召回全部 top1，
+  检索指标正向（新卡成为第 17 个 evaluable 且自排 top1）。
+  处置——基线已重锚；poison v2（毒行取词自评测查询集）待实现优先级不变；
+  pwn 类维持「能力边界」结论（真实 0/37，unsolved 记满 timeout），交互族检测器
+  提案 rsi-017/019/020 已按边界原则 reject。
+
+- 2026-11-16 19:35 designer web 链复盘入库 + 拉题保真度修复（RSI rsi-053）：
+  变更——feed 拉 2023-hgame-week2-web-designer 首轮被拉题器削成 views/（单题仓库根
+  自带 Dockerfile/index.js/package.json + views/static/.github，旧逻辑见根有目录就随机
+  挑一个子目录当整题）；补全整仓后 triage misc(0.20)→web(0.67)，引擎在 index.js 扫到
+  raw-echo flag 被 require_derived 按设计诚实撤回，模型通道静态审计解出（admin+req.ip
+  分支藏真 flag，fake_flag_here 为普通用户诱饵），account-model 首次入账成本
+  36000 tokens（成本轴 v1 首笔真实数据，cost_per_solve 152.5 露出）；writeup
+  「hgame2023-designer-jwt-ejs-ssti」learn 入库（cases 138→139；SSRF 真命中，
+  「修复」误触 file-carving、「硬编码」误触 AES——rsi-051(b) 关键词贪嘴家族新证据）。
+  rsi-053 修复 ghsource 整仓判定（20 项构建/部署清单白名单谓词 + .github 排除），
+  拉题器层，未触解题路径。
+  四探针——leak=ok（互命中 6.5%==零假设 6.5%，excess 0.000，近重复 0，悬空 0）/
+  poison=ALARM 不变（Δtop1+0.0pp/Δtop3−0.1pp，v0 既知真局限，非本轮退化；hash
+  恢复一致）/ holdout-split=同 seed 在 139 文件池重抽样（20/20 污染债不变，换样
+  清单含 bookmanager/dump/cython/lwewl/novel1，未含新 writeup，债结论同前）/
+  report=PASS（对 19:05:39 基线 +0.0/−0.1pp；evaluable=17 不变，新案例不冲击可评
+  集，基线未重锚，保持归因锚点）。
+  结论——保真度缺陷会静默污染基准（附件即题面）：test_nc 上轮哑弹判定实际从未见过
+  src/vuln 16696B ELF；本洞与判重年号洞（backlog evolve-20261116-11：YEAR.sub 剥
+  年份 + 整仓候选包含匹配，误杀 2025-LanqiaoCup-Finals 整源并沉淀误杀 key）同属
+  拉题器层。eval-suite 从 lab/ CWD 跑会因相对路径 rc=2，从引擎根 CWD PASS——CWD
+  敏感是评测工装小坑。
+  处置——rsi-053 已 adopt（版本链第 4 条，prev=18:56 base-family）；判重第五洞记
+  backlog-11（判重断言集先行）；poison v2 优先级不变；成本轴待攒非零成本解题样本后
+  --save-baseline 激活天花板门控。
+
 > AI生成

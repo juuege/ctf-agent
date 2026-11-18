@@ -1,0 +1,24 @@
+{
+  "name": "2024-shangmicup-数据库管理系统数据攻克后附件",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup '2024-shangmicup-数据库管理系统数据攻克后附件'",
+  "commands": [
+    "python -X utf8 ctfpilot.py bench-pull --source gh-org:CTF-Archives --dest ctf-feed",
+    "python -X utf8 ctfpilot.py solve \"ctf-feed\\2024-shangmicup-数据库管理系统数据攻克后附件\" --mode auto --benchmark --json --write-trace",
+    "python -X utf8 .temp\\solve_sm4_lcg.py",
+    "python -X utf8 .temp\\decrypt_sm4.py"
+  ],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {
+    "识别信号": "SM4 脚本+iv.txt+加密 dat，脚本用 LCG 每 1000 轮取高 32 位生成 IV/key，seed 缺失\n- 陷阱类型=z3 直接建模 64 位乘法超时",
+    "可迁移模式": "已知 IV 反推截断 LCG 状态，再续算密钥解密流量包\n- 变体预测=更换 LCG 常数/迭代次数、只给部分 IV、改 AES/SM4 模式、流量包内多段 flag\n\n## 关键命令\npowershell\npython -X utf8 ctfpilot.py bench-pull --source gh-org:CTF-Archives --dest ctf-feed\npython -X utf8 ctfpilot.py solve \"ctf-feed\\2024-shangmicup-数据库管理系统数据攻克后附件\" --mode auto --benchmark --json --write-trace\npython -X utf8 .temp\\solve_sm4_lcg.py\npython -X utf8 .temp\\decrypt_sm4.py"
+  },
+  "fixable": "",
+  "version": 2,
+  "created_at": 1794811086.96096
+}

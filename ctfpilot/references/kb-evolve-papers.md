@@ -175,6 +175,117 @@ Self-Evolving Multimedia Verification through Memory Consolidation of Contestati
 
 ---
 
+## 6. HPTSA — arXiv 2406.01637 [全文精读]（2026-11-17 多 agent 解题批次①）
+
+Teams of LLM Agents can Exploit Zero-Day Vulnerabilities. UIUC（Zhu/Fang/Bindu/Kang），v2 2025-03-29。
+
+**机制要点**
+- 三层结构：hierarchical planner（探环境、定攻击面与指令）→ team manager（选专家 agent、回收前次 run 的信息、可带更细指令重跑）→ 6 个任务专精 agent（XSS/SQLi/CSRF/SSTI/ZAP/generic），各带工具（Playwright/终端/文件；SQLi 加 sqlmap、ZAP 加 ZAP）+ 每类 5–6 份人工筛选文档 + 定制提示词。
+- 核心分工：**回溯（backtracking）从执行体剥离给编排层**。单 agent 掉进死胡同后难以换假设（Fang et al. 2024 观察到的回溯混乱）；团队把"换路"变成 manager 的调度决策，专家 agent 只专注单类漏洞。
+- HTML 减枝省 token（进 agent 前剥掉 img/svg/style 等无关标签）。
+
+**关键数字（[全文精读]）**
+- 14 个真实 0-day（全部晚于 GPT-4 知识截止、沙箱复现）：HPTSA(GPT-4) pass@5 42% / pass@1 18%；比无描述单体 pass@1 **×4.3**、pass@5 ×2.0；距"带漏洞描述的 1DV agent"仅 1.8×；ZAP/Metasploit 均为 0%。
+- 消融（最强证据）：**去层级结构（随机派发）pass@1 掉 13×、pass@5 掉 6×——编排是最大因子**；去任务专精 pass@1 掉 2.1×、pass@5 −50%；去文档 pass@1 掉 2.1×、pass@5 −20%。
+- 开源底座（Llama-3.1-405B / Qwen2.5-72B）0% 成功：拒答率高（llama 31%）+ 反复重复同一错路——**团队放大基座能力，不能替代基座能力**。
+- 成本：$4.39/run、$24.4/成功（GPT-4，pass@1 18%）；人工红队估 $75。
+- 跨轨迹综合案例：supervisor 从 SQL agent 三次失败轨迹推断出 CSRF agent 应聚焦 /admin.php，"与人类红队复盘同构"。
+
+**保真度判定：缺失（无 subagent 层）**
+- CTFPilot 为单进程双通道（fastpath+模型探索），无层级派发结构；假设切换目前由调度循环内联完成。
+- 可映射热点：模型探索通道对 token 候选的并行 fan-out——rsi-100 实测 token 阶段占活体题墙钟 76–86%（baby_re/WAF绕过），正是"多假设并行"最值钱的地方。
+
+**本域复现结果：未复现，候选机制**
+- 候选：探索通道 k 路并行采样（k=2 起步）+ 编排层跨路综合。门控照旧：对抗时钟显著优于 incumbent + poison 探针不降 + selftest 6/6。
+- 反证风险：HPTSA 增益场景是"多漏洞×多假设"宽搜索；我库多数题为单假设链式推理，fan-out 收益预计集中在诱饵密集的 token 阶段，其余阶段只放大成本。
+
+*复验日期：2026-11-17（首录）。下次复验：2027-02-17。*
+
+---
+
+## 7. D-CIPHER — arXiv 2502.10931 [摘要级]（2026-11-17 多 agent 解题批次②）
+
+D-CIPHER: Dynamic Collaborative Intelligent Multi-Agent System with Planner and Heterogeneous Executors for Offensive Security. NYU（Udeshi/Shao/Dolan-Gavitt/Karri 等），2025-02-15（v2 2025-05-10）。
+
+**机制要点**
+- Planner-Executor：Planner 全局解题 + 多个**异构 Executor** 各领子任务，动态反馈环。
+- **Auto-prompter agent**：观察到失败模式时自动重写其他 agent 的指令（不是简单重试）。
+- 立意即"真实 CTF 是专家团队协作"，把人类队伍的角色拓扑搬进 agent 系统。
+
+**关键数字（[摘要级]）**
+- 三基准 SOTA（截至发表）：NYU CTF Bench 22.0% / Cybench 22.5% / HackTheBox 44.0%，比先前工作高 2.5–8.5pp。
+- 攻克 MITRE ATT&CK 技术点比单 agent 基线**多 65%**。
+
+**保真度判定：部分可行**
+- auto-prompter ≈ 我方 case-memory 定向 lesson 注入的强化版；我方 lesson 只进检索，不改写系统提示；无 Executor 池。
+
+**本域复现结果：未复现，候选机制**
+- 低配版候选：对"同类题连续 N 次失败"做失败模式聚类，触发提示词定向增强（复用 learn-writeup 产线），不需要多进程即可先测 auto-prompter 思想。
+
+*复验日期：2026-11-17（首录）。下次复验：2027-02-17。*
+
+---
+
+## 8. STRIATUM-CTF — arXiv 2603.22577 [全文精读]（2026-11-17 多 agent 解题批次③，含关键反证）
+
+STRIATUM-CTF: A Protocol-Driven Agentic Framework for Autonomous CTF Solving. FSU，v2 2026-10-29。
+
+**机制要点**
+- **不是多 agent**：单 agent（Claude Sonnet 4.5）+ MCP 协议层（schema 硬校验，越界调用在执行前拦截）+ 执行层（Angr/Ghidra/GDB/Nmap/Nuclei 全 MCP server 化）。
+- 把"格式幻觉"（编造不存在的工具/参数/slopsquatting）与"功能错误"（合法但语义错，如返回地址偏移错）分开：前者被协议层转成结构化拒绝、agent 自改重发；后者靠环境反馈纠正。
+- 控制循环 plan→execute→parse（丢无关字段省 context）→iterate。
+
+**关键数字（[全文精读]）**
+- 180 runs / 15 题 / 4 档挂载文档：仅 55 行 schema 77.8% → 4147 行 86.7%，χ²(3,N=180)=1.36 **p=0.71 无显著差异**（对 ~60× 文档量缩减 robust）；剥离 6 道非天花板题后 Baseline−Minimal 差 22.2pp 但仍欠功效（p=0.58）。9/15 题全条件 3/3 全过（题集偏易）。
+- FSU 现场 CTF（2025-11-15，30+ 注册队、全人类）**第一名** 215 vs 205/200；单场事件，作者自认"可行性证明而非优于人类专家的统计证明"。优势来源＝机器速度 + 不知疲倦的系统化重试。
+- 未防住的失败模式：**hangs——schema 合法的调用 server 不返回，烧光预算；schema 校验管形式不管活性**，需每调用超时 + server 健康检查。
+- 反面记录：富文档条件下 operator 观察到 agent "forget things and ignores instructions"——挂载指导越多越挤占对自身状态的注意力（context drift 文献同引）。
+
+**保真度判定：思想同构，规模反证**
+- 协议层"执行前确定性拦截"与 fastpath 确定性思想同构；我方 token 尝试缺 schema 级输入硬约束。
+- **反证价值**：单 agent + 强工具层即可 77.8–86.7% + 现场冠军；文档量 null result 与 SKALOS 在 121 卡"小规模无收益"同型——**复杂度堆量（团队/技能/文档）在我方规模下增益存疑，机制收益必须消融说话**。
+
+**本域复现结果：未复现**
+- 候选（近零成本）：模型通道 token 尝试前加 schema 校验（key 长度/字符集/编码格式约束），预期砍掉一类格式性无效 attempt/假旗；可进下一轮单变量实验。
+
+*复验日期：2026-11-17（首录）。下次复验：2027-02-17。*
+
+---
+
+## 9. D-CIPHER 系模型横评 — arXiv 2604.17159 [摘要级]（2026-11-17 多 agent 解题批次④，边界条件）
+
+Systematic Capability Benchmarking of Frontier LLMs for Offensive Cyber Tasks. 2026-04-18（SIEDS 投稿）。
+
+**机制要点**
+- 在 D-CIPHER 多 agent 框架上扩 10 模型 × 7 供应商 × NYU CTF Bench 全 200 题；Kali 环境（100+ 预装工具）+ 运行时工具发现 agent。
+
+**关键数字（[摘要级]）**
+- Kali 环境比 Ubuntu **+9.5pp**；auto-prompting 与类别提示在装备良好环境中**常为负收益**。
+- Claude 4.5 Opus 59% 最高、Gemini 3 Pro 52%、Gemini 3 Flash $0.05/解最省。
+- **非对称 planner/executor 模型组合无显著收益；同模型一致配置稳定优于混合档位配对**。
+- 驱动力排序：环境工具层 + 模型选型 >> prompt 工程。
+
+**保真度判定：直接适用（设计约束）**
+- 若上多 agent：各角色共享同一基座即可，"强模型当 planner、弱模型当 executor"是无实证的浪漫。
+- 环境/工具 >> prompt 的排序与我方 fastpath 投入方向一致。
+
+**本域复现结果：未复现；作为多 agent 方案的约束条件直接采纳。**
+
+*复验日期：2026-11-17（首录）。下次复验：2027-02-17。*
+
+---
+
+## 10. 行业侧二手证据（2026-11-17 多 agent 解题批次⑤；未经一手核验，引用必须带"二手"标注）
+
+- AppSec Santa《The Rise of AI Pentesting Agents》2026-06-10（weibo 转载全文已读）：39+ 开源攻防 agent 归纳 6 种架构模式（单 agent / planner-executor / 角色专精 / 动态蜂群 / MCP 型 / Claude Code 原生）；"多 agent 持续优于单 agent"结论引用即 HPTSA ×4.3 与 D-CIPHER +65% ATT&CK。附带教训：单 agent 上下文窗口被 nmap 类输出挤爆；PentestEval（2025-12）端到端流水线仅 31%、单 agent 框架"几乎彻底失败"；CHECKMATE 用 LLM 写 PDDL 交给经典规划器（+20%、快 50%，"别让 LLM 干它不擅长的长程规划"）；VulnBot 渗透任务图并行独立分支；EnIGMA（ICML 2025）soliloquizing——agent 开始想象输出而不再真执行；角色专精型的级联失败（recon 漏一个服务下游全盲）与并行调用成本放大。
+- DARPA AIxCC 2025 决赛（DEF CON 33）：冠军 Team Atlanta（佐治亚理工+三星+KAIST+POSTECH，$4M）＝多智能体 RL + LLM + 符号分析混合 CRS，得分约等于第 2+3 名之和；亚军 Trail of Bits Buttercup＝漏洞发现/上下文分析/补丁生成（7 个 AI agent）/验证四组件；7 套决赛 CRS 全开源；决赛合成漏洞检出率 86%（半决赛 37%）。
+- 腾讯黑盲松竞赛实战系列（2026-04，腾讯云开发者社区）：5-agent 并行解题"agent 竞赛"抵消单 agent 方差；四级步数阈值队列（30/50/70/100 步）动态调度；"主攻手-顾问"双 agent（顾问只在开局/连续 3 败等量化时机介入）；长亭 PlanAgent（DSPy 编程式编排替代自然语言 prompting）。
+- CAI（arXiv 2512.02654，2025-12）：专用架构 agent 在混合 AI-人类 CTF 赛事夺冠（转引自 STRIATUM-CTF 参考文献 [27]）。
+
+*以上均为二手/摘要级，仅作背景与选题参考，不得单独作为本域采纳依据。*
+
+---
+
 ## 附录：本域与论文域的结构差异（引用时需注意）
 
 | 维度 | Zep/FGSE/SEMV 论文域 | CTFPilot 本域 |

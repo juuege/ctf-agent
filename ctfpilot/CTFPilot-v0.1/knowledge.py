@@ -8,7 +8,9 @@ Design (grounded in the 2026-11 SOTA review):
 - Relevance scoring (ArchOR / SKALOS): recall ranks by signal-token overlap
   with the current challenge signature, not recency alone.
 - Idempotent lesson upsert: re-running rebuild-knowledge refreshes, never
-  duplicates (stable case id as source fingerprint).
+  duplicates (stable case id as source fingerprint), and self-prunes stale
+  case-card shadow rows (dead shadows + stale-category twins merged into
+  their live twin) [evolve-20261117-07].
 """
 import hashlib
 import json
@@ -157,6 +159,15 @@ def merge_refined(cases, existing_jsonl_path):
                 # booleans (e.g. category_inferred=False after human
                 # adjudication) are values -- copy whenever present; strings
                 # only when non-empty so empty overlays never clobber parses.
+                # evolve-20261116-13: 'category' is curated ONLY when the
+                # overlay row carries an adjudication (category_inferred
+                # False or absent). An inferred vote from an older parse is
+                # not curation and must follow the current parser, or parser
+                # fixes can never reach cases.jsonl (live precedent: the dfjk
+                # writeup's off-target crypto vote stayed locked across a
+                # rebuild that had already fixed the vote).
+                if k == "category" and o.get("category_inferred") is True:
+                    continue
                 if isinstance(v, bool) or v:
                     c[k] = v
     return cases
@@ -183,13 +194,23 @@ def _eval_query_text(path):
     return " ".join(parts)
 
 
-def eval_retrieval(cases, writeups_dir):
+def eval_retrieval(cases, writeups_dir, per_item=False):
     """Held-out retrieval regression (固化版留出评测):
     for each case build a query from its own writeup's 题面 description (minus
     the case name tokens), then rank within the target's recorded category pool
     using the production scorer (token overlap over CASE_TEXT_KEYS, recency
     tiebreak -- category bonus is constant within a pool). Returns metrics
-    for the production ranker ('signal') and a recency-only reference."""
+    for the production ranker ('signal') and a recency-only reference.
+
+    [evolve-20261118-04 / rsi-123] per_item=True additionally returns
+    out["per_item"]: one row per evaluable query carrying the target card's
+    id/name/category and its signal/recency rank, so callers (the lab poison
+    probe) can compare rankings across a mutated KB instead of only the
+    aggregate top1/top3 -- the aggregate alone has a single-item resolution of
+    100/evaluable pp (5.3pp at evaluable=19) and cannot attribute a flat
+    delta to "insensitive metric" vs "dead payload channel" vs "poisoned
+    cards outside the evaluable set". Additive opt-in: per_item=False keeps
+    the returned dict byte-compatible for every existing caller."""
     qs = []
     for c in cases:
         p = os.path.join(writeups_dir, c["source"])
@@ -199,17 +220,24 @@ def eval_retrieval(cases, writeups_dir):
         if len(q) >= 6:
             qs.append((c, q))
     ranks = {"signal": [], "recency": []}
+    per = []
     for target, q in qs:
         pool = [c for c in cases if c.get("category") == target.get("category")]
         if len(pool) < 2:
             pool = cases
         scored = sorted(((len(q & case_tokens(c)), -float(c.get("created") or 0), c["id"])
                          for c in pool), key=lambda x: (-x[0], x[1]))
-        ranks["signal"].append(next(i for i, (_s, _t, cid) in enumerate(scored, 1)
-                                    if cid == target["id"]))
+        r = next(i for i, (_s, _t, cid) in enumerate(scored, 1)
+                 if cid == target["id"])
+        ranks["signal"].append(r)
         by_time = sorted(pool, key=lambda c: -float(c.get("created") or 0))
-        ranks["recency"].append(next(i for i, c in enumerate(by_time, 1)
-                                     if c["id"] == target["id"]))
+        rr = next(i for i, c in enumerate(by_time, 1)
+                  if c["id"] == target["id"])
+        ranks["recency"].append(rr)
+        if per_item:
+            per.append({"id": target["id"], "name": target.get("name"),
+                        "category": target.get("category"),
+                        "signal_rank": r, "recency_rank": rr})
     out = {"evaluable": len(qs), "total": len(cases)}
     for k, rr in ranks.items():
         n = len(rr)
@@ -218,6 +246,8 @@ def eval_retrieval(cases, writeups_dir):
             "top3": round(sum(1 for r in rr if r <= 3) / n, 4) if n else 0.0,
             "mrr": round(sum(1.0 / r for r in rr) / n, 4) if n else 0.0,
         }
+    if per_item:
+        out["per_item"] = per
     return out
 
 
@@ -233,8 +263,68 @@ def rank_cases(cases, category, query_tokens, top_k=3):
     return top
 
 
+def _prune_case_shadows(store, cases):
+    """Prune pass appended to rebuild_lessons [evolve-20261117-07].
+
+    Root cause fixed: rebuild_lessons was upsert-only, so category
+    re-adjudication left stale-category twin rows (rsi-070: 54 twins)
+    and KB case removal left dead shadow rows (qwqsncx: 1) forever;
+    rsi-071 proved the mechanism and cleaned the stock by hand. This
+    pass makes rebuild-knowledge self-cleaning so the leak probe's
+    lessons dimensions stay 0 without bookkeeping surgery rounds.
+
+    Same three-way classification as lab/probes.py lesson_shadow_audit
+    (same predicates, same cid=0 case-card sentinel semantics):
+    - dead shadow (case id unparsable or no longer in the KB case set)
+      -> DELETE;
+    - stale category twin (id in KB, row category != KB current
+      verdict) with a live twin present -> merge hit_count/success_count
+      into the live twin, then DELETE (rsi-071 surgery predicates);
+    - live shadow -> keep. Conservative: a twin whose live twin is
+      missing is KEPT (it is the sole content carrier -- never lose
+      data to a prune).
+
+    Idempotent: a second run deletes/merges nothing. Single
+    transaction, commit last (rsi-071 finding (e): verify from a
+    separate process after commit). Returns (dead_removed, twins_merged).
+    """
+    kb = {c.get("id"): c for c in cases}
+    rows = store.conn.execute(
+        "SELECT id, category, when_to_use, hit_count, success_count "
+        "FROM lessons WHERE challenge_id=0").fetchall()
+    live_by_hash, dead, twins = {}, [], []
+    for rid, cat, wtu, hit, succ in rows:
+        m = re.search(r"case '(case-[0-9a-f]+)'", wtu or "")
+        if not m or m.group(1) not in kb:
+            dead.append(rid)
+        elif kb[m.group(1)].get("category") == cat:
+            live_by_hash.setdefault(m.group(1), rid)
+        else:
+            twins.append((rid, m.group(1), hit or 0, succ or 0))
+    merged, gone = 0, list(dead)
+    for rid, h, hit, succ in twins:
+        live_id = live_by_hash.get(h)
+        if live_id is None:
+            continue  # conservative keep: sole content carrier
+        store.conn.execute(
+            "UPDATE lessons SET hit_count=COALESCE(hit_count,0)+?, "
+            "success_count=COALESCE(success_count,0)+? WHERE id=?",
+            (hit, succ, live_id))
+        merged += 1
+        gone.append(rid)
+    if gone:
+        store.conn.executemany("DELETE FROM lessons WHERE id=?",
+                               [(rid,) for rid in gone])
+    store.conn.commit()
+    return len(dead), merged
+
+
 def rebuild_lessons(store, cases):
-    """Upsert one lesson row per case (stable id -> idempotent re-runs)."""
+    """Upsert one lesson row per case (stable id -> idempotent re-runs),
+    then prune stale case-card shadows [evolve-20261117-07]: rebuild is
+    now refresh-only -- category re-adjudication and case removal are
+    both followed by self-cleanup instead of leaving twin/dead rows.
+    Returns (upserted, dead_removed, twins_merged)."""
     n = 0
     for c in cases:
         wtu = "case '%s': %s" % (c["id"], (c.get("signals") or c.get("name") or "")[:160])
@@ -256,4 +346,5 @@ def rebuild_lessons(store, cases):
         store.add_lesson(0, c["category"], ("case:" + c["name"])[:80],
                          wtu, evidence, tags=tags_json)
         n += 1
-    return n
+    dead, twins = _prune_case_shadows(store, cases)
+    return n, dead, twins

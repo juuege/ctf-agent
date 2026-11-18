@@ -1,0 +1,16 @@
+{
+  "name": "My-CTF-Web-Challenges-oh-my-raddit",
+  "category": "misc",
+  "technique": "file carving / repair",
+  "when_to_use": "challenge looks like misc; recall from writeup 'My-CTF-Web-Challenges-oh-my-raddit'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794964933.692762
+}

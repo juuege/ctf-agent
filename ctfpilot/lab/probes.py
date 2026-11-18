@@ -1,7 +1,7 @@
 r"""CTFPilot 评测实验室探针（纯标准库，CLI 可跑）。
 
 四个命令：
-  leak           泄漏探针：卡间互命中率 + 悬空 source 指针率 + 自证泄漏诊断
+  leak           泄漏探针：卡间互命中率 + 悬空 source 指针率 + 自证泄漏诊断 + lessons 影子悬空审计
   poison         投毒探针：注入 5 张毒卡跑引擎 eval-retrieval，看指标是否下降
   holdout-split  留出集生成器：固定 seed 抽 n 篇题解，校验是否已被入库
   report         汇总：跑 eval-retrieval 并与 eval-baseline.json 对比
@@ -9,11 +9,12 @@ r"""CTFPilot 评测实验室探针（纯标准库，CLI 可跑）。
 设计原则：只调用引擎 CLI，不修改引擎与 arena；变异 cases.jsonl 时用
 rename 原子替换 + try/finally 恢复 + 前后 SHA256 比对，绝不留下脏库。
 
-用法（PowerShell）：
-  $py -X utf8 probes.py leak --cases ..\CTFPilot-v0.1\skills\knowledge\cases.jsonl --writeups ..\writeups
-  $py -X utf8 probes.py poison --engine ..\CTFPilot-v0.1
-  $py -X utf8 probes.py holdout-split --writeups ..\writeups --n 20
-  $py -X utf8 probes.py report --engine ..\CTFPilot-v0.1
+用法（PowerShell；--cases/--writeups 缺省指向引擎库，可不传）[evolve-20261117-08：
+默认写库修复为引擎目录，stats.json writeups_dir 兜底]：
+  $py -X utf8 probes.py leak
+  $py -X utf8 probes.py poison
+  $py -X utf8 probes.py holdout-split --n 20
+  $py -X utf8 probes.py report
 
 所有命令统一把结果并入 lab/last_report.json；退出码：0 通过，2 硬失败，
 3 探究性报警（如投毒敏感性不足）。
@@ -26,6 +27,7 @@ import os
 import random
 import re
 import shutil
+import sqlite3
 import statistics
 import subprocess
 import sys
@@ -35,7 +37,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CTFPILOT = os.path.dirname(HERE)
 REPO = os.path.dirname(CTFPILOT)
 ENGINE_DEFAULT = os.path.join(CTFPILOT, "CTFPilot-v0.1")
-WRITEUPS_DEFAULT = os.path.join(CTFPILOT, "writeups")
+WRITEUPS_DEFAULT = os.path.join(ENGINE_DEFAULT, "writeups")  # [evolve-20261117-08] 实际写库在引擎下（stats.json writeups_dir 同指）；原 ..\writeups 不存在，五子命令零参数必报错
 REPORT_PATH = os.path.join(HERE, "last_report.json")
 HOLDOUT_PATH = os.path.join(HERE, "holdout.json")
 TEMP_DIR = os.path.join(HERE, ".temp")
@@ -186,7 +188,50 @@ def load_baseline(engine):
 
 
 # ---------------------------------------------------------------- 泄漏探针
-def probe_leak(cases, writeups, engine):
+# ---------------------------------------------------------------- lessons 影子审计
+def lesson_shadow_audit(engine, cases, db=None):
+    """lessons 表悬空审计（evolve-20261117-02 维度，方向 b 自动化）：
+    (1) lessons_fk_dangling: challenge_id != 0 且 challenges 无对应行的真 FK 悬空；
+    (2) dead_case_shadows: cid=0 案例卡影子行，其 case hash 不在当前 KB
+        （KB 案例被移除后 rebuild_lessons 只增不删留下的死影子）；
+    (3) stale_category_twins: hash 在 KB 但行类别 != KB 现判类别
+        （类别改判后 upsert 留下的旧类别孪生，内容已由活孪生携带）。
+    cid=0 是 knowledge.rebuild_lessons 的合法哨兵（case 卡的父体是 KB case，
+    不是 challenges 行），不计悬空。库不可读时返回 None（维度缺省）。"""
+    db = db or os.path.join(engine, "memory", "trajectories.sqlite")
+    if not os.path.exists(db):
+        return None
+    con = sqlite3.connect("file:%s?mode=ro" % db, uri=True)
+    try:
+        rows = con.execute(
+            "SELECT l.id, l.challenge_id, l.category, l.when_to_use "
+            "FROM lessons l LEFT JOIN challenges c ON l.challenge_id=c.id "
+            "WHERE c.id IS NULL").fetchall()
+    finally:
+        con.close()
+    kb = {c.get("id"): c for c in cases}
+    fk, dead, twins, live = [], [], [], []
+    for rid, cid, cat, wtu in rows:
+        m = re.search(r"case '(case-[0-9a-f]+)'", wtu or "")
+        if cid != 0:
+            fk.append(rid)
+        elif not m:
+            dead.append((rid, "unparsable"))
+        elif m.group(1) not in kb:
+            dead.append((rid, m.group(1)))
+        elif kb[m.group(1)].get("category") == cat:
+            live.append(rid)
+        else:
+            twins.append((rid, cat, kb[m.group(1)].get("category")))
+    return {"db": rel_to_repo(db), "live_case_shadows": len(live),
+            "lessons_fk_dangling": len(fk), "dead_case_shadows": len(dead),
+            "stale_category_twins": len(twins),
+            "dangling_lessons": len(fk) + len(dead) + len(twins),
+            "examples": {"fk": fk[:3], "dead": [d[0] for d in dead[:3]],
+                         "twins": [t[0] for t in twins[:3]]}}
+
+
+def probe_leak(cases, writeups, engine, db=None):
     tok, query_text, imported = engine_tokenizer(engine)
     n = len(cases)
     qsets = [tok(text_of(c, QUESTION_KEYS)) for c in cases]
@@ -263,6 +308,7 @@ def probe_leak(cases, writeups, engine):
 
     dangling = [c.get("source") for c in cases
                 if not c.get("source") or not os.path.exists(os.path.join(writeups, c["source"]))]
+    lessons = lesson_shadow_audit(engine, cases, db=db)
 
     warnings = []
     if hit_rate >= 0.25:
@@ -271,6 +317,10 @@ def probe_leak(cases, writeups, engine):
         warnings.append("近重复卡 %d 对（>=80%% 且共享 >=3 个稀有词）" % len(near_dup))
     if dangling:
         warnings.append("悬空 source 指针 %d 条（%.1f%%）" % (len(dangling), 100.0 * len(dangling) / n))
+    if lessons and lessons["dangling_lessons"]:
+        warnings.append("lessons 悬空 %d 条（FK=%d 死影子=%d 陈旧类别孪生=%d）"
+                        % (lessons["dangling_lessons"], lessons["lessons_fk_dangling"],
+                           lessons["dead_case_shadows"], lessons["stale_category_twins"]))
     if med("carrier_cov") >= 0.4:
         warnings.append("自证泄漏：evaluable 查询与自身 carrier 字段中位重合 %.0f%% → "
                         "top1/top3 部分由同源字段复制支撑" % (med("carrier_cov") * 100))
@@ -297,6 +347,7 @@ def probe_leak(cases, writeups, engine):
         "dangling_sources": len(dangling),
         "dangling_rate": round(len(dangling) / n, 4),
         "dangling_examples": dangling[:5],
+        "lessons_shadow": lessons,
         "self_provenance": {
             "evaluable_queries": evaluable,
             "median_answer_coverage": med("answer_cov"),
@@ -313,6 +364,36 @@ def probe_leak(cases, writeups, engine):
 
 
 # ---------------------------------------------------------------- 投毒探针
+def _local_eval_per_item(engine, cases, writeups):
+    """[evolve-20261118-04 / rsi-123] In-process per-item retrieval eval via the
+    engine's OWN knowledge.eval_retrieval(per_item=True) -- guaranteed same
+    scoring code as the CLI run, zero local re-derivation, so rank_before /
+    rank_after are directly comparable and any drift is caught by the
+    aggregate-fidelity guard in probe_poison."""
+    engine_tokenizer(engine)  # ensures the engine root is on sys.path
+    import knowledge
+    return knowledge.eval_retrieval(cases, writeups, per_item=True)
+
+
+def _eval_query_union(engine, cases, writeups):
+    """Union of the evaluable query token sets, built with the exact
+    eval_retrieval filter (source writeup exists, >=6 tokens after name
+    subtraction). Used for the poison-channel diagnostic: poison tokens that
+    never appear in any query cannot move any score -- the causal channel is
+    empty and a flat aggregate delta is structural, not evidence of
+    insensitivity."""
+    tok, qtext, _imp = engine_tokenizer(engine)
+    out = set()
+    for c in cases:
+        p = os.path.join(writeups, str(c.get("source") or ""))
+        if not os.path.exists(p):
+            continue
+        q = tok(qtext(p)) - tok(c.get("name") or "")
+        if len(q) >= 6:
+            out |= q
+    return out
+
+
 def _card_flag(case, writeups):
     if case.get("flag"):
         return case["flag"]
@@ -343,7 +424,9 @@ def _restore(live, bak):
     os.replace(bak, live)
 
 
-def probe_poison(engine, cases_path, writeups, n_poison=5, seed=SEED, timeout=900):
+def probe_poison(engine, cases_path, writeups, n_poison=5, seed=SEED, timeout=900,
+                 poison_line=None):
+    pline = poison_line or POISON_LINE
     live = os.path.abspath(os.path.join(engine, "skills", "knowledge", "cases.jsonl"))
     if os.path.abspath(cases_path) != live:
         raise SystemExit("[error] poison must target the engine's live cases.jsonl\n"
@@ -374,7 +457,7 @@ def probe_poison(engine, cases_path, writeups, n_poison=5, seed=SEED, timeout=90
     for c in cases:
         if c["id"] in poison_ids:
             m = dict(c)
-            m["signals"] = POISON_LINE + (c.get("signals") or "")
+            m["signals"] = pline + (c.get("signals") or "")
             m["poisoned"] = True
             mutated.append(m)
         else:
@@ -386,7 +469,25 @@ def probe_poison(engine, cases_path, writeups, n_poison=5, seed=SEED, timeout=90
 
     print("[poison] live hash before : %s" % before)
     print("[poison] mutated cards    : %s" % ", ".join(c.get("name", "?") for c in chosen))
+    print("[poison] poison line      : %s" % pline)
     print("[poison] mutant hash      : %s" % mutant_hash)
+
+    # [rsi-123] per-item ranking of the CLEAN kb, computed in-process through
+    # the engine's own eval_retrieval BEFORE any swap touches the live file.
+    pre = _local_eval_per_item(engine, cases, writeups)
+    pre_rb = {row["id"]: row["signal_rank"] for row in pre["per_item"]}
+    _names = {row["id"]: row["name"] for row in pre["per_item"]}
+    # self-consistency: per_item must reconstruct the printed aggregate
+    _n = len(pre_rb)
+    _agg_from_per = {
+        "top1": round(sum(1 for r in pre_rb.values() if r == 1) / _n, 4) if _n else 0.0,
+        "top3": round(sum(1 for r in pre_rb.values() if r <= 3) / _n, 4) if _n else 0.0,
+    }
+    for _k in ("top1", "top3"):
+        if _agg_from_per[_k] != pre["signal"][_k]:
+            raise SystemExit("[error] per_item rows fail to reconstruct the aggregate "
+                             "(%s: %s vs %s) -- per_item plumbing broken"
+                             % (_k, _agg_from_per[_k], pre["signal"][_k]))
 
     bak = None
     try:
@@ -408,15 +509,65 @@ def probe_poison(engine, cases_path, writeups, n_poison=5, seed=SEED, timeout=90
     sig = run["signal"]
     d1 = round((sig["top1"] - baseline["top1"]) * 100, 1)
     d3 = round((sig["top3"] - baseline["top3"]) * 100, 1)
-    # 规定：注入毒卡后指标不降反升或微降 <2pp → 评测对知识污染不敏感
-    alarm = d1 > -2.0 and d3 > -2.0
     resolution = round(100.0 / max(1, run.get("evaluable") or 1), 1)
+
+    # [rsi-123] per-item ranking of the MUTATED kb (in-process; the live file
+    # is already restored). Fidelity guard: the in-process aggregate must match
+    # the engine CLI aggregate measured under the real swap -- divergence
+    # means the local mirror drifted and per-item numbers are void. Compare at
+    # the CLI's PRINTED precision (top1/top3 one decimal as a percent, mrr
+    # three decimals): run_engine_eval parses "57.9%" back to 0.579 while the
+    # in-process value keeps four decimals (0.5789) -- that gap is print
+    # precision, not scoring drift.
+    post = _local_eval_per_item(engine, mutated, writeups)
+    for _k in ("top1", "top3"):
+        if round(post["signal"][_k] * 100, 1) != round(sig[_k] * 100, 1):
+            raise SystemExit("[error] in-process eval_retrieval drifted from the CLI run "
+                             "(%s: %s vs %s) -- per-item comparison void"
+                             % (_k, post["signal"][_k], sig[_k]))
+    if round(post["signal"]["mrr"], 3) != round(sig["mrr"], 3):
+        raise SystemExit("[error] in-process eval_retrieval drifted from the CLI run "
+                         "(mrr: %s vs %s) -- per-item comparison void"
+                         % (post["signal"]["mrr"], sig["mrr"]))
+    ra = {row["id"]: row["signal_rank"] for row in post["per_item"]}
+    shifted = sorted(
+        ({"id": k, "name": _names[k], "before": pre_rb[k], "after": ra[k]}
+         for k in pre_rb if pre_rb[k] != ra.get(k)),
+        key=lambda s: -abs(s["after"] - s["before"]))
+    poisoned_items = []
+    for c in chosen:
+        cid = c["id"]
+        poisoned_items.append({"id": cid, "name": c.get("name"),
+                               "evaluable": cid in pre_rb,
+                               "rank_before": pre_rb.get(cid),
+                               "rank_after": ra.get(cid)})
+    poison_evaluable = sum(1 for it in poisoned_items if it["evaluable"])
+    tok, _qt, _imp = engine_tokenizer(engine)
+    channel = tok(pline) & _eval_query_union(engine, cases, writeups)
+
+    # Three-state verdict [rsi-123]: the legacy binary alarm fired on every
+    # run for 8+ chain entries because a flat aggregate delta is structural
+    # (single-item resolution vs threshold, poison cards outside the
+    # evaluable set, weak/empty payload channel) -- it could never attribute
+    # anything. detected = poison actually moved rankings or the aggregate
+    # past the threshold; alarm-ineffective-payload = the probe's own payload
+    # has no channel and no poisoned card is evaluable (design debt, honest);
+    # alarm-insensitive = a channel/targets exist but nothing moved (real
+    # insensitivity finding).
+    if d1 <= -2.0 or d3 <= -2.0 or shifted:
+        state = "detected"
+    elif not channel and poison_evaluable == 0:
+        state = "alarm-ineffective-payload"
+    else:
+        state = "alarm-insensitive"
+    alarm = state != "detected"
+
     res = {
         "seed": seed,
         "poisoned": [{"id": c["id"], "name": c.get("name"), "category": c.get("category"),
                       "source": c.get("source")} for c in chosen],
         "skipped_solved_without_flag": skipped,
-        "poison_line": POISON_LINE,
+        "poison_line": pline,
         "cases_hash_before": before,
         "cases_hash_after": sha256(live),
         "restored": sha256(live) == before,
@@ -428,10 +579,26 @@ def probe_poison(engine, cases_path, writeups, n_poison=5, seed=SEED, timeout=90
         "delta_pp": {"top1": d1, "top3": d3},
         "resolution_pp": resolution,
         "alarm": alarm,
-        "verdict": ("评测对知识污染不敏感：注入 %d 张毒卡后 top1%+.1fpp / top3%+.1fpp "
-                    "（阈值 -2pp，单题分辨率 %.1fpp）" % (len(chosen), d1, d3, resolution))
-                   if alarm else
-                   ("评测检出污染：top1%+.1fpp / top3%+.1fpp" % (d1, d3)),
+        "state": state,
+        "attribution": {
+            "poison_tokens": sorted(tok(pline)),
+            "channel_tokens": sorted(channel),
+            "poisoned_evaluable": "%d/%d" % (poison_evaluable, len(chosen)),
+            "shifted_items": len(shifted),
+            "max_abs_shift": max((abs(s["after"] - s["before"]) for s in shifted),
+                                 default=0),
+        },
+        "poisoned_items": poisoned_items,
+        "per_item_shifted": shifted,
+        "verdict": ("评测检出污染：top1%+.1fpp top3%+.1fpp，排名位移 %d 项"
+                     % (d1, d3, len(shifted)))
+                    if not alarm else
+                    ("报警[%s]：注入 %d 张毒卡后 top1%+.1fpp / top3%+.1fpp 零动（单题分辨率 %.1fpp）；"
+                     "归因：毒卡可评估 %s，通道 token %s，排名位移 %d 项"
+                     % (state, len(chosen), d1, d3, resolution,
+                        "%d/%d" % (poison_evaluable, len(chosen)),
+                        "、".join(sorted(channel)) or "无",
+                        len(shifted))),
         "engine_raw_tail": run.get("raw_tail"),
     }
     return res
@@ -519,6 +686,13 @@ def print_leak(res):
              res["excess_over_null"]))
     print("[leak] 近重复卡=%d  悬空 source 指针=%d (%.1f%%)"
           % (res["near_duplicate_pairs"], res["dangling_sources"], res["dangling_rate"] * 100))
+    if res.get("lessons_shadow"):
+        l = res["lessons_shadow"]
+        print("[leak] lessons 影子: 活=%d FK悬空=%d 死影子=%d 陈旧类别孪生=%d"
+              % (l["live_case_shadows"], l["lessons_fk_dangling"],
+                 l["dead_case_shadows"], l["stale_category_twins"]))
+    else:
+        print("[leak] lessons 影子: (库不可读，维度缺省)")
     print("[leak] 自证泄漏: evaluable=%d 自身答案覆盖中位=%.2f 整卡覆盖=%.2f carrier 覆盖=%.2f"
           % (sp["evaluable_queries"], sp["median_answer_coverage"],
              sp["median_full_card_coverage"], sp["median_carrier_coverage"]))
@@ -535,6 +709,13 @@ def print_poison(res):
              res["poisoned_run"]["top1"] * 100, res["poisoned_run"]["top3"] * 100))
     print("[poison] Δ top1=%+.1fpp Δ top3=%+.1fpp（阈值 -2pp，单题分辨率 %.1fpp）"
           % (res["delta_pp"]["top1"], res["delta_pp"]["top3"], res["resolution_pp"]))
+    att = res.get("attribution")
+    if att:
+        print("[poison] per-item：毒卡可评估 %s，通道 token [%s]，排名位移 %d 项（max %d 位）"
+              % (att["poisoned_evaluable"], ",".join(att["channel_tokens"]) or "无",
+                 att["shifted_items"], att["max_abs_shift"]))
+        for s in res.get("per_item_shifted", [])[:6]:
+            print("          - %s: #%d -> #%d" % (s["name"][:40], s["before"], s["after"]))
     print("[poison] hash 恢复一致=%s (%s)" % (res["restored"], res["cases_hash_after"][:12]))
     print("[poison] %s" % ("ALARM " + res["verdict"] if res["alarm"] else res["verdict"]))
 
@@ -590,12 +771,18 @@ def main():
 
     p = sub.add_parser("leak", help="卡间互命中 + 悬空指针 + 自证泄漏")
     common(p)
+    p.add_argument("--db", default=None,
+                   help="覆盖 lessons 影子审计库路径（默认 engine/memory/trajectories.sqlite）")
 
     p = sub.add_parser("poison", help="注入毒卡跑 eval-retrieval 看敏感性")
     common(p)
     p.add_argument("--n", type=int, default=5)
     p.add_argument("--seed", type=int, default=SEED)
     p.add_argument("--timeout", type=int, default=900)
+    p.add_argument("--poison-line", default=None,
+                   help="override the poison payload sentence (positive-control "
+                        "experiments: a channel-bearing line proves the per-item "
+                        "metric can actually detect rank shifts)")
 
     p = sub.add_parser("holdout-split", help="生成评测专用留出清单")
     p.add_argument("--cases", default=None)
@@ -611,22 +798,26 @@ def main():
     engine = os.path.abspath(getattr(args, "engine", ENGINE_DEFAULT) or ENGINE_DEFAULT)
     cases_path = os.path.abspath(args.cases) if getattr(args, "cases", None) else \
         os.path.join(engine, "skills", "knowledge", "cases.jsonl")
-    writeups = os.path.abspath(getattr(args, "writeups", None) or WRITEUPS_DEFAULT)
+    writeups = os.path.abspath(getattr(args, "writeups", None) or
+                               load_writeups_default(engine) or WRITEUPS_DEFAULT)  # [evolve-20261117-08] stats.json writeups_dir 兜底链
     if not os.path.isdir(writeups):
         raise SystemExit("[error] writeups dir not found: %s" % writeups)
 
     t0 = time.time()
     if args.cmd == "leak":
-        res = probe_leak(load_cases(cases_path), writeups, engine)
+        db_override = os.path.abspath(args.db) if getattr(args, "db", None) else None
+        res = probe_leak(load_cases(cases_path), writeups, engine, db=db_override)
         res["elapsed_s"] = round(time.time() - t0, 1)
         res["cases_path"] = rel_to_repo(cases_path)
         update_report("leak", res)
         print_leak(res)
-        return 2 if res["dangling_sources"] else 0
+        lessons_dangling = (res.get("lessons_shadow") or {}).get("dangling_lessons", 0)
+        return 2 if (res["dangling_sources"] or lessons_dangling) else 0
 
     if args.cmd == "poison":
         res = probe_poison(engine, cases_path, writeups, n_poison=args.n,
-                           seed=args.seed, timeout=args.timeout)
+                           seed=args.seed, timeout=args.timeout,
+                           poison_line=getattr(args, "poison_line", None))
         res["elapsed_s"] = round(time.time() - t0, 1)
         update_report("poison", res)
         print_poison(res)

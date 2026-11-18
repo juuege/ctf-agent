@@ -1,0 +1,14 @@
+{
+  "name": "encode_chain_reversed",
+  "category": "misc",
+  "solved": true,
+  "flag": "flag{ch41n_r3v3rs3d_0k}",
+  "time_seconds": 0.047,
+  "attempts": 2,
+  "mode": "auto",
+  "provenance": {
+    "require_derived": true,
+    "status": "derived",
+    "raw_file": null
+  }
+}

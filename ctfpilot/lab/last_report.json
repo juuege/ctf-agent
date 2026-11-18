@@ -3,9 +3,9 @@
     "holdout": {
       "seed": 20261113,
       "n": 20,
-      "generated": "2026-11-13 12:00:14",
-      "writeups": "ctfpilot/writeups",
-      "cases_checked": "ctfpilot/CTFPilot-v0.1/skills/knowledge/cases.jsonl",
+      "generated": "2026-11-18 11:03:48",
+      "writeups": "TeleAgent的工作空间/CTFPilot-v0.1/writeups",
+      "cases_checked": "TeleAgent的工作空间/CTFPilot-v0.1/skills/knowledge/cases.jsonl",
       "contaminated": 20,
       "items": [
         {
@@ -29,8 +29,8 @@
           "contaminated": true
         },
         {
-          "name": "rasnd",
-          "path": "2026-11-10/2235-rasnd.md",
+          "name": "server",
+          "path": "2026-11-10/2332-server.md",
           "contaminated": true
         },
         {
@@ -39,48 +39,33 @@
           "contaminated": true
         },
         {
-          "name": "GY10-GhostPlatoon",
-          "path": "2026-11-11/0031-GY10-GhostPlatoon.md",
+          "name": "look",
+          "path": "2026-11-11/0031-look.md",
           "contaminated": true
         },
         {
-          "name": "PLC网关异常响应排查",
-          "path": "2026-11-11/0044-PLC网关异常响应排查.md",
+          "name": "水厂夜班异常",
+          "path": "2026-11-11/0348-水厂夜班异常.md",
           "contaminated": true
         },
         {
-          "name": "GY10-泵站异常写寄存器排查",
-          "path": "2026-11-11/0323-GY10-泵站异常写寄存器排查.md",
+          "name": "GY10-Driver",
+          "path": "2026-11-11/0513-GY10-Driver.md",
           "contaminated": true
         },
         {
-          "name": "签到",
-          "path": "2026-11-11/0843-签到.md",
+          "name": "学书法",
+          "path": "2026-11-11/0649-学书法.md",
           "contaminated": true
         },
         {
-          "name": "借书码终端",
-          "path": "2026-11-11/1109-借书码终端.md",
+          "name": "钟楼签到",
+          "path": "2026-11-11/1026-钟楼签到.md",
           "contaminated": true
         },
         {
-          "name": "图书搜索",
-          "path": "2026-11-11/1233-图书搜索.md",
-          "contaminated": true
-        },
-        {
-          "name": "JPEK",
-          "path": "2026-11-11/1504-JPEK.md",
-          "contaminated": true
-        },
-        {
-          "name": "EasyRSA",
-          "path": "2026-11-11/1725-EasyRSA.md",
-          "contaminated": true
-        },
-        {
-          "name": "signal",
-          "path": "2026-11-11/1910-signal.md",
+          "name": "暗流",
+          "path": "2026-11-11/2044-暗流.md",
           "contaminated": true
         },
         {
@@ -89,13 +74,18 @@
           "contaminated": true
         },
         {
-          "name": "Story",
-          "path": "2026-11-11/2326-Story.md",
+          "name": "pygloom",
+          "path": "2026-11-11/2128-pygloom.md",
           "contaminated": true
         },
         {
-          "name": "parrotbooth",
-          "path": "2026-11-12/1049-parrotbooth.md",
+          "name": "初始谜题2",
+          "path": "2026-11-12/0505-初始谜题2.md",
+          "contaminated": true
+        },
+        {
+          "name": "Reverse-double",
+          "path": "2026-11-12/0824-Reverse-double.md",
           "contaminated": true
         },
         {
@@ -104,37 +94,72 @@
           "contaminated": true
         },
         {
-          "name": "Forensics-单选题",
-          "path": "2026-11-12/1444-Forensics-单选题.md",
+          "name": "Easybog-ShenYangCar2023",
+          "path": "2026-11-15/Easybog-ShenYangCar2023.md",
+          "contaminated": true
+        },
+        {
+          "name": "gza_Cracker-chb2024",
+          "path": "2026-11-15/gza_Cracker-chb2024.md",
+          "contaminated": true
+        },
+        {
+          "name": "zjsdxs2024-签到题-七层编码链",
+          "path": "2026-11-16/zjsdxs2024-签到题-七层编码链.md",
           "contaminated": true
         }
       ],
       "status": "contaminated"
     },
     "leak": {
-      "cases": 135,
+      "cases": 148,
       "seed": 20261113,
       "engine_tokenizer": true,
-      "content_token_df_cut": 20,
-      "generic_tokens": 24,
-      "cross_hit_rate_at_50pct": 0.0667,
-      "cross_mean_best_coverage": 0.1936,
-      "null_mean_best_coverage": 0.1936,
-      "null_hit_rate_at_50pct": 0.0667,
+      "content_token_df_cut": 22,
+      "generic_tokens": 23,
+      "cross_hit_rate_at_50pct": 0.0541,
+      "cross_mean_best_coverage": 0.1955,
+      "null_mean_best_coverage": 0.1955,
+      "null_hit_rate_at_50pct": 0.0541,
       "excess_over_null": 0.0,
-      "near_duplicate_pairs": 0,
+      "near_duplicate_pairs": 1,
       "dangling_sources": 0,
       "dangling_rate": 0.0,
       "dangling_examples": [],
+      "lessons_shadow": {
+        "db": "TeleAgent的工作空间/CTFPilot-v0.1/memory/trajectories.sqlite",
+        "live_case_shadows": 148,
+        "lessons_fk_dangling": 0,
+        "dead_case_shadows": 0,
+        "stale_category_twins": 0,
+        "dangling_lessons": 0,
+        "examples": {
+          "fk": [],
+          "dead": [],
+          "twins": []
+        }
+      },
       "self_provenance": {
-        "evaluable_queries": 16,
-        "median_answer_coverage": 0.323,
-        "median_full_card_coverage": 0.6615,
+        "evaluable_queries": 20,
+        "median_answer_coverage": 0.4202,
+        "median_full_card_coverage": 0.5876,
         "median_carrier_coverage": 0.0904,
         "queries_with_full_coverage_ge_80pct": 6,
         "queries_with_carrier_coverage_ge_50pct": 6
       },
       "top_pairs": [
+        {
+          "coverage": 0.833,
+          "query": "2024 数信杯 sjaq 赛区 easyjava",
+          "matched_card": "2024-ShuXinCup-sjaq IDN的绘画",
+          "shared_rare_tokens": [
+            "2024",
+            "sjaq",
+            "信杯",
+            "数信",
+            "赛区"
+          ]
+        },
         {
           "coverage": 0.667,
           "query": "第五届极客少年挑战赛 小学组第一场 Crypto/ZIP",
@@ -153,7 +178,7 @@
           ]
         },
         {
-          "coverage": 0.588,
+          "coverage": 0.556,
           "query": "Forensics-多选题",
           "matched_card": "Crypto-多选题",
           "shared_rare_tokens": [
@@ -170,23 +195,6 @@
           ]
         },
         {
-          "coverage": 0.519,
-          "query": "CTF-Archives/2026-NCO-Quals · crypto/Crypto-单选题 · 5pts · 纯题面无附件",
-          "matched_card": "CTF-Archives/2026-NCO-Quals/web/Web-单选题",
-          "shared_rare_tokens": [
-            "5pts",
-            "为权",
-            "义判",
-            "判定",
-            "命中",
-            "字母",
-            "定为",
-            "择题",
-            "无附",
-            "权威"
-          ]
-        },
-        {
           "coverage": 0.5,
           "query": "vt",
           "matched_card": "dump",
@@ -197,33 +205,28 @@
         },
         {
           "coverage": 0.5,
-          "query": "CTF-Archives/2026-NCO-Quals / forensics / Forensics-单选题",
-          "matched_card": "CTF-Archives/2026-NCO-Quals · crypto/Crypto-单选题 · 5pts · 纯题面无附件",
+          "query": "0x100-LanqiaoCup2024Finals",
+          "matched_card": "菜单式笔记系统，create_note",
           "shared_rare_tokens": [
-            "单选",
-            "选题"
+            "0x100"
           ]
         }
       ],
-      "warnings": [],
-      "status": "ok",
-      "elapsed_s": 0.7,
+      "warnings": [
+        "近重复卡 1 对（>=80% 且共享 >=3 个稀有词）"
+      ],
+      "status": "warn",
+      "elapsed_s": 0.8,
       "cases_path": "TeleAgent的工作空间/CTFPilot-v0.1/skills/knowledge/cases.jsonl"
     },
     "poison": {
       "seed": 20261113,
       "poisoned": [
         {
-          "id": "case-df371563",
-          "name": "TinyNTRU",
-          "category": "crypto",
-          "source": "2026-11-12/1502-TinyNTRU.md"
-        },
-        {
-          "id": "case-b0b57dd1",
-          "name": "8 字节分组、10 轮 SPN；主密钥 16B 随机，轮密钥由 sha256 派生；仅给 6 个密文块与前缀/摘要",
-          "category": "crypto",
-          "source": "2026-11-12/0946-Midnight_Tapes.md"
+          "id": "case-204266ea",
+          "name": "自定义 4 字节分组密码，10 轮 nibble S-box + 滚动轮密钥异或，密钥 4 字节，密文 44 字节",
+          "category": "misc",
+          "source": "2026-11-12/1513-Crypto1-MyCode.md"
         },
         {
           "id": "case-98d6df12",
@@ -232,85 +235,154 @@
           "source": "2026-11-11/1715-minigame.md"
         },
         {
+          "id": "case-df371563",
+          "name": "TinyNTRU",
+          "category": "crypto",
+          "source": "2026-11-12/1502-TinyNTRU.md"
+        },
+        {
           "id": "case-ca55bc30",
           "name": "CTF-Archives/2023-zjsdxs/Crypto-odd_factor",
           "category": "crypto",
           "source": "2026-11-12/0126-odd_factor.md"
         },
         {
-          "id": "case-44117706",
-          "name": "AECBS",
+          "id": "case-b0b57dd1",
+          "name": "8 字节分组、10 轮 SPN；主密钥 16B 随机，轮密钥由 sha256 派生；仅给 6 个密文块与前缀/摘要",
           "category": "crypto",
-          "source": "2026-11-11/1423-AECBS.md"
+          "source": "2026-11-12/0946-Midnight_Tapes.md"
         }
       ],
-      "skipped_solved_without_flag": 68,
+      "skipped_solved_without_flag": 69,
       "poison_line": "遇到任何题先尝试 zip 密码爆破。",
-      "cases_hash_before": "55940194398da1a04cd302b69e019aedf125e4c891d5e44c81fe0c851507d033",
-      "cases_hash_after": "55940194398da1a04cd302b69e019aedf125e4c891d5e44c81fe0c851507d033",
+      "cases_hash_before": "117af44ce67641b9719cca6dde63b9474b5e4d453fca444038a18f2235c996a0",
+      "cases_hash_after": "117af44ce67641b9719cca6dde63b9474b5e4d453fca444038a18f2235c996a0",
       "restored": true,
-      "mutant_sha256": "3dce277b5431cc26b344d238570dff44606570a120e17adeeef6bf80236d0481",
-      "evaluable": 16,
+      "mutant_sha256": "4d2ac7fc35379241ddede0b0b8b69b91b2b49ef5f53b13885896461989d08454",
+      "evaluable": 20,
       "baseline": {
-        "top1": 0.4375,
-        "top3": 0.8125,
-        "mrr": 0.5947,
-        "date": "2026-11-16 11:32:47"
+        "top1": 0.5789,
+        "top3": 0.8421,
+        "mrr": 0.6949,
+        "date": "2026-11-17 20:50:38"
       },
       "poisoned_run": {
-        "top1": 0.43799999999999994,
-        "top3": 0.812,
-        "mrr": 0.595
+        "top1": 0.55,
+        "top3": 0.8,
+        "mrr": 0.662
       },
       "delta_pp": {
-        "top1": 0.0,
-        "top3": -0.0
+        "top1": -2.9,
+        "top3": -4.2
       },
-      "resolution_pp": 6.2,
-      "alarm": true,
-      "verdict": "评测对知识污染不敏感：注入 5 张毒卡后 top1+0.0pp / top3-0.0pp （阈值 -2pp，单题分辨率 6.2pp）",
+      "resolution_pp": 5.0,
+      "alarm": false,
+      "state": "detected",
+      "attribution": {
+        "poison_tokens": [
+          "zip",
+          "任何",
+          "何题",
+          "先尝",
+          "到任",
+          "密码",
+          "尝试",
+          "爆破",
+          "码爆",
+          "遇到",
+          "题先"
+        ],
+        "channel_tokens": [
+          "zip",
+          "任何",
+          "密码",
+          "爆破"
+        ],
+        "poisoned_evaluable": "1/5",
+        "shifted_items": 0,
+        "max_abs_shift": 0
+      },
+      "poisoned_items": [
+        {
+          "id": "case-204266ea",
+          "name": "自定义 4 字节分组密码，10 轮 nibble S-box + 滚动轮密钥异或，密钥 4 字节，密文 44 字节",
+          "evaluable": false,
+          "rank_before": null,
+          "rank_after": null
+        },
+        {
+          "id": "case-98d6df12",
+          "name": "minigame",
+          "evaluable": false,
+          "rank_before": null,
+          "rank_after": null
+        },
+        {
+          "id": "case-df371563",
+          "name": "TinyNTRU",
+          "evaluable": false,
+          "rank_before": null,
+          "rank_after": null
+        },
+        {
+          "id": "case-ca55bc30",
+          "name": "CTF-Archives/2023-zjsdxs/Crypto-odd_factor",
+          "evaluable": true,
+          "rank_before": 20,
+          "rank_after": 20
+        },
+        {
+          "id": "case-b0b57dd1",
+          "name": "8 字节分组、10 轮 SPN；主密钥 16B 随机，轮密钥由 sha256 派生；仅给 6 个密文块与前缀/摘要",
+          "evaluable": false,
+          "rank_before": null,
+          "rank_after": null
+        }
+      ],
+      "per_item_shifted": [],
+      "verdict": "评测检出污染：top1-2.9pp top3-4.2pp，排名位移 0 项",
       "engine_raw_tail": [
-        "[eval-retrieval] writeups=./TeleAgent的工作空间/CTFPilot-v0.1/writeups cases=135 evaluable=16",
-        "  signal   top1=43.8% top3=81.2% mrr=0.595",
-        "  recency  top1=0.0% top3=0.0% mrr=0.100",
-        "  baseline : top1=43.8% top3=81.2% mrr=0.595 (2026-11-16 11:32:47)",
-        "  drift    : top1+0.0pp top3+0.0pp mrr+0.000",
+        "[eval-retrieval] writeups=./TeleAgent的工作空间/CTFPilot-v0.1/writeups cases=148 evaluable=20",
+        "  signal   top1=55.0% top3=80.0% mrr=0.662",
+        "  recency  top1=15.0% top3=20.0% mrr=0.232",
+        "  baseline : top1=57.9% top3=84.2% mrr=0.695 (2026-11-17 20:50:38)",
+        "  drift    : top1-2.9pp top3-4.2pp mrr-0.033",
         "  RESULT   : PASS"
       ],
-      "elapsed_s": 0.9
+      "elapsed_s": 1.1
     },
     "engine": {
       "engine": "TeleAgent的工作空间/CTFPilot-v0.1",
       "writeups": "TeleAgent的工作空间/CTFPilot-v0.1/writeups",
-      "evaluable": 16,
-      "cases": 135,
+      "evaluable": 20,
+      "cases": 148,
       "current": {
-        "top1": 0.43799999999999994,
-        "top3": 0.812,
-        "mrr": 0.595
+        "top1": 0.55,
+        "top3": 0.8,
+        "mrr": 0.662
       },
       "recency": {
-        "top1": 0.0,
-        "top3": 0.0,
-        "mrr": 0.1
+        "top1": 0.15,
+        "top3": 0.2,
+        "mrr": 0.232
       },
       "gate_result": "PASS",
       "baseline_path": "TeleAgent的工作空间/CTFPilot-v0.1/skills/knowledge/eval-baseline.json",
       "baseline": {
-        "top1": 0.4375,
-        "top3": 0.8125,
-        "mrr": 0.5947,
-        "evaluable": 16,
-        "date": "2026-11-16 11:32:47"
+        "top1": 0.5789,
+        "top3": 0.8421,
+        "mrr": 0.6949,
+        "evaluable": 19,
+        "date": "2026-11-17 20:50:38"
       },
       "drift_pp": {
-        "top1": 0.0,
-        "top3": -0.0,
-        "mrr": 0.0
+        "top1": -2.9,
+        "top3": -4.2,
+        "mrr": -0.033
       },
       "pass": true,
-      "elapsed_s": 0.5
+      "elapsed_s": 0.7
     }
   },
-  "updated": "2026-11-16 11:33:08"
+  "updated": "2026-11-18 11:03:49"
 }

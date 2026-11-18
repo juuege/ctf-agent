@@ -1,0 +1,23 @@
+{
+  "name": "2024-newstar-week",
+  "category": "crypto",
+  "technique": "constraint solving with z3",
+  "when_to_use": "challenge looks like crypto; recall from writeup '2024-newstar-week'",
+  "commands": [
+    "This is a base question! \\",
+    "`4C4A575851324332474E324547554B494A5A4446513653434E564D444154545A4B354D45454D434E4959345536544B474D5134513D3D3D3D`",
+    "...讯息：`ksjr{EcxvpdErSvcDgdgEzxqjql}`，flag 包裹的是可读的明文",
+    "hex  ->  \"LJWRQ2C2GN2EGUKIJZDFQ6SCNVMDATTZK5MEEEMCNIY4U6TKGMQ4Q====\"",
+    "b32  ->  \"ZmxhZ3tiYXNlNjRfZW5jb2RkX2Zvcl9uZXdzdGFyfQ==\"",
+    "b64  ->  \"flag{b@sE_0f_crYpt0_N0W}\""
+  ],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794903176.5423262
+}

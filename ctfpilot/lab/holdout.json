@@ -1,9 +1,9 @@
 {
   "seed": 20261113,
   "n": 20,
-  "generated": "2026-11-13 12:00:14",
-  "writeups": "ctfpilot/writeups",
-  "cases_checked": "ctfpilot/CTFPilot-v0.1/skills/knowledge/cases.jsonl",
+  "generated": "2026-11-18 11:03:48",
+  "writeups": "TeleAgent的工作空间/CTFPilot-v0.1/writeups",
+  "cases_checked": "TeleAgent的工作空间/CTFPilot-v0.1/skills/knowledge/cases.jsonl",
   "contaminated": 20,
   "items": [
     {
@@ -27,8 +27,8 @@
       "contaminated": true
     },
     {
-      "name": "rasnd",
-      "path": "2026-11-10/2235-rasnd.md",
+      "name": "server",
+      "path": "2026-11-10/2332-server.md",
       "contaminated": true
     },
     {
@@ -37,48 +37,33 @@
       "contaminated": true
     },
     {
-      "name": "GY10-GhostPlatoon",
-      "path": "2026-11-11/0031-GY10-GhostPlatoon.md",
+      "name": "look",
+      "path": "2026-11-11/0031-look.md",
       "contaminated": true
     },
     {
-      "name": "PLC网关异常响应排查",
-      "path": "2026-11-11/0044-PLC网关异常响应排查.md",
+      "name": "水厂夜班异常",
+      "path": "2026-11-11/0348-水厂夜班异常.md",
       "contaminated": true
     },
     {
-      "name": "GY10-泵站异常写寄存器排查",
-      "path": "2026-11-11/0323-GY10-泵站异常写寄存器排查.md",
+      "name": "GY10-Driver",
+      "path": "2026-11-11/0513-GY10-Driver.md",
       "contaminated": true
     },
     {
-      "name": "签到",
-      "path": "2026-11-11/0843-签到.md",
+      "name": "学书法",
+      "path": "2026-11-11/0649-学书法.md",
       "contaminated": true
     },
     {
-      "name": "借书码终端",
-      "path": "2026-11-11/1109-借书码终端.md",
+      "name": "钟楼签到",
+      "path": "2026-11-11/1026-钟楼签到.md",
       "contaminated": true
     },
     {
-      "name": "图书搜索",
-      "path": "2026-11-11/1233-图书搜索.md",
-      "contaminated": true
-    },
-    {
-      "name": "JPEK",
-      "path": "2026-11-11/1504-JPEK.md",
-      "contaminated": true
-    },
-    {
-      "name": "EasyRSA",
-      "path": "2026-11-11/1725-EasyRSA.md",
-      "contaminated": true
-    },
-    {
-      "name": "signal",
-      "path": "2026-11-11/1910-signal.md",
+      "name": "暗流",
+      "path": "2026-11-11/2044-暗流.md",
       "contaminated": true
     },
     {
@@ -87,13 +72,18 @@
       "contaminated": true
     },
     {
-      "name": "Story",
-      "path": "2026-11-11/2326-Story.md",
+      "name": "pygloom",
+      "path": "2026-11-11/2128-pygloom.md",
       "contaminated": true
     },
     {
-      "name": "parrotbooth",
-      "path": "2026-11-12/1049-parrotbooth.md",
+      "name": "初始谜题2",
+      "path": "2026-11-12/0505-初始谜题2.md",
+      "contaminated": true
+    },
+    {
+      "name": "Reverse-double",
+      "path": "2026-11-12/0824-Reverse-double.md",
       "contaminated": true
     },
     {
@@ -102,8 +92,18 @@
       "contaminated": true
     },
     {
-      "name": "Forensics-单选题",
-      "path": "2026-11-12/1444-Forensics-单选题.md",
+      "name": "Easybog-ShenYangCar2023",
+      "path": "2026-11-15/Easybog-ShenYangCar2023.md",
+      "contaminated": true
+    },
+    {
+      "name": "gza_Cracker-chb2024",
+      "path": "2026-11-15/gza_Cracker-chb2024.md",
+      "contaminated": true
+    },
+    {
+      "name": "zjsdxs2024-签到题-七层编码链",
+      "path": "2026-11-16/zjsdxs2024-签到题-七层编码链.md",
       "contaminated": true
     }
   ]

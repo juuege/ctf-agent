@@ -1,0 +1,14 @@
+{
+  "name": "02_caesar",
+  "category": "misc",
+  "solved": true,
+  "flag": "flag{c4eS4r_sh1ft_c4tch}",
+  "time_seconds": 0.035,
+  "attempts": 1,
+  "mode": "auto",
+  "provenance": {
+    "require_derived": true,
+    "status": "derived",
+    "raw_file": null
+  }
+}

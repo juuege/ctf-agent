@@ -1,0 +1,14 @@
+{
+  "name": "xor_periodic_crib",
+  "category": "reverse",
+  "solved": false,
+  "flag": "",
+  "time_seconds": 0.805,
+  "attempts": 22,
+  "mode": "auto",
+  "provenance": {
+    "require_derived": true,
+    "status": "none",
+    "raw_file": null
+  }
+}

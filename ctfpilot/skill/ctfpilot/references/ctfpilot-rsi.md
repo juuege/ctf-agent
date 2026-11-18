@@ -14,13 +14,14 @@
 
 ## 1. RSI 双环总览
 
-- **记忆环（知识层）**：解题 `--write-trace` 留痕（成功与失败都写）→ 写 writeup → `learn-writeup` 落库（自动解析模板字段与标签，入 lesson 的 tags/evidence 列）→ 下题 `recall` 检索（每次命中 hit_count+1）。经验第一次出现是知识。写库批量经 `rebuild-knowledge` 变成案例卡（`skills/knowledge/cases.jsonl`，含证据指针）+ 案例经验；`recall` 与深通道检索按题面信号相关度排序（词法重叠打分），不再只按时间。
+- **记忆环（知识层）**：解题 `--write-trace` 留痕（成功与失败都写）→ 写 writeup → `learn-writeup` 落库（自动解析模板字段与标签，入 lesson 的 tags/evidence 列；2026-11-17 evolve-20261116-17 起真学习末尾自动跑 rebuild-knowledge，新卡即时进 cases.jsonl，失败分支显式 `rebuild pending` 提示）→ 下题 `recall` 检索（每次命中 hit_count+1）。经验第一次出现是知识。写库批量经 `rebuild-knowledge` 变成案例卡（`skills/knowledge/cases.jsonl`，含证据指针）+ 案例经验；`recall` 与深通道检索按题面信号相关度排序（词法重叠打分），不再只按时间。
 - **固化环（代码层）**：高频、可判定的经验编译为快通道确定性检测器/工具脚本。经验第二次出现就该是工具（对应 SpecPilot“记忆条目 → 新部署初始系统”，也对应 CTF 专家赛前固化的 quickcheck 脚本）。**触发读数用 `fixations --min 3`**（hits+successes 来自轨迹库），不靠记忆。
 
 防污染纪律（对应 SpecPilot 的 Token Forcing 与密封终测）：
 
 - flag 未验证通过的结论不落库、不固化。
 - **flag 必须是推导产物**：与原始题目文件逐字相同的 flag 视为 raw-echo，不计成功、不写经验（`config.flagcheck.require_derived`，默认 true）；题目自带 flag 文件/示例 flag 由此被拦下。
+- **乱码命中的 flag 不是解**（evolve-20261117-03，引擎层已固化）：解码产物命中 flag 正则但携带 U+FFFD/控制字符的，一律按乱码拒绝——防"错 key XOR 系统库附件→乱码拼出泛型 FLAG{...}"这类假 SOLVED（实弹 large_note 401.5s 假解，RED 401.63s 复现 / GREEN 476.51s 诚实未解，门控全绿）。判题时若见此形态直接按未解处理，勿写入任何 lesson。
 - 看图类结论必须经用户确认后才写成经验。
 - 经验不适用时新写版本化条目，不删旧记录；固化脚本升级同理（learn-writeup 卡片自动 -vN 版本化，旧卡保留）。
 - lessons 按（category, technique, 来源指纹）upsert，recall 按 technique 去重——同技术反复成功只刷新时间戳（频率本身是信号），重复不挤占 top_k。
@@ -29,7 +30,7 @@
 
 ## 2. 落库 writeup 模板
 
-（`learn-writeup` / `rebuild-knowledge` 会自动解析字段入卡片与 lesson：题型优先覆盖分类、识别信号作为 when_to_use、失败原因/适用限制/一得/尝试路径作为 evidence、标签四维入 tags 列。兼容四种写库格式：本模板（- 题面特征: …）／冒号式（- 识别信号: …）／数字七维（1. 题型: …）／加粗｜分隔式（- **结果**：… ｜ **分类**：…，含 ## 样本特征 表格与 ## 尝试路径 段落）；无任何字段的纯散文 writeup 以步骤纲要作 evidence 兑底。）
+（`learn-writeup` / `rebuild-knowledge` 会自动解析字段入卡片与 lesson：题型优先覆盖分类、识别信号作为 when_to_use、失败原因/适用限制/一得/尝试路径作为 evidence、标签四维入 tags 列。兼容四种写库格式：本模板（- 题面特征: …）／冒号式（- 识别信号: …）／数字七维（1. 题型: …）／加粗｜分隔式（- **结果**：… ｜ **分类**：…，含 ## 样本特征 表格与 ## 尝试路径 段落）；无任何字段的纯散文 writeup 以步骤纲要作 evidence 兜底。2026-11-17 起技术匹配为**结构化标签优先**（evolve-20261116-21）：核心技术链/可迁移模式字段值与 七维标签/标签 行（纯标签行、`标签:`/`技术:`/`技术链=` 值，或 `- **标签**: reverse, …` 形态）直接作为技术卡名（作者标签原样，不再被 TECH_PATTERNS 关键词更名）；分类由作者声明裁决——题型字段 → `题型=`/`类型：`/`分类`/`类别` 标签值首 token → 纯标签行首 token（含行内裸分类 token），只有无任何结构化来源时才回退全文关键词投票；`category_inferred=False` 表示作者亲写。写标签行时首 token 建议直接写题型（如 `crypto / hill-cipher / …`），技术链用 → 串联即可逐段成卡。）
 
 ```markdown
 # <题名> writeup

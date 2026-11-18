@@ -8,7 +8,10 @@
   * 结果逐行 flush + fsync，断电最多丢最后一行；
   * 同一变体内题目按题名排序，保证可复现；
   * 每道题只跑一次即写入隔离台账，已被评测过的题默认拒绝再跑；
-  * 默认每个 (题, 变体) 使用冻结知识库的独立副本，题目之间互不污染。
+  * 默认每个 (题, 变体) 使用冻结知识库的独立副本，题目之间互不污染；
+  * [evolve-20261117-47] 每题每变体在临时副本目录里求解：引擎产物
+    （_ctfpilot_*、_extracted/）不进副本，源池目录永不被写入，
+    上一轮产物不会成为下一轮的题目输入（rsi-117 实证 attempts 13->10）。
 """
 from __future__ import annotations
 
@@ -29,6 +32,20 @@ from harness import (Quarantine, challenge_digest, resolve_variants,  # noqa: E4
 
 def _now():
     return time.strftime("%Y%m%d-%H%M%S")
+
+
+# [evolve-20261117-47] per-run task copies: solve writes engine byproducts
+# (_ctfpilot_* files, _extracted/) into the challenge dir, so an in-place
+# runner made round N's byproducts part of round N+1's INPUT (rsi-117
+# arena_finding: 06_zip_nested attempts 13 -> 10 between two rounds of the
+# SAME root). Every (variant, challenge) now solves inside a scratch COPY;
+# engine-authored artifacts never enter the copy (engine artifacts are not
+# challenge material -- same boundary rsi-118 closed on the engine side),
+# so every round sees identical challenge material and the source pool is
+# never written. Copy failure records an honest crash row -- never a silent
+# in-place fallback, which would reintroduce the nondeterminism.
+_TASK_COPY_IGNORE = shutil.ignore_patterns(
+    "_ctfpilot*", "_extracted", "__pycache__", ".git", ".temp")
 
 
 def _list_challenges(pool):
@@ -69,6 +86,24 @@ def _append_jsonl(path, row):
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
         f.flush()
         os.fsync(f.fileno())
+
+
+def _crash_row(variant_name, name, detail):
+    """[evolve-20261117-47] honest failure row for a task whose per-run copy
+    could not be built (locked file / permissions). Running in place instead
+    would silently re-emit a previous round's byproducts as input -- the exact
+    nondeterminism this change exists to kill -- so the failure is recorded,
+    never papered over."""
+    return {
+        "challenge": name, "variant": variant_name, "solved": False,
+        "flag": None, "time_seconds": None, "wall_seconds": None,
+        "attempts": None, "variant_unsupported": False,
+        "unsupported_reason": None, "rc": None, "status": "crash",
+        "time_source": None, "degraded": False,
+        "degraded_args_removed": [], "category": None,
+        "detail": detail,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
 
 
 def _print_summary(rows, timeout_s):
@@ -182,6 +217,11 @@ def main(argv=None):
     prod_db = os.path.join(engine_root, "memory", "trajectories.sqlite")
     snapshot = None
     scratch = None
+    state_dir = os.path.join(HERE, "state")
+    os.makedirs(state_dir, exist_ok=True)
+    # [evolve-20261117-47] per-run task copy root: solve only ever writes the
+    # copy, the pool dir stays byte-stable across rounds and variants.
+    tasks_root = tempfile.mkdtemp(prefix="tasks-", dir=state_dir)
     if not args.use_production_memory:
         snapshot = os.path.abspath(args.db or os.path.join(HERE, "state", "bench.sqlite"))
         if not args.db and os.path.exists(prod_db):
@@ -190,8 +230,6 @@ def main(argv=None):
             _copy_sqlite(prod_db, snapshot)
         if not os.path.exists(snapshot):
             snapshot = None
-        state_dir = os.path.join(HERE, "state")
-        os.makedirs(state_dir, exist_ok=True)
         scratch = tempfile.mkdtemp(prefix="run-", dir=state_dir)
         print("[ablation] 冻结知识库: %s" % (snapshot or "(empty; production db absent)"))
     else:
@@ -200,6 +238,8 @@ def main(argv=None):
     print("[ablation] pool=%s challenges=%d variants=%s timeout=%ss"
           % (pool, len(challenges), ",".join(v.name for v in variants),
              args.per_variant_timeout))
+    print("[ablation] 任务副本根=%s（每题每变体独立副本，引擎产物不回灌源池）"
+          % tasks_root)
     print("[ablation] out=%s" % out)
 
     done = 0
@@ -224,8 +264,21 @@ def main(argv=None):
                         _copy_sqlite(snapshot, db)
                     run_variant_obj = variant.with_env({"CTFPILOT_DB": db})
                 t0 = time.time()
-                row = run_variant(run_variant_obj, cdir, engine_root,
-                                  args.python, timeout_s=args.per_variant_timeout)
+                # [evolve-20261117-47] solve runs on a per-run copy named after
+                # the challenge, so row attribution (basename) is unchanged;
+                # {chall_dir} env placeholders see the copy path by design.
+                run_dir = os.path.join(tasks_root, variant.name, name)
+                try:
+                    os.makedirs(os.path.dirname(run_dir), exist_ok=True)
+                    shutil.copytree(cdir, run_dir, ignore=_TASK_COPY_IGNORE)
+                    row = run_variant(run_variant_obj, run_dir, engine_root,
+                                      args.python, timeout_s=args.per_variant_timeout)
+                except (OSError, shutil.Error) as exc:
+                    row = _crash_row(variant.name, name,
+                                     "task-copy failed: %s: %s"
+                                     % (type(exc).__name__, exc))
+                finally:
+                    shutil.rmtree(run_dir, ignore_errors=True)
                 row["pool"] = pool
                 row["memory_mode"] = mem_mode
                 row["run_seconds"] = round(time.time() - t0, 3)
@@ -243,6 +296,7 @@ def main(argv=None):
             shutil.rmtree(scratch, ignore_errors=True)
         elif scratch:
             print("[ablation] scratch kept: %s" % scratch)
+        shutil.rmtree(tasks_root, ignore_errors=True)
 
     rows = _read_jsonl(out)  # 从磁盘读回，确保汇总只依赖已落盘数据
     _print_summary(rows, args.per_variant_timeout)

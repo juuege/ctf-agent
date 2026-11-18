@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "name": "06_zip_nested",
+      "category": "misc",
+      "source": "local:tests/challs",
+      "tier": "hard",
+      "solves": 0,
+      "fails": 0,
+      "registered": "2026-11-16 14:55:01"
+    },
+    {
+      "name": "My-CTF-Web-Challenges-oh-my-raddit",
+      "category": "web",
+      "source": "pool:ctf-feed",
+      "tier": "normal",
+      "solves": 0,
+      "fails": 0,
+      "registered": "2026-11-18 10:07:12"
+    },
+    {
+      "name": "2024-VNCTF-OnlyLocalSql",
+      "category": "web",
+      "source": "pool:ctf-feed",
+      "tier": "normal",
+      "solves": 0,
+      "fails": 0,
+      "registered": "2026-11-18 10:07:12"
+    }
+  ],
+  "updated": "2026-11-18 10:07:12"
+}

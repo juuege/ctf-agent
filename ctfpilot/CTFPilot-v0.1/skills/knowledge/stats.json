@@ -1,11 +1,11 @@
 {
-  "cases": 135,
-  "solved": 81,
-  "with_signals": 125,
-  "with_pitfalls": 60,
-  "with_transferable": 65,
-  "with_failure": 117,
-  "generated": "2026-11-16 11:21:58",
+  "cases": 148,
+  "solved": 83,
+  "with_signals": 132,
+  "with_pitfalls": 66,
+  "with_transferable": 72,
+  "with_failure": 124,
+  "generated": "2026-11-18 10:08:11",
   "writeups_dir": "C:\\Users\\Administrator\\.local\\share\\TeleAgent\\TeleAgent的工作空间\\CTFPilot-v0.1\\writeups",
   "mode": "production",
   "excluded": 0

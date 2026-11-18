@@ -25,6 +25,20 @@ cd <项目目录>
 & $py -X utf8 .\ctfpilot.py stats
 & $py -X utf8 .\ctfpilot.py fixations --min 3
 & $py -X utf8 .\ctfpilot.py selftest
+
+# 自改进环：引擎提案，人审采纳（rsi list 看提案；approve/reject/adopt PID 决策）
+& $py -X utf8 .\ctfpilot.py rsi cycle
+& $py -X utf8 .\ctfpilot.py rsi list
+
+# 竞技题库：练兵台账（数据驱动分级 + 分类胜率榜，与生产轨迹隔离）
+& $py -X utf8 .\ctfpilot.py arena stats
+
+# 研究队列：给新模块立项（自动落草稿模板），证据指针 ≥2 才放行入库路由
+& $py -X utf8 .\ctfpilot.py research add "<研究主题>" --category <题型>
+& $py -X utf8 .\ctfpilot.py research evidence "<主题>" --pointer "<来源>"
+
+# 全指标回归门：六维指标 vs 基线；故意改进后可 --save-baseline 记新基线
+& $py -X utf8 .\ctfpilot.py eval-suite [--save-baseline]
 ```
 
 引擎不依赖任何 LLM 后端：`--brain mock` 提供离线确定性策略梯，
@@ -97,10 +111,38 @@ deep/loop.py              慢通道主循环（上下文分段+错误分类+纠�
 deep/error_tax.py         双层错误分类 exec:*/semantic:*（挂机/重复劳动/过早放弃/raw-echo，stats 出失败画像）
 memory/trajstore.py       SQLite 轨迹库/经验/检查点（recall 供规划器检索；按 flag 撤回 raw-echo 记账）
 learn/writeup_learner.py  题解解析 -> 技能卡 + 检查点
+knowledge.py              SOTA 式案例卡构建 + 信号相关度检索召回
 skills/*.md               七类技能卡（可被 writeup 学习持续增厚）
 tests/challs/             6 道冒烟题（selftest 用）
 tests/test_error_tax.py   错误分类单测（python -X utf8 tests/test_error_tax.py）
+
+rsi.py                    自改进环：信号收集 → 提案（人审）→ 状态机（skills/rsi/ledger.json）
+arena.py                  竞技题库：数据驱动分级 + 分类胜率榜（practice ledger 与生产轨迹隔离）
+research.py               研究队列：草稿模板 + 证据指针 ≥2 门控入库路由（skills/research/）
+metrics.py                六维指标快照 + 回归门（能力/效率/覆盖/健康/知识/检索）
 ```
+
+## 自改进与精进闭环
+
+- **RSI（`rsi`）**：引擎只提案、不落手。五类离线数据信号——fixation 候选、
+  失败类热点、全零解题题型、raw-echo 率，以及**技能卡技术差集**
+  （七张基础卡 `常见打法` 条目 vs 检测器注册表，**交互族/联网族过滤**：
+  这些知识活在深通道 playbook 里，不是快通道检测器的候选——分层纪律）
+  ——生成 `detector / prompt-fix / card-thicken / flagcheck-tighten` 提案；
+  人审 `approve / reject / adopt` 后写状态机台账，采纳后**强制**跟进一次
+  eval-suite——改进必须可测量，不能凭感觉。
+- **arena（`arena`）**：把刷题变成可量化的训练。数据驱动难度分级（fast 一发命中=easy，
+  只 deep 解出=normal，从未解出=hard），分类胜率榜；arena attempts 独立于生产轨迹
+  （练兵数据不污染 recall/lessons）。
+- **research（`research`）**：新模块研究的人类引导队列。离线沙箱不做检索，做三件事：
+  立项时自动落与 `learn-writeup` 对齐的草稿模板（字段写法与学习者解析器同构）；
+  证据指针（WikiTrace 式）每收 1 个登记 1 条；**≥2 个证据指针 + 草稿结构校验通过
+  才放行入库路由**（研究成果必须可溯源，结构不对不进库）。完整链路：
+  `research add → 人填草稿 → research evidence ×2 → ingest 路由 → learn-writeup → rebuild-knowledge`。
+- **eval-suite（`eval-suite`）**：精进指标本身。六维指标（能力 smoke floor / 效率
+  中位耗时与快通道份额 / 覆盖分类与去重数 / 健康检测器命中率与错误分布 / 知识量与带信号比例 /
+  检索 top1/top3）从轨迹库**只读**计算，每次运行追加趋势日志；
+  与基线逐项对比，回归即 FAIL（exit 1），smoke 地板和知识不退是硬门限。
 
 ## 合规与安全
 

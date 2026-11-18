@@ -1,0 +1,21 @@
+{
+  "name": "hgame2023-designer-jwt-ejs-ssti",
+  "category": "web",
+  "technique": "SSRF scheme abuse",
+  "when_to_use": "express+ejs+puppeteer 技术栈（package.json 同时出现 ejs/express/jsonwebtoken/puppeteer）；服务端 res.render(\"preview\", { data: req.query }) 且模板用 <%- key %>:<%- data[key] %> 对用户可控的 query 键值做非转义输出；JWT secret 以字面量硬编码（本例 const secret = \"secret_here\"）；/button/share 用 puppeteer 以 http://127.0.0.1:9090 自访问并 page.click(\"#button\")；注册接口按 req.ip 分发真假 flag",
+  "commands": [],
+  "signals": "express+ejs+puppeteer 技术栈（package.json 同时出现 ejs/express/jsonwebtoken/puppeteer）；服务端 res.render(\"preview\", { data: req.query }) 且模板用 <%- key %>:<%- data[key] %> 对用户可控的 query 键值做非转义输出；JWT secret 以字面量硬编码（本例 const secret = \"secret_here\"）；/button/share 用 puppeteer 以 http://127.0.0.1:9090 自访问并 page.click(\"#button\")；注册接口按 req.ip 分发真假 flag",
+  "effective": "静态审计先扫服务端字符串字面量与分支语义——两个 flag 形态串中，命名 fake_flag_here 且绑定无特权分支的是诱饵，绑定 admin+req.ip 条件的 UUID 串是真 flag（重签 JWT 即取）；jwt.verify 的密钥在源码里即可 HMAC-SHA256 手工重签，不需要任何交互",
+  "failure_paths": "引擎两轮：views-only 附件 6.3s/346 次，triage 误判 misc(0.2)；补全仓库后 40.4s/3070 次，triage 正确 web(0.67)，在 index.js 找到 raw-echo flag 但被 require_derived 按设计诚实撤回（不计解出）——模型通道静态审计判明真 flag",
+  "limits": "归档仓库必须含服务端代码；本例首轮只有 views/ 是拉题器单题仓库判定缺陷（已记 rsi-050 修复）",
+  "untested": "",
+  "tags": {
+    "识别信号": "express+ejs+puppeteer 技术栈（package.json 同时出现 ejs/express/jsonwebtoken/puppeteer）；服务端 res.render(\"preview\", { data: req.query }) 且模板用 <%- key %>:<%- data[key] %> 对用户可控的 query 键值做非转义输出；JWT secret 以字面量硬编码（本例 const secret = \"secret_here\"）；/button/share 用 puppeteer 以 http://127.0.0.1:9090 自访问并 page.click(\"#button\")；注册接口按 req.ip 分发真假 flag",
+    "陷阱类型": "归档 re-host 版本 README 声称\"动态 flag 走 $FLAG 环境变量\"，但 Dockerfile 根本没实现，真 flag 就是 index.js 里的字面量；文件里假 flag 先出现，按\"首个正则命中\"提取必拿错；附件被拉题器削成 views/ 三个前端模板时看不到任何服务端代码，极易误判\"flag 仅在远程靶机\"的哑弹（本轮实际发生）",
+    "可迁移模式": "任何带服务端源码的归档 web 题：第一步在 index.js/app.py 里全量搜 flag 形态串并对每个命中做分支语义判定（诱饵=命名含 fake/example/dummy/placeholder 或无特权条件；真=绑定 admin/内网/环境分支）；第二步看 secret/token 类字面量是否硬编码——硬编码即全链可伪造；第三步才考虑在线 exploit 链",
+    "变体预测": "动态 flag 真正实装（entrypoint 注入 $FLAG）后源码字面量失效，必须走完整 exploit 链；黑名单换成 DOMPurify/模板引擎换 pug；bot 侧改成外网访问则失去 req.ip 特权"
+  },
+  "fixable": "\"诱饵 flag 分支语义判别\"可固化为模型通道审计 checklist；raw-echo 撤回纪律保持不变（引擎层不做裸抄答案）",
+  "version": 1,
+  "created_at": 1794828046.795583
+}

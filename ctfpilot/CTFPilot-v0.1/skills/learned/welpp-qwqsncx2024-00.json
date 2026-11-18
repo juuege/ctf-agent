@@ -1,0 +1,19 @@
+{
+  "name": "welpp-qwqsncx2024",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "PE 含 MEI\\x0c\\x0b\\x0a\\x0b\\x0e PyInstaller cookie 且 TOC 无 python3x.dll 条目（无法动态运行，逼静态）",
+  "commands": [],
+  "signals": "PE 含 MEI\\x0c\\x0b\\x0a\\x0b\\x0e PyInstaller cookie 且 TOC 无 python3x.dll 条目（无法动态运行，逼静态）",
+  "effective": "①\"题目同版本解释器读题目 marshal\"——xdis/3.12 解 3.8 格式不可靠（REF 位+code 布局），直接下载 python-3.8.10-embed-amd64.zip（7MB）到 .temp，原生 unmarshal 100% 兼容；②全零输入法提取 keystream：XOR 流加密下 zero_out[i]=K[i]^17，与输入无关，一次调用拿到整条流；③损坏 swap 语义（sbox[i]=sbox[j] 后 sbox[j]=sbox[i] 双复制）必须逐字节照搬字节码，不能套标准 RC4",
+  "failure_paths": "①尝试动态运行 welpp.exe → \"Error loading Python DLL\"（TOC 故意无 DLL，做残的壳）；②xdis 反汇编 dispatch 报 unknown type '\\xe3'，自写解析器对 3.8 REF 布局反复错位——放弃手写，改 3.8 原生路线（收益最大的一跳）",
+  "limits": "仅验证于 PyInstaller 6 + Python3.8 + zlib 未压缩 entry（cf=0）；未测：onefile 带加密 bootstrap（pyimod00_crypto_key）、PYZ 加密、3.12 打包体",
+  "untested": "",
+  "tags": {
+    "识别信号": "PE 含 MEI\\x0c\\x0b\\x0a\\x0b\\x0e PyInstaller cookie 且 TOC 无 python3x.dll 条目（无法动态运行，逼静态）",
+    "变体预测": "换 PyArmor/nuitka 打包；PYZ 加密（pyimod00_crypto_key 出现即降级）；marshal 版本差异（3.7 无 posonly、3.11+ exceptiontable）"
+  },
+  "fixable": "是——「PyInstaller 免运行静态逆向器」：特征=MEI cookie；判定=CB 解析 TOC→取 's' entry→unmarshal→列出 co_names/co_consts 摘要供模型直读；fastpath 级成本（秒级）",
+  "version": 1,
+  "created_at": 1794821759.2121506
+}

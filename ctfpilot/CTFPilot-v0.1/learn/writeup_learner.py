@@ -13,6 +13,16 @@ The SKILL.md writeup template (references/ctfpilot-rsi.md §2) is parsed
 structurally: 题型/题面特征/解题路径/有效技术/失败路径/适用限制/未测试/标签/可固化性
 all land in the card and in the lesson row. Before this, only regex keyword
 matching happened and every template field was silently dropped.
+
+[evolve-20261116-21] structured-tag technique matcher: when a writeup
+states its techniques in structured form (核心技术链 / 可迁移模式 fields,
+or a pure-form 七维标签/标签 tag line), those author-curated tags ARE the
+techniques verbatim and the stated category tokens (题型 field, tagline
+first token) adjudicate the category. Whole-text TECH_PATTERNS voting is
+only the no-structure fallback. Live RED: 0603-MatCipher keyword-voted
+category=misc via an engineering-note 修复 and renamed known-plaintext
+into a zip-password card while its real hill-cipher / mod-257 Gauss stack
+had no patterns at all (rsi-064 known_side_effect, closed here).
 """
 import json
 import os
@@ -20,14 +30,19 @@ import re
 import time
 
 TECH_PATTERNS = [
-    (r"rsa|质数|private key|modulus|公钥|私钥", "crypto", "RSA modulus/factoring analysis"),
+    (r"\brsa\b|质数|private key|modulus|公钥|私钥", "crypto", "RSA modulus/factoring analysis"),
+    (r"sm4|gmssl|国密|商用密码", "crypto",
+     "SM4-CBC decryption (GM cipher; extract key/iv schedule from challenge script)"),
+    (r"\blcg\b|线性同余|高\s*32\s*位|截断\s*lcg|state\s*>>",
+     "crypto",
+     "truncated LCG state recovery (affine-model + native low-32 enumeration)"),
     (r"z3|satisfiability|约束求解|solve\(", "crypto", "constraint solving with z3"),
     (r"\biq\b|complex64|bpsk|qpsk|mfsk|ofdm|sps\s*=|cfo|载波偏置|解调|调制识别|viterbi|维特比|卷积码|constellation|星座", "misc", "IQ signal demodulation (BPSK/MFSK, self-describing bootstrap, Viterbi)"),
     (r"sql\s*inject|union\s*select|information_schema", "web", "SQL injection (union-based)"),
     (r"xss|<script", "web", "XSS payload crafting"),
     (r"ssrf|gopher://|dict://", "web", "SSRF scheme abuse"),
     (r"deserial|pickle|unserialize|phar", "web", "insecure deserialization"),
-    (r"rop|ret2|stack\s*overflow|gadget", "pwn", "ROP / ret2* chain"),
+    (r"\brop\b|ret2|stack\s*overflow|gadget", "pwn", "ROP / ret2* chain"),
     (r"format\s*string|%p|printf", "pwn", "format string leak"),
     (r"heap|tcache|fastbin|double\s*free", "pwn", "heap exploitation (glibc bins)"),
     (r"ghidra|\bida\b|decompil| pseudocode ", "reverse", "static decompilation review"),
@@ -36,9 +51,30 @@ TECH_PATTERNS = [
     (r"wireshark|pcap|tshark|流量", "forensics", "pcap traffic analysis"),
     (r"volatility|mem(map|dump)|内存取证", "forensics", "memory forensics"),
     (r"foremost|binwalk|文件分离|修复", "misc", "file carving / repair"),
-    (r"aes.{0,4}(cbc|128|192|256)|硬编码|hardcoded.?key|嵌入式.?key", "crypto", "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)"),
+    (r"aes.{0,4}(cbc|128|192|256)|硬编码.{0,8}(key|密钥|aes)|hardcoded.?key|嵌入式.?key", "crypto", "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)"),
     (r"squashfs|unsquash|固件|firmware", "reverse", "firmware unpacking (layer peel gzip->squashfs, stdlib superblock walk)"),
     (r"zip(密码|password)|crc(32)?\s*(碰撞|collid)|known.?plaintext", "misc", "archive password recovery / crc collision"),
+    (r"base\s*(45|58|62|91|92)\b|编码链|嵌套编码", "misc",
+     "multi-layer base-N encoding chain (distinct-symbol count triage; "
+     "base92/a85/base62/base58/base45 variants)"),
+    # evolve-20261116-13 (rsi-064): the dfjk writeup (2024-dfjk-Misc,
+    # Pupy RAT sample) keyword-voted into three off-target cards --
+    # RSA via the Pupy transport name 'rsa_aes' (no \b on 'rsa'), ROP
+    # via the LZMA 'props' substring, AES via a bare '硬编码' that fired
+    # on a lea argument. Real techniques had no patterns at all. The
+    # three word-boundary/context tightenings above are the misfire
+    # fix; the four tuples below give the family its own cards.
+    (r"mz.{0,3}xor|循环\s*xor|循环密钥|repeating.?key", "misc",
+     "cyclic-XOR PE key recovery (MZ known-plaintext + zero-run cycle leak)"),
+    (r"lzma|format_alone|lzmadecompressor", "misc",
+     "LZMA-alone blob unpacking (BE size field, SDK no-EOS semantics, "
+     "max_length truncation)"),
+    (r"py2exe|pythonscript|pupyimporter", "misc",
+     "py2exe bundle triage (PYTHONSCRIPT second blob, BE namelen/datalen "
+     "entry table)"),
+    (r"pupy\b|launcher_args|--hosts", "misc",
+     "Pupy RAT C2 extraction (launcher_args --hosts IP:PORT; offline "
+     "bundle, no live C2)"),
 ]
 
 CODE_BLOCK = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
@@ -78,6 +114,69 @@ SECTION_RE = re.compile(
     re.MULTILINE | re.DOTALL)
 TAG_KV_RE = re.compile(r"(识别信号|陷阱类型|可迁移模式|变体预测)\s*[=＝]\s*([^；;]+)")
 
+# [evolve-20261116-21] pure-form tag line: a 七维标签/标签 section whose
+# content is a bare separator-joined tag list ("crypto / hill-cipher / ...",
+# "`pwn` `seccomp-ORW` ...", "wxapkg、wasm-reverse、..."). Label-block forms
+# ("题型=...；信号=...", "1. 题型: ... | 2. 载体: ...") are NOT tag lines:
+# a LEADING 标签 label declares the tag list value ("- **标签**: reverse, ..."),
+# a LEADING 题型/类型/分类/类别 label declares the category (value first
+# token), and any other packed label line is skipped whole.
+TAGLINE_RE = re.compile(
+    r"^#{1,4}\s*(?:七维)?标签(?:（[^）]{0,8}）)?[^\n]*$\n(.+?)(?=\n#{1,4}\s|\Z)",
+    re.MULTILINE | re.DOTALL)
+_TAGLINE_LABEL_RE = re.compile(
+    r"^[-*•\d.、)）\s]*(?:\*\*)?\s*(核心技术链|标签|技术链|有效技术|复用点|复用|技术|"
+    r"题型|类型|分类|类别)\s*(?:\*\*)?\s*[:：=＝]?\s*(.*)$")
+_TAG_DECL_LABELS = ("题型", "类型", "分类", "类别")
+_TAG_LABEL_BLOCK_RE = re.compile(
+    r"(?:识别信号|信号|陷阱类型?|可迁移模式|变体预测?|"
+    r"失败(?:原因|点)?|适用限制|工具|难度|输入|耗时分布|固化候选?|"
+    r"载体|结果|赛事)[:：=＝]")
+# leading label words on a leaked item (defense in depth)
+_LABEL_PREFIX_RE = re.compile(
+    r"^(?:[-*•\d.、)）]+\s*)?(?:\*\*)?\s*(?:题型|分类|类别|类型|标签|技术链?|"
+    r"陷阱类型?|识别信号|信号|工具|难度|变体预测?|固化候选?|载体|输入|"
+    r"失败(?:点|原因)?|复用点|赛事|结果|耗时分布)\s*(?:\*\*)?\s*[:：=＝]?\s*")
+_TAG_STOPWORDS = {"无", "略", "none", "n/a", "-", "—", "待补", "暂无", "todo"}
+
+
+def _split_tags(s):
+    """Bracket-aware tag/chain splitter [evolve-20261116-21].
+
+    Explicit connectors (、，,；;·｜→⇒ and backtick boundaries) split at
+    depth 0; ASCII / and | only split when whitespace-flanked (keeps
+    fastjson-1.2.83, 源码命令行/频谱图, 类污染/原型链污染 intact); anything
+    inside ()（）[]［］「」『』“” is protected ("safe-linking混淆(G=0x9e37…,seed=…)"
+    stays one item).
+    """
+    s = s.replace("->", "→")
+    parts, buf, depth, i, n = [], [], 0, 0, len(s)
+    open_ch, close_ch = '([{（［「『“"', ')]}）］」』”"'
+    always = "、，,；;·｜→⇒`"
+    while i < n:
+        c = s[i]
+        if c in open_ch:
+            depth += 1
+            buf.append(c)
+        elif c in close_ch:
+            depth = max(0, depth - 1)
+            buf.append(c)
+        elif depth == 0:
+            if c in always:
+                parts.append("".join(buf))
+                buf = []
+            elif c in "/|" and ((i == 0 or s[i - 1].isspace())
+                                 and (i + 1 >= n or s[i + 1].isspace())):
+                parts.append("".join(buf))
+                buf = []
+            else:
+                buf.append(c)
+        else:
+            buf.append(c)
+        i += 1
+    parts.append("".join(buf))
+    return parts
+
 
 def _clean(v):
     return re.sub(r"[*`]+", "", (v or "")).strip()
@@ -94,11 +193,6 @@ def _safe_filename(name):
 
 
 def parse_writeup(text):
-    techniques = []
-    for pat, cat, name in TECH_PATTERNS:
-        if re.search(pat, text, re.IGNORECASE):
-            techniques.append((cat, name))
-
     # --- structured fields: four label formats (A/B/C/D above) ---
     # D (循环任务报告) packs several fields per line separated by the
     # full-width bar ｜ and bolds labels: "- **分类**：Reverse ｜ **结果**：NOT SOLVED"
@@ -140,6 +234,101 @@ def parse_writeup(text):
         if not tags.get(k) and fields.get(k):
             tags[k] = fields[k]
 
+    # --- [evolve-20261116-21] pure-form tag line (七维标签/标签 section) ---
+    # Line grammar inside a 标签 section:
+    #   - 标签/技术/技术链/核心技术链/有效技术/复用点 label -> its value
+    #     IS the tag list (first ；-segment lifted as the tag line)
+    #   - 题型/类型/分类/类别 label -> its value declares the category
+    #     (first token); not a technique list
+    #   - other packed label lines (识别信号=..., 赛事=...) -> skipped whole
+    #   - bare separator-joined line -> the tag line itself, but ONLY in a
+    #     section with no label lines at all (a continuation line of a
+    #     label block is never a tag line, cf. 2235 「hint=x leak)
+    tagline = ""
+    label_declared_cat = None
+    for m in TAGLINE_RE.finditer(norm):
+        raw_lines = [l for l in m.group(1).splitlines() if l.strip()]
+        has_label_line = any(
+            _TAGLINE_LABEL_RE.match(l.strip()) or _TAG_LABEL_BLOCK_RE.search(l)
+            for l in raw_lines)
+        for l in raw_lines:
+            l = l.strip()
+            # ；/｜-packed label one-liners ("题型=...；技术链=...；工具=...")
+            # split into per-label sub-lines so each label reaches the grammar;
+            # decl/packed lines also split on " | " (0554 赛事=... | 题型=...),
+            # value lines keep " | " (it is a tag separator inside tag lists)
+            lm0 = _TAGLINE_LABEL_RE.match(l)
+            if lm0 and lm0.group(1) in ("标签", "技术", "技术链", "核心技术链",
+                                        "有效技术", "复用点", "复用"):
+                sub_lines = re.split(r"[；;｜]", l)
+            elif lm0 or _TAG_LABEL_BLOCK_RE.search(l):
+                sub_lines = re.split(r"[；;｜]|\s\|\s", l)
+            else:
+                sub_lines = [l]
+            for sl in sub_lines:
+                sl = sl.strip()
+                if not sl:
+                    continue
+                lm = _TAGLINE_LABEL_RE.match(sl)
+                if lm and lm.group(2).strip():
+                    val = re.split(r"[；;｜]", lm.group(2))[0]
+                    val = _clean(val).strip().strip("|/·").strip()
+                    if lm.group(1) in _TAG_DECL_LABELS:
+                        if label_declared_cat is None and val:
+                            probe = re.split(r"[/|·,，、\s(（]", val.strip())[0]
+                            probe = _clean(probe).strip().lstrip("#*-").strip().lower()
+                            if probe:
+                                label_declared_cat = CAT_MAP.get(probe)
+                    elif val and not tagline:
+                        tagline = val
+                elif _TAG_LABEL_BLOCK_RE.search(sl):
+                    continue
+                elif not has_label_line and not tagline:
+                    cand = _clean(sl).strip().strip("|/·").strip()
+                    if cand:
+                        tagline = cand
+        if tagline:
+            break
+    # --- [evolve-20261116-21] structured-tag technique matcher ---
+    # Author-stated sources (核心技术链 / 可迁移模式 / tag line) ARE the
+    # technique names; whole-text TECH_PATTERNS stays the no-structure
+    # fallback. Structured sources stay single-line (a tag value captured
+    # across lines must not drag following prose in, cf. 0126 - 一得 leak)
+    chain_src = ((fields.get("核心技术链", "") or "").splitlines() or [""])[0]
+    trans_src = (((fields.get("可迁移模式", "") or tags.get("可迁移模式", ""))
+                  or "").splitlines() or [""])[0]
+    structured_items = []
+    _seen_items = set()
+    for src in (chain_src, trans_src, tagline):
+        if not src:
+            continue
+        pieces = _split_tags(src)
+        if src is tagline and len(pieces) == 1 and " " in pieces[0]:
+            # separator-free tag line ("reverse pe-coff mingw ...")
+            pieces = pieces[0].split()
+        for part in pieces:
+            part = _LABEL_PREFIX_RE.sub("", _clean(part)).strip()
+            part = part.strip("|/·#*-").strip()
+            low = part.lower()
+            if len(part) < 3 or low in _TAG_STOPWORDS or low in CAT_MAP:
+                continue  # too short / stopword / bare category token
+            if not re.search(r"\w", part):
+                continue
+            if low in _seen_items:
+                continue
+            _seen_items.add(low)
+            structured_items.append(part)
+
+    kw_hits = [(cat, name) for pat, cat, name in TECH_PATTERNS
+               if re.search(pat, text, re.IGNORECASE)]
+    techniques = []
+    technique_source = "keyword-vote"
+    if structured_items:
+        technique_source = "structured"
+        techniques = [[None, it[:80]] for it in structured_items[:8]]
+    else:
+        techniques = [[cat, name] for cat, name in kw_hits]
+
     commands = []
     for block in CODE_BLOCK.findall(text):
         for line in block.splitlines():
@@ -154,32 +343,55 @@ def parse_writeup(text):
     if not steps:
         steps = [h for h in headings if len(h) < 120][:10]
 
-    # Category: explicit 题型 field wins over keyword voting (the vote is
-    # easily poisoned by decoy words in the writeup, cf. iq-signal-playbook).
+    # Category: author-STATED sources first -- 题型 field, then a leading
+    # 题型/类型/分类/类别 label line ("题型=misc(ICS 取证)"), then the pure
+    # tag line's stated category tokens (first token, else any bare
+    # category token, e.g. "wxapkg、...、reverse、..."), then the title
+    # paren. Only below that does inference start (flagged).
+    # [evolve-20261116-21] inference keeps the proven whole-text keyword
+    # vote -- no new vote heuristic rides along with this change.
+    tagline_stated_cat = None
+    if tagline:
+        toks = [_clean(p).strip().lstrip("#*-").strip().lower()
+                for p in _split_tags(tagline)]
+        toks = [t for t in toks if t]
+        if toks:
+            probe = re.split(r"[/|·,，、\s(（]", toks[0])[0]
+            tagline_stated_cat = (CAT_MAP.get(probe)
+                                  or CAT_MAP.get(toks[0]))
+        if tagline_stated_cat is None:
+            for t in toks:
+                if t in CAT_MAP:
+                    tagline_stated_cat = CAT_MAP[t]
+                    break
     title = fields.get("题目", "")
     name = re.split(r"[（(]", title)[0].strip() if title else ""
     category = None
     category_inferred = False
     if fields.get("题型"):
-        first = re.split(r"[/／,，\s]+", fields["题型"])[0].strip().lower()
+        first = re.split(r"[/／,,\s]+", fields["题型"])[0].strip().lower()
         category = CAT_MAP.get(first)
         if category is None:
             for k, v in CAT_MAP.items():
                 if first.startswith(k):
                     category = v
                     break
+    if category is None and label_declared_cat:
+        category = label_declared_cat
+    if category is None and tagline_stated_cat:
+        category = tagline_stated_cat
     if category is None and title:
         pm = re.search(r"[（(]([A-Za-z]+)[）)]", title)
         if pm:
             category = CAT_MAP.get(pm.group(1).lower())
     if category is None:
-        # fallback: keyword vote / text guess -- flag it so the audit and
-        # recall consumers know this category was inferred, not stated.
+        # fallback: inference -- flag it so the audit and recall consumers
+        # know this category was inferred, not stated.
         category_inferred = True
-        if techniques:
-            cats = {}
-            for cat, _n in techniques:
-                cats[cat] = cats.get(cat, 0) + 1
+        cats = {}
+        for cat, _n in kw_hits:
+            cats[cat] = cats.get(cat, 0) + 1
+        if cats:
             category = max(cats, key=cats.get)
         else:
             low = text.lower()
@@ -189,6 +401,12 @@ def parse_writeup(text):
                         else "reverse" if any(k in low for k in ("ida", "ghidra", "逆向"))
                         else "forensics" if any(k in low for k in ("流量", "pcap", "隐写"))
                         else "misc")
+
+    # backfill: structured techniques all belong to the writeup's category
+    for t in techniques:
+        if t[0] is None:
+            t[0] = category
+    techniques = [(c, n) for c, n in techniques]
 
     # outcome: 结果/判定 + flag fields
     res = fields.get("结果", "")
@@ -203,6 +421,7 @@ def parse_writeup(text):
         solved = True
 
     return {"category": category, "techniques": techniques,
+            "technique_source": technique_source,
             "commands": commands, "steps": steps, "headings": headings,
             "fields": fields, "tags": tags,
             "signals": fields.get("识别信号", ""),

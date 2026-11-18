@@ -1,0 +1,16 @@
+{
+  "name": "2024-dfjk-Misc",
+  "category": "misc",
+  "technique": "py2exe bundle triage (PYTHONSCRIPT second blob, BE namelen/datalen entry table)",
+  "when_to_use": "challenge looks like misc; recall from writeup '2024-dfjk-Misc'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 2,
+  "created_at": 1794843915.7748778
+}

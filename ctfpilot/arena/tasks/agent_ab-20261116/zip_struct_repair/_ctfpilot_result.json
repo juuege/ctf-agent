@@ -1,0 +1,14 @@
+{
+  "name": "zip_struct_repair",
+  "category": "misc",
+  "solved": false,
+  "flag": "",
+  "time_seconds": 0.782,
+  "attempts": 18,
+  "mode": "auto",
+  "provenance": {
+    "require_derived": true,
+    "status": "none",
+    "raw_file": null
+  }
+}

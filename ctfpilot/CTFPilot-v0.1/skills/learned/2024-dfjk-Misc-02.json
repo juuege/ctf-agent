@@ -1,0 +1,16 @@
+{
+  "name": "2024-dfjk-Misc",
+  "category": "crypto",
+  "technique": "AES CBC decryption with extracted hardcoded key (ECB/CBC0/CBC-IV-prefix triage)",
+  "when_to_use": "challenge looks like crypto; recall from writeup '2024-dfjk-Misc'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794830268.9766145
+}

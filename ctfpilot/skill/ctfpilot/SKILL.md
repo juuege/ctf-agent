@@ -50,7 +50,7 @@ create_source: super-agent-skill-creator
 | 无人值守跑题（不等人交互：图片走脚本化证据，末行打印机器可解析结果） | `solve <题目目录> --mode auto --benchmark` |
 | 无人值守跑题并落结果文件（题目目录写 `_ctfpilot_result.json`，stdout 末行 `[json] <路径>`） | `solve <题目目录> --mode auto --benchmark --json` |
 | 从题池随机抽一道未做过的题（子目录名判重，复制排除引擎痕迹，池空返回码 3） | `bench-pull --pool <题目池> --dest <落题目录> [--tag <批次>]` |
-| 从一篇题解学技术/检查点（自动解析题型/信号/失败路径/标签，卡片版本化不覆盖） | `learn-writeup <writeup.md> --name <题名>` |
+| 从一篇题解学技术/检查点（自动解析题型/信号/失败路径/标签，卡片版本化不覆盖；真学习末尾自动 rebuild-knowledge，新卡即时可检索，evolve-20261116-17） | `learn-writeup <writeup.md> --name <题名>` |
 | 从写库批量重建案例知识库（四种格式解析→cases.jsonl + 经验入库，幂等） | `rebuild-knowledge <writeups目录> [--dry-run]` |
 | 检索回归评测（改检索/卡片后必跑：top1/top3/MRR 与基线对比，降超 5pp 报 FAIL） | `eval-retrieval [--save-baseline]` |
 | 检索经验（按题面信号相关度排序，--query 传信号词） | `recall --category <crypto/...> [--query "<信号词>"]` |
@@ -65,6 +65,7 @@ create_source: super-agent-skill-creator
 - **案例记忆**：`skills/knowledge/cases.jsonl`（由 `rebuild-knowledge` 生成）在深通道按题面信号相关度自动注入 top-3 案例卡（含证据指针）；写库更新后重跑 `rebuild-knowledge`（幂等，不产生重复经验）。
 - **比赛专属 flag**：用 `--flag-regex '<正则>'` 追加匹配，或改 `config.json` 的 `flag_patterns`。
 - **flag 来源门控**：`config.json` 的 `flagcheck.require_derived`（默认 true）——与原始题目文件逐字相同的 flag 视为 raw-echo，不入库、不计成功；题目自带 flag 文件/示例 flag 不会被误记为技术经验。遇到“答案就藏在文件里”的题可临时改 false，但经验不落库。
+- **乱码可信度门（evolve-20261117-03）**：解码检测命中的 flag 若含 U+FFFD 或控制字符，按乱码拒绝、引擎继续搜索（防错 key XOR 系统库附件产生的假 SOLVED）；合法非 ASCII flag 文本仍放行。
 - **合规边界（务必告知用户）**：沙箱**默认离线**，网络命令一律拒绝（保证 clean solve）；pwn/交互服务题只产出 exp 源码与偏移计算；web/osint 只产出 payload 清单，不发包。
 
 ## 看图规则（重要）

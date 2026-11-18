@@ -1,0 +1,21 @@
+{
+  "name": "2024-ShuXinCup-sjaq-IDN的绘画",
+  "category": "misc",
+  "technique": "引擎 1.1s/24 attempts NOT SOLVED（快通道对 736B 文本跑 chain-decode/caesar/xor-single 全 no",
+  "when_to_use": "仓库题目录仅描述.txt 且含「pan.baidu.com/s/ + 提取码 + md5」三件套 → 附件网盘分发型；描述含 xn-- 前缀 ASCII 串（punycode/IDNA 签名）；题面自带「密码长度为23位」「需根据关键字构造字典」提示；解压密码本身是 32 位 hex（flag 同格式，易混淆但非 flag）",
+  "commands": [],
+  "signals": "仓库题目录仅描述.txt 且含「pan.baidu.com/s/ + 提取码 + md5」三件套 → 附件网盘分发型；描述含 xn-- 前缀 ASCII 串（punycode/IDNA 签名）；题面自带「密码长度为23位」「需根据关键字构造字典」提示；解压密码本身是 32 位 hex（flag 同格式，易混淆但非 flag）",
+  "effective": "punycode 一行解码（Python 内建 idna codec，无需外部库）；网盘探测 SOP：share/verify 成功拿到 randsk 后注入 BDCLND cookie 再打 share/list，wap 端点与 rest/2.0/xpan 作备用；fork 网络全树复核（GET .../git/trees/main?recursive=1）找附件补传；附件 md5 指纹全网搜镜像",
+  "failure_paths": "附件本体存于百度网盘，无登录 cookie 的程序化下载被风控拦截（verify 通过但 list 报链接出错，属无登录态风控而非链接失效——fork 树反证链接即主办方分发渠道）；附件里「墙上的画」（图片隐写主体）与 23 位字典密码均无法获取，题面信息量不足以恢复 flag",
+  "limits": "仅判附件不可达；若附件可达（提取宽松的网盘或镜像）则本题核心是 punycode 解码出的数字串驱动字典构造 + 图片密码爆破，本环境无法验证该分支",
+  "untested": "带百度 BDUSS 登录 cookie 的下载路线（需要账号凭证，超出当前边界）；附件若可达后的 23 位字典爆破分支",
+  "tags": {
+    "识别信号": "仓库题目录仅描述.txt 且含「pan.baidu.com/s/ + 提取码 + md5」三件套 → 附件网盘分发型；描述含 xn-- 前缀 ASCII 串（punycode/IDNA 签名）；题面自带「密码长度为23位」「需根据关键字构造字典」提示；解压密码本身是 32 位 hex（flag 同格式，易混淆但非 flag）",
+    "陷阱类型": "把网盘不可达当知识缺口加检测器是方向错误（物理边界）；百度 verify errno:0 不代表 list 可用（randsk 之外还有登录态风控）；题面给的 32 位 hex 解压密码形态与 flag{32位字符串} 一致，是最强语义红鲱鱼，勿直接提交",
+    "可迁移模式": "「描述即全部」题面榨取 SOP：①题面密文先逐个编码解码尝试（xn--/base 系/纯文本）；②网盘附件走四步探测但预期无登录 90% 拦；③fork 网络全树复核附件补传；④md5 全网搜镜像；⑤同场比赛 WP 交叉检索。四路全空即按 attachment-unreachable 定论，不再烧深通道",
+    "变体预测": "网盘链接换 123pan/蓝奏云/夸克（提取更松，无登录可下）；加密包预分发模式常见于政府/行业赛事附件统一发放平台"
+  },
+  "fixable": "知识卡先行（本题）：punycode IDN 解码信号卡（xn-- 前缀 + ASCII body → decode('idna') 出 CJK 即成证据）+ 网盘哑弹分类卡（描述含网盘链接三件套 + 零附件实体 → attachment-unreachable 提前止损）。引擎层候选 backlog：fastpath 增 punycode 检测器（xn-- 前缀自动解码并比对 flag 正则）、dud 预分类器（netdisk-link 零附件实体 → 跳过 24 次盲扫 attempts 直出结构化 NOT SOLVED 原因）——代码变更按单变量纪律走 rsi 提案 + arena 消融门控 + 人类确认",
+  "version": 1,
+  "created_at": 1794905406.4106796
+}

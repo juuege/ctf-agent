@@ -6,11 +6,12 @@
   "commands": [],
   "signals": "",
   "effective": "",
-  "failure_paths": "①引擎无 PNG 宽高修复/IDAT 拼接检测器；②时间盒内未确定「部分流+高熵尾」的加密方案（64hex 与 tail/raw 的对应关系未破）；③GitHub API 60/h 限流在选题探测阶段耗尽，下载改走 ghfast.top 镜像整仓库 zip，多花约 2 分钟",
-  "limits": "",
-  "untested": "",
+  "failure_paths": "①2026-11-16 前引擎无 PNG 宽高修复检测器（已由 rsi-054 png-ihdr-crc-v1 解决：CRC 反推 1536x864，0.5s）；②时间盒内未确定「部分流+高熵尾」的加密方案（64hex 与 tail/raw 的对应关系未破）；③GitHub API 60/h 限流在选题探测阶段耗尽，下载改走 ghfast.top 镜像整仓库 zip，多花约 2 分钟",
+  "limits": "2026-11-16 模型通道深挖后的结构定图：IHDR 宽度 2048→1536 篡改（存储 CRC 匹配真实 1536x864 body）；zlib 流尾 adler32 被替换为像素样假值 fff4ff45（真值 98b5c37d for 4,182,105B），逐字节挽救可全量解压；流输出=864 行图像(3,982,176B)+extra 199,929B（差分结构流，67 值域，cumsum 恢复为慢变序列，FFT 0-15Hz 非音频非图像非行流）；IDAT 域流后附加 tail 1,231,304B 高熵（8 对齐非 16 对齐→排除 AES 块密码，无重复块→排除 ECB）；eXIf 藏 TIFF Artist tag 0x013b=64hex（32B key）且文件尾 entry+64hex 重复一份 + WeXI chunk('f'+TIFF头) + bc80d813 00000000（语义未破）",
+  "untested": "已排除的 tail 解密方案矩阵（2026-11-16 实测全灭，勿重复）：AES-256 ECB/CBC/CTR 全 IV 变体(iv0/iv=tail[:16]/iv=bc80d813 前缀/iv=hex 派生)、DES/3DES/Blowfish/RC2 全模式(ECB/CBC iv8/iv=tail[:8]/小端变体/key raw[:8|:16|:24|8:24]/hex 前缀)、RC4(raw32/hex64/drop0|256|768|1024)、ChaCha20/Salsa20(nonce0/bc80d813 派生)、XOR(key raw32/hex64)、raw deflate/gzip/zlib 全 skip 0..71 扫描、zlib 头 78xx 全位置扫描、全文件 40+ 魔数签名扫描、SHA256(key) 派生 AES；未试方向：key 之外的图内信息（视觉已查服务器屏无字）、bc80d813 作 CRC32(明文) 验证、复合流拼接",
   "tags": {},
   "fixable": "",
-  "version": 1,
-  "created_at": 1794673864.9912896
+  "version": 2,
+  "created_at": 1794673864.9912896,
+  "updated_at_note": "2026-11-16 rsi-054 round: geometry recovered by fastpath detector; cipher matrix recorded"
 }

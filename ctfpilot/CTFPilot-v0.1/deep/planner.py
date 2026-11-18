@@ -206,6 +206,24 @@ def parse_action(text):
 
 # ---------------- Mock brain: deterministic strategy ladder ----------------
 
+def _peek_patterns():
+    """[evolve-20261118-05 / rsi-124] Flag patterns for the unpack _peek
+    harvest priority (config.json flag_patterns first, via core.config,
+    stdlib defaults as the fallback so an isolated-root copy without
+    config.json still prioritizes). CLI --flag-regex extras do not flow
+    here (planner has no cfg handle); a custom-format flag still gets
+    PRINTED in its glob-order turn -- priority is ordering only, never
+    a filter -- so the exit-side checker faces no coverage loss."""
+    try:
+        from core.config import DEFAULT_FLAG_PATTERNS, load_config
+        pats = list(load_config().get("flag_patterns", DEFAULT_FLAG_PATTERNS))
+        if pats:
+            return [str(p) for p in pats]
+    except Exception:
+        pass
+    return [r"flag\{[^\s{}]{4,256}\}", r"FLAG\{[^\s{}]{4,256}\}"]
+
+
 def _mock_strategy(category, routing, step_no, sandbox, files, chall_dir):
     """Return a python-code action implementing the next strategy from the
     ladder. Offline, deterministic, mirrors the skill cards."""
@@ -224,7 +242,14 @@ def _mock_strategy(category, routing, step_no, sandbox, files, chall_dir):
          "import re,glob,os\n"
          "pat=re.compile(rb'[\\x20-\\x7e]{6,}')\n"
          "for p in glob.glob('" + d + "/**/*', recursive=True):\n"
-         "    if os.path.isfile(p):\n"
+         # [evolve-20261117-46 / rsi-118] _ctfpilot filter closes the
+         # last recon read gap: this strategy globs the whole dir, so
+         # without the filter it read the account-model sidecar
+         # _ctfpilot_model_result.json verbatim and 'solved' from the
+         # model channel's answer bytes (dfjk-Misc fake-SOLVED shape,
+         # previously caught only by the exit-side raw-echo guard);
+         # read+strings above already carried the filter.
+         "    if os.path.isfile(p) and '_ctfpilot' not in p:\n"
          "        for s in pat.findall(open(p,'rb').read())[:80]: print(p, s[:200])\n"),
         ("file-stat + entropy heuristic",
          "import glob,os,math,collections\n"
@@ -234,21 +259,146 @@ def _mock_strategy(category, routing, step_no, sandbox, files, chall_dir):
          "        if not d: continue\n"
          "        c=collections.Counter(d); H=-sum(v/len(d)*math.log2(v/len(d)) for v in c.values())\n"
          "        print(p,'bytes',len(d),'entropy','%.2f'%H)\n"),
-        ("unpack archives (zip/tar, incl. token passwords)",
-         "import zipfile,tarfile,glob,os,itertools\n"
-         "words=['flag','ctf','password','admin','123456','0000']\n"
-         "def _peek(outdir):\n"
-         "    for rf in glob.glob(outdir+'/**/*', recursive=True):\n"
-         "        if os.path.isfile(rf):\n"
-         "            dd=open(rf,'rb').read()\n"
-         "            print('EXTRACTED', rf, len(dd))\n"
-         "            print(dd[:4000].decode('utf-8','replace'))\n"
+        ("unpack archives (zip/tar/rar, incl. token passwords)",
+           "import zipfile,tarfile,glob,os,itertools,re,hashlib\n"
+           "_pks=[]\n"
+           "words=['flag','ctf','password','admin','123456','0000']\n"
+            # [evolve-20261118-12 / rsi-132] wrap-round extraction
+            # idempotence. RED (entry-78/79/80/81 next_candidate, measured
+            # live on the n1cat pair + the flip fixtures): the mock ladder
+            # wraps modulo its strategy list, and EVERY wrap round's unpack
+            # step re-runs extractall on carriers it already extracted in
+            # an earlier round -- the members are re-written with FRESH
+            # mtimes, so (a) the wrap guard's _dir_signature
+            # (relpath,size,mtime) never repeats on a carrier tree and the
+            # intended no-new-files halt never fires (live n1cat honest 38
+            # attempts, DeadGame 196, all re-extract cycling), and (b) each
+            # round re-pays extractall plus the Windows Defender first-open
+            # scan on every member (n1cat round-2: 2.9s extract + ~9s AV
+            # re-read; flip fixtures 29.35/30.44s inc vs 17.68/18.11s cand,
+            # attempts 11=11, flags identical). Fix: after a SUCCESSFUL
+            # extractall the step writes a per-carrier marker
+            # <out>/.__x_done__<md5(abs path)[:12]> holding "size,mtime_ns";
+            # on re-encounter with an unchanged fingerprint the extraction
+            # is SKIPPED with an honest
+            # 'ZIP/TAR/RAR SKIP (extracted before, unchanged)' line and the
+            # out-dir is still registered in _pks, so the deferred _peek
+            # census is byte-identical (dotfile markers are invisible to
+            # every glob face -- census, recon, carrier walk -- while
+            # extracted members keep their round-1 mtimes, letting the wrap
+            # guard halt honestly once extraction saturates: round-3 step-0
+            # sees an unchanged signature instead of cycling to max_steps).
+            # Honesty rails: markers are written only after extractall
+            # returns (an interrupted or password-failed extraction writes
+            # none, so a later round with a bigger token set retries
+            # honestly); a mutated carrier (size/mtime_ns changed) fails
+            # the fingerprint and re-extracts, and a re-extracted parent
+            # legitimately cascades (it rewrites nested child carriers,
+            # whose stale markers then fail the same guard); the skip is
+            # never a filter -- re-writing byte-identical members loses
+            # zero coverage.
+            "def _mk(out,p):\n"
+            "    return os.path.join(out,'.__x_done__'+hashlib.md5(os.path.abspath(p).encode('utf-8','replace')).hexdigest()[:12])\n"
+            "def _done(out,p):\n"
+            "    try:\n"
+            "        st=os.stat(p); m=_mk(out,p)\n"
+            "        return os.path.isfile(m) and open(m,encoding='utf-8',errors='replace').read()=='%d,%d'%(st.st_size,st.st_mtime_ns)\n"
+            "    except Exception: return False\n"
+            "def _mark(out,p):\n"
+            "    try:\n"
+            "        st=os.stat(p)\n"
+            "        open(_mk(out,p),'w',encoding='utf-8').write('%d,%d'%(st.st_size,st.st_mtime_ns))\n"
+            "    except Exception: pass\n"
+         # [evolve-20261118-05 / rsi-124] harvest window priority.
+         # RED (isolated inc root, this round): a 25-member tar.gz/zip
+         # whose ONLY flag member sorts LAST (z25.txt) stays NOT SOLVED
+         # on the incumbent -- _peek interleaves 'EXTRACTED <path> <len>'
+         # with 4000B of content per member in glob order, and the
+         # sandbox truncates each step's stdout at 20000 chars, so
+         # ~9 members of 2KB filler push the flag member's content past
+         # the window on the unpack face; the wrap-round read+strings
+         # face burns its own 20000 chars on the first ~10 members the
+         # same way (1500B head + strings per member). A many-member
+         # archive therefore hides a late flag from EVERY face.
+         # Fix: two-pass _peek -- cheap census lines first (every member
+         # name + size enters the observation stream), then content in
+         # 'flag-pattern hit members first' order. Priority is ordering
+         # only, never a filter: no-hit ordering preserves the glob
+         # order exactly (zero regression face), and the config-driven
+         # patterns come from core.config (CLI --flag-regex extras stay
+         # outside -- see _peek_patterns).
+           # [evolve-20261118-08 / rsi-128] XXL-archive census windowing.
+           # RED (live, feed round-95 n1ctf-2025-n1cat): 6.4MB WAR -> 3512
+           # members, first unpack step out=20001 chars -- the pass-1
+           # census alone is ~140KB, so on XXL trees the census burns the
+           # whole shared 20000-char step window before the pass-2
+           # flag-hit content gets one line out; the isolated XXL fixture
+           # w1800-xxl (1801 members, flag member sorts last) reproduces
+           # the same shape: incumbent unpack out=20001 chars, 41.9s/16
+           # attempts NOT SOLVED. Two-pass _peek (entry-76) fixes mid-
+           # size archives but its census is unbounded.
+           # Fix: census lines leave the read loop, order flag-hit
+           # members first, cap at 80 lines + one summary line (80 x
+           # ~150-char absolute member paths + 4000B hit content head =
+           # ~16KB worst case, safely under the 20000-char step window;
+           # cap=120 measurably overflowed on the evolve53 selftest
+           # scratch path).
+           # Ordering only, never a filter: every member still gets its
+           # content printed in turn; <=80-member trees emit exactly the
+           # same lines (hit lines may only move UP the census), so the
+           # entry-76 faces (w50 targz/zip, benign) keep their flips.
+           #
+           # [evolve-20261118-09 / rsi-129] deferred _peek: one peek per
+           # out-dir, at the END of the loop, over the FULL tree.
+           # RED (live, same n1cat war, measured in .temp/rsi-129-xxl-io):
+           # the round-2 unpack walk matches 9 nested zip carriers
+           # (8 WEB-INF/lib jars + the war again) that ALL extractall into
+           # TWO shared out-dirs (challenge/_extracted and
+           # _extracted/WEB-INF/lib/_extracted), and the incumbent peeks
+           # out-dir state IMMEDIATELY after each carrier -- so the same
+           # growing tree is globbed+read+decoded+regexed once per carrier:
+           # 31512 file-visits (46.6s, Windows Defender first-open scan on
+           # freshly extracted members included) vs ~7013 for one visit
+           # per out-dir; total round-2 unpack = 59.5s against the 60s
+           # sandbox budget -> rc=-1, the whole step's observation is lost
+           # on every wrap round (and the jar sources stay in the tree, so
+           # every subsequent round re-pays it). The candidate registers
+           # each out-dir once in _pks (carrier order) and peeks each
+           # exactly once AFTER the loop, i.e. at the tree's FULL state.
+           # Coverage: every incumbent peek(out) saw a strict PREFIX of
+           # the final tree, and the deferred peek emits exactly the
+           # final cumulative census+pass2 -- so every line the incumbent
+           # ever printed is still printed (once, deduped), no member
+           # loses its census line or content turn; the 20000-char step
+           # window now spends its budget on unique hit-first information
+           # instead of 9 repeats of the same prefix. Extraction itself is
+           # unchanged (extractall still runs per carrier, same members
+           # on disk, same passwords tried, same tar-slip guard).
+           "FLRX=" + repr(_peek_patterns()) + "\n"
+           "_rx=[re.compile(x) for x in FLRX]\n"
+           "def _peek(outdir):\n"
+           "    fs=[]\n"
+           "    for rf in glob.glob(outdir+'/**/*', recursive=True):\n"
+           "        if os.path.isfile(rf): fs.append(rf)\n"
+           "    hit=[]; rest=[]\n"
+           "    for rf in fs:\n"
+           "        dd=open(rf,'rb').read()\n"
+           "        txt=dd[:4000].decode('utf-8','replace')\n"
+           "        det=dd[:65536].decode('utf-8','replace')\n"
+           "        (hit if any(r.search(det) for r in _rx) else rest).append((rf,len(dd),txt))\n"
+           "    cen=hit+rest\n"
+           "    for rf,ln,tx in cen[:80]: print('EXTRACTED', rf, ln)\n"
+           "    if len(cen)>80: print('... CENSUS-TRUNCATED', len(cen)-80, 'more members (flag-hit listed first)')\n"
+           "    for rf,ln,tx in cen: print(tx[:4000])\n"
          "for p in glob.glob('" + d + "/**/*', recursive=True):\n"
          "    if not os.path.isfile(p): continue\n"
          "    out=os.path.dirname(p)+'/_extracted'\n"
-         "    try:\n"
-         "        if zipfile.is_zipfile(p):\n"
-         "            z=zipfile.ZipFile(p)\n"
+          "    try:\n"
+          "        if zipfile.is_zipfile(p) and _done(out,p):\n"
+          "            print('ZIP SKIP',p,'(extracted before, unchanged)')\n"
+          "            if out not in _pks: _pks.append(out)\n"
+          "        elif zipfile.is_zipfile(p):\n"
+          "            z=zipfile.ZipFile(p)\n"
          "            toks=set()\n"
          "            for q in glob.glob(os.path.dirname(p)+'/*.txt'):\n"
          "                toks|={w.strip() for w in open(q,encoding='utf-8',errors='replace').read().split()}\n"
@@ -258,10 +408,51 @@ def _mock_strategy(category, routing, step_no, sandbox, files, chall_dir):
          "                    z.extractall(out,pwd=w.encode()); ok=True; print('ZIP OK',p,'pwd=',w); break\n"
          "                except RuntimeError: continue\n"
          "                except Exception: break\n"
-         "            if ok: _peek(out)\n"
-         "        elif p.endswith('.tar'):\n"
-         "            tarfile.open(p).extractall(out); print('TAR OK',p); _peek(out)\n"
-         "    except Exception as e: print('unpack err',p,e)\n"
+             "            if ok: _mark(out,p)\n"
+             "            if ok and out not in _pks: _pks.append(out)\n"
+          "        elif open(p,'rb').read(4)==b'Rar!' or p.lower().endswith('.rar'):\n"
+        "            import shutil,subprocess\n"
+        "            _tar=shutil.which('tar')\n"
+         "            if not _tar: print('RAR SKIP (no bsdtar)',p)\n"
+         "            elif _done(out,p):\n"
+         "                print('RAR SKIP',p,'(extracted before, unchanged)')\n"
+         "                if out not in _pks: _pks.append(out)\n"
+         "            else:\n"
+         "                os.makedirs(out,exist_ok=True)\n"
+        "                try:\n"
+        "                    _r=subprocess.run([_tar,'-xf',p,'-C',out],capture_output=True,timeout=30)\n"
+          "                    if _r.returncode==0:\n"
+          "                        print('RAR OK',p); _mark(out,p)\n"
+          "                        if out not in _pks: _pks.append(out)\n"
+         "                    else: print('RAR FAIL',p,_r.stderr.decode('utf-8','replace')[:200])\n"
+        "                except Exception as _e: print('RAR ERR',p,_e)\n"
+        # [evolve-20261118-03 / rsi-122] tar-family recognition + tar-slip
+        # guard. RED (live, this feed round): n1ctf-2025-bridge 214KB
+        # bridge.tar.gz (21 members: Anchor Rust source, server flag
+        # service, challenge.so ELF) was never opened -- this arm tested
+        # p.endswith('.tar') only, so .tar.gz/.tgz/.tar.bz2/.tar.xz
+        # carriers were silently skipped (unpack step out=19 chars, the
+        # wrap guard then halted the ladder on the unchanged file set)
+        # and members needing real extraction to expose their payload
+        # (nested zips, ELF strings) stayed invisible to every face.
+        # tarfile.is_tarfile recognizes the whole compressed-tarball
+        # family transparently ('r:*' autodetect); a plain non-tar .gz
+        # (e.g. a gzipped text handout) stays False and on the fastpath
+        # decompress+chain face where it belongs. filter='data' (Py3.12)
+        # closes the tar-slip path-traversal hole that the old bare
+        # extractall already had on the plain .tar arm: ../ members and
+        # absolute paths now raise, the per-file except prints an
+        # honest 'unpack err' and nothing escapes the outdir.
+          "        elif tarfile.is_tarfile(p):\n"
+           "            if _done(out,p):\n"
+           "                print('TAR SKIP',p,'(extracted before, unchanged)')\n"
+           "                if out not in _pks: _pks.append(out)\n"
+           "            else:\n"
+           "                tarfile.open(p).extractall(out, filter='data'); print('TAR OK',p)\n"
+           "                _mark(out,p)\n"
+           "                if out not in _pks: _pks.append(out)\n"
+          "    except Exception as e: print('unpack err',p,e)\n"
+          "for _o in _pks: _peek(_o)\n"
          "print('unpack pass done')\n"),
         ("byte-frequency / xor-report for crypto blobs",
          "import glob,os,collections\n"

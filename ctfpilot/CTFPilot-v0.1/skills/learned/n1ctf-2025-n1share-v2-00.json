@@ -1,0 +1,16 @@
+{
+  "name": "n1ctf-2025-n1share",
+  "category": "forensics",
+  "technique": "pcap traffic analysis",
+  "when_to_use": "challenge looks like forensics; recall from writeup 'n1ctf-2025-n1share'",
+  "commands": [],
+  "signals": "",
+  "effective": "",
+  "failure_paths": "",
+  "limits": "",
+  "untested": "",
+  "tags": {},
+  "fixable": "",
+  "version": 2,
+  "created_at": 1794952952.2185307
+}

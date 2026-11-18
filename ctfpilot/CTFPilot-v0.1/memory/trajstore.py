@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS attempts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     challenge_id INTEGER,
     ts REAL, phase TEXT, detector TEXT, detail TEXT,
-    success INTEGER, flag TEXT, error_class TEXT, evidence TEXT
+    success INTEGER, flag TEXT, error_class TEXT, evidence TEXT,
+    cost_tokens INTEGER DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS lessons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,6 +45,22 @@ class TrajStore:
     def __init__(self, db_path):
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
         self.conn = sqlite3.connect(db_path)
+        # evolve-20261116-14: per-row commit was the dominant write cost
+        # (audit 2022-xhlj-web-real_ez_node: 18.6s of a 60.7s unsolved solve
+        # spent in conn.commit fsync for 4378 fast-phase rows; microbench
+        # 9.3ms/row under the default DELETE+FULL pairing). WAL +
+        # synchronous=NORMAL keeps per-row commit semantics intact (every
+        # log_attempt still commits its own transaction, deep-loop single-row
+        # incremental commits untouched per the evolve-14 retain clause) while
+        # removing the fsync from the commit hot path. Process crashes lose
+        # nothing committed (WAL recovery on next open); only an OS power
+        # loss may drop the tail of un-checkpointed WAL frames -- acceptable
+        # for a regenerable observation log, never for challenge outcomes.
+        try:
+            self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.execute("PRAGMA synchronous=NORMAL")
+        except sqlite3.Error:
+            pass  # locked/read-only edge: legacy journal, still correct
         self.conn.executescript(SCHEMA)
         self._ensure_columns()
         self.conn.commit()
@@ -51,7 +68,9 @@ class TrajStore:
     def _ensure_columns(self):
         """Idempotent migration: lessons gains tags / hit_count / success_count /
         last_used so that recall quality and fixation triggers become measurable
-        instead of vibes."""
+        instead of vibes. attempts gains cost_tokens so the cost axis (token /
+        work-volume accounting) is a first-class gateable metric (evolve-20261116-05).
+        """
         cols = {r[1] for r in self.conn.execute("PRAGMA table_info(lessons)").fetchall()}
         for col, ddl in (("tags", "TEXT DEFAULT ''"),
                          ("hit_count", "INTEGER DEFAULT 0"),
@@ -59,6 +78,10 @@ class TrajStore:
                          ("last_used", "REAL DEFAULT 0")):
             if col not in cols:
                 self.conn.execute("ALTER TABLE lessons ADD COLUMN %s %s" % (col, ddl))
+        acols = {r[1] for r in self.conn.execute("PRAGMA table_info(attempts)").fetchall()}
+        if "cost_tokens" not in acols:
+            self.conn.execute(
+                "ALTER TABLE attempts ADD COLUMN cost_tokens INTEGER DEFAULT 0")
 
     # ---------- challenges ----------
     def new_challenge(self, name, category, dir_path, mode, summary):
@@ -74,15 +97,46 @@ class TrajStore:
                           (1 if solved else 0, flag or "", cid))
         self.conn.commit()
 
+    def prior_attempt(self, name):
+        """Latest prior record for this challenge name (solve-replay warn)."""
+        row = self.conn.execute(
+            "SELECT id, mode, solved, flag, created_at FROM challenges "
+            "WHERE name=? ORDER BY id DESC LIMIT 1", (name,)).fetchone()
+        if row is None:
+            return None
+        return {"id": row[0], "mode": row[1], "solved": row[2],
+                "flag": row[3], "when": row[4]}
+
+    def find_replay_prior(self, name, dir_path, flag, exclude_cid):
+        """[evolve-20261117-43 / rsi-114] production replay-guard query
+        (rsi-111 lesson, live row 964): the earliest ALREADY-CREDITED row
+        carrying the exact same (name, dir_path, flag) triple, excluding
+        the live row itself. None = this credit is fresh (first solve, a
+        different directory, a different flag, or an adjudicated-away
+        prior) and must pass through untouched. Read-only: the caller
+        decides what to do with the hit."""
+        if not flag:
+            return None
+        row = self.conn.execute(
+            "SELECT id FROM challenges "
+            "WHERE name=? AND dir_path=? AND solved=1 AND flag=? AND id<>? "
+            "ORDER BY id LIMIT 1",
+            (name, dir_path, flag, exclude_cid)).fetchone()
+        return row[0] if row else None
+
     # ---------- attempts ----------
     def log_attempt(self, cid, phase, detector, detail, success, flag=None,
-                    error_class=None, evidence=None):
+                    error_class=None, evidence=None, cost_tokens=0):
+        """cost_tokens: work-volume accounting for this attempt (LLM tokens when
+        the channel reports usage; 0 for native/offline compute). It is the
+        environment-normalized cost axis -- same trajectory, same number, no
+        wall-clock noise."""
         self.conn.execute(
-            "INSERT INTO attempts(challenge_id, ts, phase, detector, detail, success, flag, error_class, evidence) "
-            "VALUES(?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO attempts(challenge_id, ts, phase, detector, detail, success, flag, error_class, evidence, cost_tokens) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?)",
             (cid, time.time(), phase, detector, str(detail)[:2000],
              1 if success else 0, flag or "", error_class or "",
-             (evidence or "")[:8000]))
+             (evidence or "")[:8000], int(cost_tokens or 0)))
         self.conn.commit()
 
     def retract_attempts_by_flag(self, cid, flag):
@@ -262,10 +316,39 @@ class TrajStore:
         ).fetchall()
         return {r[0]: {"count": r[1], "success": r[2] or 0} for r in rows}
 
+    def cost_stats(self):
+        """Cost axis for the solve-mode ledger (learn imports excluded, same
+        口径 as dashboard/metrics). Returns token totals + per-solve means and
+        the attempt-count work volume, so gating can use tokens when reported
+        and attempt volume as the fallback currency. Zero-cost solved
+        challenges are the native fast-path share -- real time, zero tokens."""
+        rows = self.conn.execute("""
+            SELECT COUNT(DISTINCT c.id), SUM(a.cost_tokens), COUNT(*)
+            FROM attempts a JOIN challenges c ON a.challenge_id = c.id
+            WHERE COALESCE(c.mode, '') <> 'learn' AND c.solved = 1
+        """).fetchone()
+        solved_n, tokens_all, att_n = rows[0] or 0, rows[1] or 0, rows[2] or 0
+        zero = self.conn.execute("""
+            SELECT COUNT(*) FROM (
+                SELECT c.id, SUM(COALESCE(a.cost_tokens,0)) AS t
+                FROM challenges c LEFT JOIN attempts a
+                  ON a.challenge_id = c.id
+                WHERE COALESCE(c.mode, '') <> 'learn' AND c.solved = 1
+                GROUP BY c.id HAVING t = 0
+            )
+        """).fetchone()[0]
+        return {"solved": solved_n,
+                "cost_tokens_total": int(tokens_all),
+                "cost_per_solve": round(tokens_all / solved_n, 1) if solved_n else None,
+                "attempts_on_solved": att_n,
+                "attempts_per_solve": round(att_n / solved_n, 2) if solved_n else None,
+                "zero_cost_solved": zero}
+
     def stats(self):
         ch = self.conn.execute("SELECT COUNT(*), SUM(solved) FROM challenges").fetchone()
         at = self.conn.execute("SELECT COUNT(*) FROM attempts").fetchone()
         ls = self.conn.execute("SELECT COUNT(*) FROM lessons").fetchone()
         return {"challenges": ch[0] or 0, "solved": ch[1] or 0,
                 "attempts": at[0] or 0, "lessons": ls[0] or 0,
-                "error_breakdown": self.error_breakdown()}
+                "error_breakdown": self.error_breakdown(),
+                "cost": self.cost_stats()}

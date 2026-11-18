@@ -36,10 +36,12 @@ solved_rate = N_solved / N_total；time 单位秒；timeout = 该变体的超时
 
 | 命令 | 用途 | 判定阈值 |
 |---|---|---|
-| `probes.py leak --cases <cases.jsonl> --writeups <写库>` | 卡间互命中率（背题风险）+ 悬空指针率 | 互命中率与零假设差 <2pp 为安全；悬空指针 >0 即修 |
-| `probes.py poison --engine <根> --cases <cases.jsonl>` | 注入 5 张毒卡看指标是否降 | top1 或 top3 降 <2pp = **ALARM** |
-| `probes.py holdout-split --writeups <写库> [--n 20]` | 固定 seed 抽留出集 | 已在库中 = "已污染"警告；配套隔离见下「留出隔离协议」 |
-| `probes.py report --engine <根>` | 连引擎 eval-retrieval 出体检 | top1/top3 降超 5pp = FAIL |
+| `probes.py leak [--cases <cases.jsonl>] [--writeups <写库>] [--db <库>]` | 卡间互命中率（背题风险）+ 悬空 source 指针率 + lessons 影子悬空审计（FK 悬空 / KB 已删案例死影子 / 类别改判陈旧孪生） | 互命中率与零假设差 <2pp 为安全；悬空指针 >0 即修（含 lessons 三维合计 >0 → rc=2；--db 可审计指定库如术前备份） |
+| `probes.py poison [--engine <根>] [--cases <cases.jsonl>]` | 注入 5 张毒卡看指标是否降 | top1 或 top3 降 <2pp = **ALARM** |
+| `probes.py holdout-split [--writeups <写库>] [--n 20]` | 固定 seed 抽留出集 | 已在库中 = "已污染"警告；配套隔离见下「留出隔离协议」 |
+| `probes.py report [--engine <根>]` | 连引擎 eval-retrieval 出体检 | top1/top3 降超 5pp = FAIL |
+
+> **默认参数（evolve-20261117-08 修复）**：四条命令零参数即可跑——--engine/--cases 缺省指向引擎库（`CTFPilot-v0.1`），--writeups 缺省指向引擎写库（`CTFPilot-v0.1\writeups`），stats.json `writeups_dir` 兜底；修复前 --writeups 默认指向不存在的 `工作空间\writeups`，每条命令都需手动传参。
 
 ## 留出隔离协议（2026-11-14 落地）
 

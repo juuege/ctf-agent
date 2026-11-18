@@ -11,12 +11,68 @@ from fastpath.detectors import Attempt
 from fastpath import detectors as fp
 from deep.error_tax import (classify_exec as classify_error, fingerprint,
                             action_key as _action_key, final_class, giveup_class)
+import os as _os
+
+
+def _dir_signature(chall_dir):
+    """File-set signature for the mock wrap-around guard: (relpath, size,
+    mtime) of every real challenge file, sorted. Engine-owned bookkeeping
+    (_ctfpilot* scratch files, __pycache__, .temp) is excluded so solve
+    bookkeeping writes cannot defeat the guard; unpack products
+    (_extracted/...) ARE included -- newly produced inputs legitimately
+    justify a re-sweep round.
+
+    Evidence for the guard (2026-11-16 feed round, 2022-xhlj-web-real_ez_node
+    127.1s / 12 deep steps, steps 5-11 repeated steps 0-6 verbatim):
+    trajectory store shows 0/187,906 successes for repeated strategy runs
+    ("same strategy failed earlier then succeeded" count: 0). Wrap-around
+    only pays when the unpack strategy produced new files; the planner
+    comment says so but never checked. The guard encodes that missing
+    check.
+    """
+    sig = []
+    for root, dirs, fs in _os.walk(chall_dir):
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", ".temp")]
+        for fn in fs:
+            if fn.startswith("_ctfpilot"):
+                continue
+            # [evolve-20261117-11] wrapper redirection (.solve.log/.solve.err)
+            # grows DURING solve; keeping it in the signature makes the
+            # signature never repeat, silently defeating this wrap-around
+            # guard (live: sizes/mtimes change every stat on every round).
+            if fn in (".solve.log", ".solve.err"):
+                continue
+            p = _os.path.join(root, fn)
+            try:
+                st = _os.stat(p)
+            except OSError:
+                continue
+            sig.append((_os.path.relpath(p, chall_dir).replace("\\", "/"),
+                        st.st_size, int(st.st_mtime)))
+    sig.sort()
+    return tuple(sig)
 
 
 def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
-                  llm, store, cid, cfg, log, brain="auto", benchmark=False):
-    """Returns (flag or None, attempts)."""
+                  llm, store, cid, cfg, log, brain="auto", benchmark=False,
+                  fast_done=False, reject_flag=None):
+    """Returns (flag or None, attempts).
+
+    fast_done: True when this solve already ran run_fast_path on the very
+    same chall_dir + files list (do_solve mode=auto). The deep Strategy 0
+    quick pass then SKIPS its rerun: deterministic detectors on identical
+    inputs return identical results, so the rerun only duplicated work and
+    db rows (measured 2026-11-16 feed round on 2022-xhlj-web-real_ez_node:
+    quick pass cost 42.3s exec + 18.3s row inserts per unsolved challenge,
+    with 28/28 historical deep-pre successes all explained by same-solve
+    fast-phase successes). mode=deep keeps the quick pass as its only
+    fastpath carrier.
+    """
     attempts = []
+    # Placeholder/raw-echo candidates already refused by the provenance
+    # callback. Kept per solve so a repeat hit in a later step (same string
+    # printed again by a different recon strategy) does NOT end the loop.
+    rejected = set()
     budget = cfg.get("budget", {})
     max_steps = int(budget.get("max_deep_steps", 12))
     llm_budget = [int(budget.get("max_llm_calls_per_solve", 24))]
@@ -41,14 +97,31 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
 
     _track(lessons)
 
-    # Strategy 0: rerun fast path (cheap, and records what was tried)
-    flag, fast_attempts = fp.run_quick_pass(chall_dir, files, checker)
-    for a in fast_attempts:
-        attempts.append(a)
-        store.log_attempt(cid, "deep-pre", a.detector, a.detail, a.success, a.flag)
-    if flag:
-        store.bump_success_by_ids(recalled_ids)
-        return flag, attempts
+    # Strategy 0: rerun fast path -- but only when this solve has not run
+    # the fastpath yet (mode=deep). In mode=auto do_solve already ran the
+    # identical detector chain on identical inputs; a rerun is pure
+    # duplicate work and duplicate db rows (single-variable change,
+    # 2026-11-16 feed round).
+    if not fast_done:
+        flag, fast_attempts = fp.run_quick_pass(chall_dir, files, checker)
+        for a in fast_attempts:
+            attempts.append(a)
+            store.log_attempt(cid, "deep-pre", a.detector, a.detail, a.success, a.flag)
+        if flag:
+            if reject_flag is not None and reject_flag(flag):
+                # mode=deep has no do_solve fast phase ahead of this loop,
+                # so the quick pass is the first raw-echo face. Refuse here
+                # and keep going instead of returning a placeholder flag.
+                rejected.add(flag)
+                for a in fast_attempts:
+                    if a.flag == flag:
+                        a.success = False
+                        a.flag = None
+                log("[deep] quick-pass candidate %s refused (raw-echo); "
+                    "continuing the hypothesis loop" % flag)
+            else:
+                store.bump_success_by_ids(recalled_ids)
+                return flag, attempts
 
     from deep.planner import next_action as _na  # noqa: F401  (explicit path check)
     from deep import planner
@@ -64,6 +137,13 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
     # ladder cycling / sleeping become visible in the failure profile.
     seen_fps = set()
     seen_action_keys = set()
+    # Mock wrap-around guard state: action_key -> dir signature at its last
+    # run. Mock brain cycles a fixed strategy ladder regardless of progress;
+    # when the ladder wraps onto an already-run strategy AND the challenge
+    # dir is unchanged, every remaining step of this round would repeat
+    # identical inputs on deterministic detectors. LLM brains are exempt
+    # (their actions are not a fixed ladder and the tried-list feeds back).
+    strategy_sig = {} if brain == "mock" else None
     for step in range(max_steps):
         tried_summary = "\n".join("- %s" % t for t in tried[-12:]) or "(nothing)"
         # JIT re-retrieval (JitSkill zero-training approximation): refresh
@@ -115,6 +195,27 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
             break
 
         strategy = action.get("_strategy") or action.get("_brain", "llm") + "-action"
+
+        # Mock wrap-around guard (single-variable change, 2026-11-16):
+        # skip-and-stop when the mock ladder wraps onto a strategy already
+        # run against an unchanged file set. This is the missing check the
+        # planner comment promised ("re-run recon so newly produced files
+        # get scanned") -- it fires only when NO new files were produced.
+        if strategy_sig is not None:
+            guard_key = _action_key(action)
+            if guard_key:
+                cur_sig = _dir_signature(chall_dir)
+                if guard_key in strategy_sig and strategy_sig[guard_key] == cur_sig:
+                    note = ("%s already ran on an unchanged file set; "
+                            "mock wrap-around would only repeat deterministic "
+                            "detectors on identical inputs" % strategy)
+                    log("[deep] step %d: wrap guard: halting mock wrap-around" % step)
+                    attempts.append(Attempt("deep-guard", note, False))
+                    store.log_attempt(cid, "exec", "deep-guard", note, False,
+                                      error_class="semantic:no-new-files")
+                    break
+                strategy_sig[guard_key] = cur_sig
+
         log("[deep] step %d: %s" % (step, strategy))
 
         # Execute through the sandbox (schema-validated, offline)
@@ -163,6 +264,33 @@ def run_deep_loop(chall_name, chall_dir, routing, files, checker, sandbox,
                           evidence=out_text[:4000])
 
         if found:
+            if found in rejected:
+                # The same refused string resurfaced in a later step's output
+                # (recon strategies overlap). Treat as not-found, never as a
+                # reason to stop: the loop still owns its remaining budget.
+                # The attempt row was logged as success just above, so undo
+                # both the in-memory credit and the stored row -- otherwise a
+                # placeholder would leave success=1 rows behind while the
+                # challenge itself stays NOT SOLVED.
+                attempts[-1].success = False
+                attempts[-1].flag = None
+                store.retract_attempts_by_flag(cid, found)
+                tried.append("%s -> refused candidate repeated (%s); "
+                             "continuing" % (strategy, found))
+                fails_in_row += 1
+                continue
+            if reject_flag is not None and reject_flag(found):
+                # Provenance spoke: this candidate is a raw echo (e.g. an
+                # env placeholder such as FLAG in docker-compose). The
+                # callback already logged + retracted it in the store, so
+                # only the in-memory attempt and the loop state remain.
+                attempts[-1].success = False
+                attempts[-1].flag = None
+                rejected.add(found)
+                tried.append("%s -> refused candidate %s (raw-echo); "
+                             "continuing" % (strategy, found))
+                fails_in_row += 1
+                continue
             log("[deep] FLAG FOUND at step %d via %s" % (step, strategy))
             store.bump_success_by_ids(recalled_ids)
             return found, attempts

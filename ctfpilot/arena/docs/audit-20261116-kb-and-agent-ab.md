@@ -123,3 +123,5 @@ promotion gated on the v2-mainline pool experiment.
    net gain.
 3. Discipline: n>=3 per task, serial same-task groups, fixed parallelism, steps
    spot-audits; quantitative claims go to the engine-layer arena only.
+
+> AI生成

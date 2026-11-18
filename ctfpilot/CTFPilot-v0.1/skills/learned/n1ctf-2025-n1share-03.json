@@ -1,0 +1,20 @@
+{
+  "name": "n1ctf-2025-n1share",
+  "category": "crypto",
+  "technique": "多通道共享错误位置译码题先算各译码器容量数字",
+  "when_to_use": "task.py 含 GF(521) 小素域求值+128B 半段系数多项式+shares 交织对展开+同位置双通道加噪+AES-ECB(md5(key)) 加密 flag；ex.sage 含 lagrange_polynomial/right_kernel/product(range(r),repeat=c+1) 单项式系；README 提及 B-W 196/G-S 262 容量与 copper-conf.pdf",
+  "commands": [],
+  "signals": "task.py 含 GF(521) 小素域求值+128B 半段系数多项式+shares 交织对展开+同位置双通道加噪+AES-ECB(md5(key)) 加密 flag；ex.sage 含 lagrange_polynomial/right_kernel/product(range(r),repeat=c+1) 单项式系；README 提及 B-W 196/G-S 262 容量与 copper-conf.pdf",
+  "effective": "",
+  "failure_paths": "引擎无数学译码 fastpath，深度通道 mock 梯子无 sage/linalg 能力，题面 flag 在远程服务（deploy 类）",
+  "limits": "需 sage 环境（稠密 GF 矩阵 + right_kernel + lagrange_polynomial）；离线复现仅限自含实例，真实 flag 需远程交互；引擎侧当前仅作 recall 知识面，不自动执行",
+  "untested": "",
+  "tags": {
+    "识别信号": "task.py 含 GF(521) 小素域求值+128B 半段系数多项式+shares 交织对展开+同位置双通道加噪+AES-ECB(md5(key)) 加密 flag；ex.sage 含 lagrange_polynomial/right_kernel/product(range(r),repeat=c+1) 单项式系；README 提及 B-W 196/G-S 262 容量与 copper-conf.pdf",
+    "陷阱类型": "B-W/G-S/共享位置扩展 B-W 容量上限(196/262/261)全低于 w=300 仍死磕单通道译码；r/l 不满足 t>l/r 导致矩阵不可解或爆炸；AES 密钥误用 key 而非 md5(key)；矩阵建在 ZZ 而非 GF(521)",
+    "可迁移模式": "多通道共享错误位置译码题先算各译码器容量数字，全部低于 w 时直接转 CS 2003 线性化（Me/Mr 单项式系 → 齐次系统 → 右核判零块 → 干净点插值），不自造 B-W 变体"
+  },
+  "fixable": "",
+  "version": 1,
+  "created_at": 1794949851.8753886
+}
