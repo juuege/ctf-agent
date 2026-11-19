@@ -1,7 +1,7 @@
 {
   "name": "dsh-ctfpilot",
   "description": "CTFPilot dual-channel CTF solving engine as a model-facing DSH tool: fast-path deterministic detectors, experience recall, writeup learning, a human-confirmed submit gate (propose → card → record), and a main-column dashboard panel over the local Python engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publishConfig": {
     "access": "public"
   },
@@ -37,11 +37,14 @@
       "immediately": true,
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-sidebar",
-        "@deepseek-ai/dsh-client-ui-primitives"
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-workspace"
       ]
     }
   },

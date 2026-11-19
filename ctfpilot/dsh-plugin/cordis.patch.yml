@@ -21,3 +21,244 @@
         python: 'C:/Users/Administrator/.local/share/TeleAgent/runtimes/python/python.exe'
         timeoutSeconds: 300
         maxOutputChars: 8000
+
+# ---------------------------------------------------------------------------
+# CTF 对话模式预设（快解 / 深度解析）——单插件终态：
+#   - preset-ctf-quick（order 5，id ctf-quick）：竞赛节奏 —— recall-first、
+#     快通道先行、最小化 token 往返、收束快；
+#   - preset-ctf-deep（order 6，id ctf-deep）：实验室口径 —— 不中时读轨迹续探、
+#     并行委派、web 取证、writeup 学习回路。
+#   两模式的**区别即对话预设不同**（不是提示词差异）：UI「开始解题」表单选
+#   模式后，/ctf-solve-start 经 agentPresets 服务 select(agent, preset) 把当前会话切到对应
+#   预设；切换失败时降级为仅注入题面文本（见 lib/index.js switchSolvePreset）。
+#   两行原住于 @local/dsh-ctf-presets，该旧 bundle 已 remove_bundle——双插件
+#   合并完成，本插件即唯一声明处。既有会话保持其启动时的修订，不受影响。
+#   Loader 行 id 约定 preset-<config.id>（官方 standard 1, ptc 2, minimal 3,
+#   cordis 4；本两行 order 5 / 6）。
+# ---------------------------------------------------------------------------
+- insert:
+    - id: preset-ctf-quick
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: ctf-quick
+        name: CTF 快解
+        description: "Competition-speed CTF solving: the fast deterministic engine path first, then targeted hands-on analysis."
+        order: 5
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                You are an elite CTF competitor solving authorized-competition and personal-lab challenges at competition speed. Your core move is the local ctfpilot engine: recall related cases first (ctfpilot recall --query <signals>), then run the fast deterministic path (ctfpilot solve <challenge_dir> --mode auto) before hand-implementing anything. Verify every proposed flag against the challenge's expected format and never claim a flag you have not seen echoed back from the source. Minimize tokens and round-trips: targeted greps over whole-file reads, log big outputs to files instead of pasting them. Only authorized targets — your own lab, CTF competitions the organizers permit. Stay non-interactive: act on assumptions you state plainly, ask the human only for a hard blocker such as credentials you cannot obtain.
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              read: true
+              readImage: true
+              write: true
+              edit: true
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+          - id: persistent-shell
+            name: cordis:group
+            group: true
+            isolate:
+              terminals: true
+            config:
+              - id: pty
+                name: '@deepseek-ai/dsh-terminal'
+              - id: terminal-pwsh
+                name: '@deepseek-ai/dsh-terminal-bash'
+                disabled: !!js process.platform !== 'win32'
+                config:
+                  shellDialect: pwsh
+                  timeoutMs: 300000
+              - id: persistent-pwsh
+                name: '@deepseek-ai/dsh-tool-pwsh-persistent'
+                disabled: !!js process.platform !== 'win32'
+                config:
+                  timeoutMs: 300000
+                  description: |-
+                    Run commands in a PowerShell shell
+                    * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
+                    * You don't have access to the internet via this tool.
+                    * State is persistent across command calls and discussions with the user.
+                    * Use native Windows paths (C:\...) and $env:NAME variables; this is PowerShell, not bash.
+                    * Please avoid commands that may produce a very large amount of output.
+                    * Please run long lived commands in the background, e.g. 'Start-Job' or start a server with Start-Process.
+              - id: terminal-bash
+                name: '@deepseek-ai/dsh-terminal-bash'
+                disabled: !!js process.platform === 'win32'
+                config:
+                  timeoutMs: 300000
+              - id: persistent-bash
+                name: '@deepseek-ai/dsh-tool-bash-persistent'
+                disabled: !!js process.platform === 'win32'
+                config:
+                  timeoutMs: 300000
+                  description: |-
+                    Run commands in a bash shell
+                    * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
+                    * Network access depends on the task environment. Prefer configured mirrors/proxies when they are available.
+                    * State is persistent across command calls and discussions with the user.
+                    * To inspect a particular line range of a file, e.g. lines 10-25, try 'sed -n 10,25p /path/to/the/file'.
+                    * Please avoid commands that may produce a very large amount of output.
+                    * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.
+- insert:
+    - id: preset-ctf-deep
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: ctf-deep
+        name: CTF 深度解析
+        description: "Full CTF lab: parallel delegation for wide search, deep reverse and pwn analysis, plus writeup learning loop."
+        order: 6
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                You are an elite CTF competitor performing deep analysis of hard challenges in authorized competitions and personal labs. Open with the local ctfpilot engine: recall related experience by category and signals (ctfpilot recall --category <cat> --query <signals>), then try the fast deterministic path (ctfpilot solve --mode auto) before resorting to manual techniques. When the fast path fails, read the engine's trajectory steps and continue yourself instead of restarting from scratch; once a path works, learn it into a writeup (ctfpilot learn-writeup <file>) and rebuild the case-card knowledge base after adding writeups. Delegate parallel, independent subtasks — large enumerations, multiple hosts or subdomains, broad pcap triage — to fresh subagents while you synthesize. Ground every claim in artifacts: files, captures, binaries, memory dumps. Verify each flag's exact format against the challenge before proposing it, and confirm only flags you have genuinely extracted. Stay non-interactive unless a hard blocker truly requires the human; state assumptions plainly and proceed.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              applyPatch: false
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
+                  headChars: 4096
+                  tailChars: 1024
+          - id: delegation
+            name: cordis:group
+            group: true
+            isolate:
+              workflowEngine: true
+            config:
+              - id: tool-subagent-control
+                name: '@deepseek-ai/dsh-tool-subagent-control'
+                config:
+                  interrupt: false
+              - id: tool-subagent
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: spawn
+                  toolName: subagent
+                  modelSelection: true
+                  modelDiscovery: true
+              - id: tool-subagent-fork
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: fork
+                  toolName: subagent_fork
+              - id: workflow-ptc
+                name: '@deepseek-ai/dsh-workflow-ptc'
+                config:
+                  provider: spawn
+              - id: tool-workflow
+                name: '@deepseek-ai/dsh-tool-workflow'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: persistent-shell
+            name: cordis:group
+            group: true
+            isolate:
+              terminals: true
+            config:
+              - id: pty
+                name: '@deepseek-ai/dsh-terminal'
+              - id: terminal-pwsh
+                name: '@deepseek-ai/dsh-terminal-bash'
+                disabled: !!js process.platform !== 'win32'
+                config:
+                  shellDialect: pwsh
+                  timeoutMs: 300000
+              - id: persistent-pwsh
+                name: '@deepseek-ai/dsh-tool-pwsh-persistent'
+                disabled: !!js process.platform !== 'win32'
+                config:
+                  timeoutMs: 300000
+                  description: |-
+                    Run commands in a PowerShell shell
+                    * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
+                    * You don't have access to the internet via this tool.
+                    * State is persistent across command calls and discussions with the user.
+                    * Use native Windows paths (C:\...) and $env:NAME variables; this is PowerShell, not bash.
+                    * Please avoid commands that may produce a very large amount of output.
+                    * Please run long lived commands in the background, e.g. 'Start-Job' or start a server with Start-Process.
+              - id: terminal-bash
+                name: '@deepseek-ai/dsh-terminal-bash'
+                disabled: !!js process.platform === 'win32'
+                config:
+                  timeoutMs: 300000
+              - id: persistent-bash
+                name: '@deepseek-ai/dsh-tool-bash-persistent'
+                disabled: !!js process.platform === 'win32'
+                config:
+                  timeoutMs: 300000
+                  description: |-
+                    Run commands in a bash shell
+                    * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
+                    * Network access depends on the task environment. Prefer configured mirrors/proxies when they are available.
+                    * State is persistent across command calls and discussions with the user.
+                    * To inspect a particular line range of a file, e.g. lines 10-25, try 'sed -n 10,25p /path/to/the/file'.
+                    * Please avoid commands that may produce a very large amount of output.
+                    * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.

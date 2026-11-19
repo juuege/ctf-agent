@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "CTFPilot CTF solving tool",
-    "description": "Local dual-channel CTF solving engine: a deterministic fast path solves encoding chains, classical ciphers, XOR, archives and PNG LSB stego in seconds; misses fall through to the deep strategy loop. Includes experience recall, writeup learning and stats. Before recording a flag the model proposes a submit that the user confirms via a card under the answer; only confirmed flags reach the engine ledger — nothing is recorded without human confirmation. Tool entry: /ctfpilot; the sidebar icon opens the main-column dashboard panel.",
+    "description": "Local dual-channel CTF solving engine as a DSH plugin: a deterministic fast path solves encoding chains, classical ciphers, XOR, archives and PNG LSB stego in seconds; misses fall through to the deep strategy loop. Includes experience recall, writeup learning, stats, a human-confirmed submit gate (propose → card → record), the CTFPilot solve form (pick 快解/深度解析, attach challenge folder, auto-injected mode brief sends a new dsh conversation under the unified CTF preset), a live solve-status board with real-time flag capture, and a CTF tool manager (health check + install/update/uninstall). Tool entry: /ctfpilot; sidebar icon opens the dashboard.",
     "detail": "docs/DETAIL.md"
   }
 }

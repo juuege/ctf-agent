@@ -30,6 +30,34 @@ ctfpilot(command, ...)
 - 斜杠命令：`/ctf-record-win --name N --category C --flag F`、`/ctf-dashboard`（拉取 `dashboard --json` 数据）、`/ctf-stats`。
 - 会话投影 `ctfpilot`：从 `tool/call`、`tool/result`、`command/run` 事件折叠出 pending 提交与已确认台账，供前端卡片结算。
 
+## 双模式对话预设（快解 / 深度解析）
+
+插件内置两条真实预设：`preset-ctf-quick`（config id `ctf-quick`，order 5）与
+`preset-ctf-deep`（config id `ctf-deep`，order 6）——两模式的区别即对话的 **agent 预设不同**：
+快解配竞赛节奏的能力集（文件读写、压缩工具组），深度解析配深解析全集（web fetch、子代理委派、
+workflow、持久 shell、todo 并发、目标跟踪等）。「开始解题」表单选定模式后 `/ctf-solve-start`
+先经 `agentPresets` 服务把该对话切到对应预设、再注入题面文本；预设切换失败时降级为仅注入题面
+并在回报里说明。
+
+## 三个新界面
+
+1. **开始解题表单**（主面板「开始解题」标签内）：下拉选快解/深度解析，输入题面、附件路径（可拖入、
+   可点选目录选择器）、可选题型；点「开始解题」即向当前会话执行 `/ctf-solve-start`：自动切换该
+   对话的 agent 预设到所选模式并注入题面开跑；未打开任何会话时显示显式空态提示。
+2. **正在解题状态板**（主面板新标签页）：每题一张卡片，**整卡可点**（role/tabIndex/Enter-空格键均可）
+   跳转该对话；完成/失败的历史记录条目右上角可一键删除（清理后的板只余活跃项）；实时从每步 CoT 与输出
+   token 中匹配 `flag{…}`，**只追加不覆盖**；双按钮「已解出 / 未解出」均带二次确认——运行中禁用
+   未解出；确认已解出 → 终止活动轮并在同一会话请求 writeup 归档；结束后未解出 → 快解迁移全部
+   上下文 fork 新会话转深度解析，深度解析原地续探。状态由 Host 侧会话投影 `ctfsolve` 提供。
+3. **工具管理**（主面板新标签页）：一键快检 nmap / sqlmap / john / hashcat / binwalk /
+   volatility3 / pwntools / protocol-mcp 的可用性，逐行安装、更新、卸载；条目常驻，卸载后回到
+   「安装」态不消失（MCP 类引导至 MCP Manager 页面）。探测输出在 Host 源头 ASCII 化并固定
+   pwsh UTF-8 控制台编码——中文系统的 `where.exe` GBK 错误串（如「系统找不到指定的文件。」）
+   不会被按 UTF-8/1252 误解码上屏。
+
+对应斜杠命令：`/ctf-solve-start quick|deep [--category C] [--attach P …] <题目描述>`、
+`/ctf-writeup [--name N]`、`/ctf-tools status|install|update|uninstall <id>`。
+
 ## 安装与挂载
 
 前提：已安装 DSH（≥0.2，含桌面端或 CLI），系统有 Python 3.10+，且已 clone 本仓库：
@@ -93,6 +121,22 @@ dsh tui --patch ctfpilot-overlay.yml
 | `engineDir` | 仓库相对 | 引擎目录（含 `ctfpilot.py`）。默认顺序：`CTFPILOT_HOME` 环境变量 → 插件父目录的 `CTFPilot-v0.1`（本仓库布局） |
 | `timeoutSeconds` | 300 | 单次引擎调用上限（deep 模式长题可调大） |
 | `maxOutputChars` | 8000 | 返回给模型的 stdout 截断上限 |
+
+## 客户端依赖边（package.json `dsh.client.inject`）
+
+浏览器半边注入的服务与其提供者包一一对应（包名必须是 DSH 官方包列表中的真实包）：
+
+| 服务键（模块 `inject`） | 提供者包（package `dsh.client.inject`） |
+|---|---|
+| `slots` | `@deepseek-ai/dsh-client-ui-slots` |
+| `locale` | `@deepseek-ai/dsh-client-locale` |
+| `remote` / `remote.commands` | `@deepseek-ai/dsh-api-remotes` |
+| `uiWorkspace` | `@deepseek-ai/dsh-client-ui-workspace` |
+| `sessions` | `@deepseek-ai/dsh-api-session-controller` |
+| `workspaces` | `@deepseek-ai/dsh-api-workspace-controller` |
+
+席位 key（`main` / `sidebar.panellist` / `conversation.chat.turnTail`）由 `dsh-client-ui-layout` / `dsh-client-ui-sidebar` / `dsh-client-ui-conversation` 提供。`verify-client.mjs` 已将此映射固化为回归断言。
+
 
 ## 本地开发与测试
 
