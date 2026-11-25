@@ -84,11 +84,15 @@ function makeReact() {
   }
 }
 
-/** 展开元素树中函数类型的组件元素（等同 React 调用子组件），纯函数无副作用。 */
+/** 展开元素树中函数类型的组件元素（等同 React 调用子组件）。
+ *  2026-11-20 修正：必须经 React.render 切换 active/cursor——此前直接裸调
+ *  el.type(props)，组件的 hooks 全写进 active=null 的错桶，组件状态与
+ *  effects 从未真正落到自身桶上（面板缓存改造的 inFlight 全局去重让错桶
+ *  请求抢跑、真桶永远 loading，才暴露此缺陷）。 */
 function expand(el) {
   if (!el || typeof el !== 'object') return el
   if (Array.isArray(el)) return el.map(expand)
-  if (typeof el.type === 'function') return expand(el.type(el.props || {}))
+  if (typeof el.type === 'function') return expand(React.render(el.type, el.props || {}))
   const out = { ...el, children: (el.children || []).map(expand) }
   return out
 }
@@ -203,6 +207,14 @@ const loaded = []
 globalThis.window = {
   __ModuleLoader__: { load(spec) { loaded.push(spec); return undefined } },
 }
+// localStorage 桩（内存 Map）：驱动看板持久层三组断言——拉取写入、模块重载恢复、
+// 损坏数据防御（真实浏览器里配额/隐私模式由 try/catch 降级为仅内存缓存）。
+const lsStore = new Map()
+globalThis.localStorage = {
+  getItem: (k) => (lsStore.has(k) ? lsStore.get(k) : null),
+  setItem: (k, v) => { lsStore.set(k, String(v)) },
+  removeItem: (k) => { lsStore.delete(k) },
+}
 // eslint-disable-next-line no-new-func
 new Function(fs.readFileSync(CLIENT, 'utf8'))()
 check('module loader: client.js 被调用 load', loaded.length === 1, `loaded=${loaded.length}`)
@@ -221,14 +233,22 @@ const React = makeReact()
 
 let localeDict = {}
 let slotRegistrations = []
-let remoteCalls = []
+let remoteCalls = [] // fetch 桩重构记录：{ sessionId, line, method, url }（line 与旧命令通道同形，既有断言零改动）
 
-/** 远端命令桩：/ctf-dashboard 返回引擎看板 JSON；/ctf-challenge-detail 返回单题详情；record-win 一律成功。 */
-let arenaRecordBroken = false // /ctf-arena record 失败模拟开关（引擎退出码≠0 → 桥返回 kind:'error'）
+/** 网关响应桩开关与业务桩开关（2026-11-20：面板↔Host 全走 HTTP 数据网关
+ *  fetch('/ctfpilot/data/<cmd>')，不再走命令通道——命令通道每次必写
+ *  command/run+done 会污染会话日志。桩校验客户端用对 HTTP 动词与 sid 携带。 */
+let arenaRecordBroken = false // /ctf-arena record 失败模拟开关（引擎退出码≠0 → kind:'error'）
 let arenaStatsBroken = false // /ctf-arena stats 失败模拟开关（返回 kind:'error'，验证错误不拦死表单）
 let researchBroken = false // /ctf-research list 失败模拟（单卡隔离验证）
 let rsiListBroken = false // /ctf-rsi list 失败模拟（单卡隔离验证）
 let rsiDecisionBroken = false // /ctf-rsi 决策动词失败模拟（可行动错误 + 重试路径）
+let ensureWorkspaceBroken = false // /ctf-ensure-workspace 失败模拟（层1 → 层2 退退）
+let ensureWorkspaceDirs = [] // 层1 发往 Host 的 --dir 路径回录
+let toolsActionBroken = false // /ctf-tools install 注入失败模拟（错误 banner 不跳转）
+let continueBroken = false // /ctf-continue 注入失败模拟（未解出续攻必须显式上屏）
+let gateway404 = false // 网关路由未挂模拟（旧 Host + 新 client 版本偏斜 → HTTP 404）
+
 
 /** /ctf-research list 与 /ctf-rsi list 的引擎 stdout 形态（当前引擎 do_research/do_rsi 行格式）。 */
 const researchListText = [
@@ -246,7 +266,18 @@ const rsiListText = [
 ].join('\n')
 
 function fakeRemoteExecute(sessionId, line) {
-  remoteCalls.push({ sessionId, line })
+  if (String(line).startsWith('/ctf-continue')) {
+    // Host 真实口径（2026-11-25 用户方案）：不切预设、不 fork，直接在原会话
+    // followup 开新回合；成功回执带注入全文。
+    if (continueBroken) {
+      return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'error', text: '✗ 继续解题未注入：stub gateway unavailable' } } })
+    }
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: '✓ 已在同一会话开新回合继续解题（320 字符）。\n注入内容（供核对或手动重发）：\n上一轮未解出……' } } })
+  }
+  if (String(line).startsWith('/ctf-drill-start')) {
+    // Host 真实口径：切快解预设后注入整条练兵协议（stub 回执带清单摘要）。
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: '✓ 会话预设已切到「快解」，批量重刷已注入：本轮 3 道已解题（台账共 49 道已解，筛选命中 3 道）。清单：chall-a、chall-b、chall-c。\n注入内容（供核对或手动重发）：\n请在本对话中执行「批量重刷训练」……' } } })
+  }
   if (String(line).startsWith('/ctf-arena stats')) {
     if (arenaStatsBroken) {
       return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'error', text: '[error] sqlite unavailable' } } })
@@ -283,8 +314,70 @@ function fakeRemoteExecute(sessionId, line) {
   if (String(line).startsWith('/ctf-challenge-detail')) {
     return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: JSON.stringify(detailJson) } } })
   }
+  if (String(line).startsWith('/ctf-ensure-workspace')) {
+    if (ensureWorkspaceBroken) {
+      return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'error', text: '[error] ensure-workspace boom' } } })
+    }
+    const m = /--dir\s+(?:"([^"]+)"|(\S+))/.exec(String(line))
+    const dir = m ? (m[1] !== undefined ? m[1] : m[2]) : ''
+    ensureWorkspaceDirs.push(dir)
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: JSON.stringify({ dir }) } } })
+  }
+  if (String(line).startsWith('/ctf-tools status')) {
+    // Host 真实口径：安装通道头部 + 8 行快检 JSON（client 从首个 '[' 起解析）。
+    const rows = [
+      { id: 'nmap', name: 'nmap（端口扫描，Kali 式镜像）', kind: 'mirror', ok: false, detail: '(probe 无输出)' },
+      { id: 'sqlmap', name: 'sqlmap（SQL 注入）', kind: 'mirror', ok: false, detail: '(probe 无输出)' },
+      { id: 'protocol-mcp', name: 'ProtocolMCP（协议安全 MCP 服务）', kind: 'mcp', ok: false, detail: '未配置（在 MCP Manager 中添加 protocol-mcp）' },
+    ]
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: `安装通道：winget（模拟桩）\n工具快检（共 ${rows.length} 项）：\n` + JSON.stringify(rows, null, 2) } } })
+  }
+  if (String(line).startsWith('/ctf-tools install-all')) {
+    if (toolsActionBroken) {
+      return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'error', text: '✗ install-all 注入失败（followup 被拒）：stub boom' } } })
+    }
+    // Host 真实口径（agent 注入模式）：一键安装把全部未装工具合并成**一条**注入
+    // **一个**对话（stub 快检行 nmap/sqlmap 未装 → 2 个工具）。
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: '✓ 已在当前对话请求 agent 一键安装 2 个工具（nmap、sqlmap，通道：winget）。请切到对话查看执行进展；agent 完成后会自动跑 /ctf-tools status 复检。\n注入内容（供核对或手动重发）：\n请在本机一次性安装以下 2 个 CTF 工具……' } } })
+  }
+  if (/^\/ctf-tools (install|update|uninstall) /.test(String(line))) {
+    const m = /^\/ctf-tools (install|update|uninstall) (\S+)/.exec(String(line))
+    const verb = m ? m[1] : ''
+    const id = m ? m[2] : ''
+    if (toolsActionBroken) {
+      return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'error', text: `✗ ${verb} 注入失败（followup 被拒）：stub boom` } } })
+    }
+    // Host 真实口径（agent 注入模式）：成功回执含「请求 agent」+ 注入内容。
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: `✓ 已在当前对话请求 agent 安装 ${id}（通道：winget）。请切到对话查看执行进展；agent 完成后会自动跑 /ctf-tools status 复检。\n注入内容（供核对或手动重发）：\n请在本机安装 CTF 工具：${id}。` } } })
+  }
   return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: '已记入引擎账本' } } })
 }
+
+/** HTTP 数据网关桩（与 Host 侧 /ctfpilot/data 同形协议）：解析
+ *  GET ?args= / POST body / ?sid=，重构旧 {sessionId, line, method}
+ *  记录形状供既有断言复用；响应体 = CommandResult JSON。 */
+async function fakeFetch(input, init) {
+  const u = new URL(String(input), 'http://ctfpilot.local')
+  const method = String((init && init.method) || 'GET')
+  const body = init && typeof init.body === 'string' ? init.body : ''
+  const m = /^\/ctfpilot\/data\/([A-Za-z0-9-]+)$/.exec(u.pathname)
+  if (!m) {
+    return { ok: false, status: 404, json: async () => ({ kind: 'error', text: `stub: 非网关 URL ${String(input)}` }) }
+  }
+  const cmd = m[1]
+  const args = method === 'POST' ? body : (u.searchParams.get('args') || '')
+  const sid = u.searchParams.get('sid') || ''
+  const line = '/' + cmd + (args ? ' ' + args : '')
+  remoteCalls.push({ sessionId: sid, line, method, url: String(input) })
+  if (gateway404) {
+    return { ok: false, status: 404, json: async () => ({ kind: 'error', text: 'gateway: 路由未挂载（模拟旧 Host）' }) }
+  }
+  const out = await fakeRemoteExecute(sid, line)
+  const result = out && out.ok === true && out.value && out.value.result ? out.value.result
+    : { kind: 'error', text: 'stub: malformed envelope' }
+  return { ok: true, status: 200, json: async () => result }
+}
+globalThis.fetch = fakeFetch
 
 const ctx = {
   locale: {
@@ -301,9 +394,6 @@ const ctx = {
   },
   effect(fn) { return fn() },
   reflect: { provide: () => () => {} },
-  remote: {
-    commands: { execute: fakeRemoteExecute },
-  },
   slots: {
     // 真实运行：inject(name, factory) 先挂席位，factory 内 register 才产出生效定义。
     inject(_name, cb) { const def = cb(); slotRegistrations.push(def); return () => {} },
@@ -329,8 +419,6 @@ const PLUGIN_CLIENT_INJECT = pkg.dsh?.client?.inject ?? []
 const SERVICE_PROVIDERS = {
   'slots': ['@deepseek-ai/dsh-client-ui-slots'],
   'locale': ['@deepseek-ai/dsh-client-locale'],
-  'remote': ['@deepseek-ai/dsh-api-remotes'],
-  'remote.commands': ['@deepseek-ai/dsh-api-remotes'],
   'uiWorkspace': ['@deepseek-ai/dsh-client-ui-workspace'],
   'sessions': ['@deepseek-ai/dsh-api-session-controller'],
   'workspaces': ['@deepseek-ai/dsh-api-workspace-controller'],
@@ -433,8 +521,9 @@ const lastCall = remoteCalls[remoteCalls.length - 1]
 // 新 shellArg 智能引号：无空白单 token 不加引号；含空白值整段双引号（下一条
     // 场景同样验证 Host 侧 optArg/flagArg 引号感知解析）。
 const expectedLine = '/ctf-record-win --name jwt --category web --flag flag{jwt_3}'
-check('确认: 远端命令为 /ctf-record-win 含转义后的 flag/name/category 参数',
-  String(lastCall?.line) === expectedLine, String(lastCall?.line))
+check('确认: 远端命令为 /ctf-record-win 含转义后的 flag/name/category 参数（网关 POST + 会话 sid）',
+  String(lastCall?.line) === expectedLine && lastCall?.method === 'POST' && String(lastCall?.sessionId) === 'sess-42',
+  JSON.stringify(lastCall))
 
 // —— 成功态：state 跨渲染持久后重渲染 ——
 const elB2 = React.render(Card, cardProps(3))
@@ -462,11 +551,26 @@ check('跳过态: dismissed 后组件返回 null', elD2 === null)
 
 React.reset()
 remoteCalls.length = 0
-tailDef.inject('sess-panel') // 模拟会话尾部注入：设模块级 currentSessionId（详情拉取依赖它）
+tailDef.inject('sess-panel') // 模拟会话尾部注入：设模块级 currentSessionId（解题表单/确认卡定位目标会话用；数据读取已走网关与会话解耦）
 const Panel = byName('main').Component
 React.render(Panel, { t })
-check('面板: 挂载触发远程拉取 /ctf-dashboard', remoteCalls.some((c) => c.line === '/ctf-dashboard'))
+check('面板: 挂载触发网关拉取 /ctf-dashboard（GET，非命令通道）',
+  remoteCalls.some((c) => c.line === '/ctf-dashboard' && c.method === 'GET'),
+  JSON.stringify(remoteCalls.slice(-2)))
 await flushat()
+
+// —— 持久化与节流（2026-11-20 看板缓存改造门控：stale-while-revalidate）——
+const storedDash = lsStore.get('ctfpilot.dashboard.v1')
+check('看板: 拉取成功后持久化到 localStorage（UI 重启可恢复）',
+  Boolean(storedDash) && String(storedDash).includes('"fingerprint"'),
+  `len=${storedDash ? String(storedDash).length : 0}`)
+remoteCalls.length = 0
+React.render(Panel, { t }) // 缓存命中 + 30s 节流窗口内：不发请求
+await flushat()
+React.render(Panel, { t })
+check('看板: 节流窗口内重挂零请求（缓存命中+节流，防 sessions.list 订阅风暴）',
+  !remoteCalls.some((c) => c.line === '/ctf-dashboard'),
+  JSON.stringify(remoteCalls))
 
 /** 按标签文字点击切换（四个功能屏互斥；文字在元素树 .children 上）。 */
 function clickTab(el, label) {
@@ -558,8 +662,8 @@ if (detailEl) {
   check('详情页: 解题时间线含两次尝试（命中与未命中时刻）',
     dHtml.includes('2026-11-13 11:01') && dHtml.includes('2026-11-13 11:05'))
   check('详情页: 本题经验标签 chips', dHtml.includes('encoding') && dHtml.includes('decode'))
-  check('详情页: 触发远端 /ctf-challenge-detail --id 822',
-    remoteCalls.some((c) => c.line === '/ctf-challenge-detail --id 822'))
+  check('详情页: 触发网关 GET /ctf-challenge-detail --id 822',
+    remoteCalls.some((c) => c.line === '/ctf-challenge-detail --id 822' && c.method === 'GET'))
 }
 
 /* ------------------------------------------------------------------ *
@@ -591,9 +695,27 @@ await flushat() // 让 stats Promise 落地并写入 board 状态
 const arenaHtml = htmlOf(arenaMount())
 
 check('训练场: 排行榜总览与档位 KPI（3/5、60%、easy 1/normal 2/hard 0）',
-  arenaHtml.includes('3/5') && arenaHtml.includes('60%') && arenaHtml.includes('1/2/0'))
+  arenaHtml.includes('3/5') && arenaHtml.includes('60%') && arenaHtml.includes('1/2/0'),
+  arenaHtml.slice(0, 500))
 check('训练场: 分类排行按解出数排序（web 2/3 在前）与档位列',
-  arenaHtml.indexOf('web') < arenaHtml.indexOf('crypto') && arenaHtml.includes('2/3') && arenaHtml.includes('1/2'))
+  arenaHtml.indexOf('web') < arenaHtml.indexOf('crypto') && arenaHtml.includes('2/3') && arenaHtml.includes('1/2'),
+  arenaHtml.slice(0, 500))
+
+// —— 训练场缓存（2026-11-20 改造门控）：节流窗口内重挂零请求；后台刷新失败保留旧榜 ——
+remoteCalls.length = 0
+arenaMount()
+await flushat()
+arenaMount()
+check('训练场缓存: 节流窗口内重挂零请求（缓存命中 + 节流）',
+  !remoteCalls.some((c) => c.line === '/ctf-arena stats'),
+  JSON.stringify(remoteCalls))
+arenaStatsBroken = true
+await fillAndSubmit('cache-keep', 'web') // record 成功 → force 刷新 stats（broken）→ 保留旧榜
+const keepHtml = htmlOf(arenaMount())
+check('训练场缓存: 后台刷新失败时旧榜保留（refreshing 语义，不闪错误条）',
+  keepHtml.includes('3/5') && !keepHtml.includes('引擎数据暂时不可用'),
+  keepHtml.slice(0, 300))
+arenaStatsBroken = false
 
 /** 填表并点「记练」。桩环境没有受控输入的逐字段自动重渲染，故每填一个字段就
  *  重新挂载一帧，让下一次 onChange 的闭包读到最新表单值（否则旧闭包会把前一个字段覆盖回空）。 */
@@ -624,9 +746,9 @@ async function fillAndSubmit(name, category, opts = {}) {
 // —— 记练成功：引擎命令格式 + 成功提示 + 记账后自动刷新排行榜 ——
 await fillAndSubmit('mockdrill', 'misc', { fast: true })
 const lastRecCall = [...remoteCalls].reverse().find((c) => String(c.line).startsWith('/ctf-arena record'))
-check('记练: 远端命令为 /ctf-arena record 含转义后的 name/category 与 --fast',
-  String(lastRecCall?.line) === '/ctf-arena record --name mockdrill --category misc --fast',
-  String(lastRecCall?.line))
+check('记练: 远端命令为 /ctf-arena record 含转义后的 name/category 与 --fast（网关 POST）',
+  String(lastRecCall?.line) === '/ctf-arena record --name mockdrill --category misc --fast' && lastRecCall?.method === 'POST',
+  JSON.stringify(lastRecCall))
 
 const okHtml = htmlOf(arenaMount())
 check('记练: 成功提示「已记入练兵台账」上屏', okHtml.includes('已记入练兵台账'))
@@ -643,7 +765,10 @@ check('记练失败: 提供「重试」按钮（不静默吞掉失败）', failH
 // —— 运营纪律：排行榜读取失败不拦死操作——错误提示与「记练」表单仍同屏 ——
 arenaRecordBroken = false
 arenaStatsBroken = true
-React.reset() // 清空 hooks 桶：干净挂载 ArenaPanel 走 loadBoard(true) 首次拉取
+// 清面板缓存：模拟「无缓存首挂」——有缓存时新设计保留旧数据不亮错误条，
+// 错误态路径需从无缓存状态验证。
+try { globalThis.window.__ctfpilotPanelCacheReset__() } catch (_e) {}
+React.reset() // 清空 hooks 桶：干净挂载 ArenaPanel 走 loadBoard 首次拉取
 const p1 = React.render(Panel, { t })
 await flushat() // dashboard 落地后标签栏才上屏（首帧为 loading）
 const p2 = React.render(Panel, { t })
@@ -706,6 +831,15 @@ check('自进化: RSI 生命周期配色类（灰/黄/绿/划线红）共存',
     return cls.has('ctfp-sev--off') && cls.has('ctfp-sev--yel') && cls.has('ctfp-sev--grn') && cls.has('ctfp-sev--rej')
   })())
 
+// —— 自进化缓存（2026-11-20 改造门控）：双卡节流窗口内重挂零请求 ——
+remoteCalls.length = 0
+sevMount()
+await flushat()
+sevMount()
+check('自进化缓存: 节流窗口内重挂零请求（双卡缓存命中 + 节流）',
+  !remoteCalls.some((c) => c.line === '/ctf-research list' || c.line === '/ctf-rsi list'),
+  JSON.stringify(remoteCalls))
+
 // —— 决策按钮只在 proposed 行出现：全文档仅批准/驳回/采纳三个（其他状态无按钮）
 check('自进化: 仅 proposed 行出现三个决策按钮（其他状态无按钮）',
   (() => {
@@ -725,9 +859,9 @@ if (!approveBtn) throw new Error('approve button not found')
 approveBtn.props.onClick()
 await flushat()
 const decCall = [...remoteCalls].reverse().find((c) => /^\/ctf-rsi approve --pid rsi-001\b/.test(String(c.line)))
-check('决策: 远端命令为 /ctf-rsi approve --pid rsi-001 --note ...',
-  Boolean(decCall) && String(decCall.line).startsWith('/ctf-rsi approve --pid rsi-001 --note '),
-  String(decCall?.line))
+check('决策: 远端命令为 /ctf-rsi approve --pid rsi-001 --note ...（网关 POST）',
+  Boolean(decCall) && String(decCall.line).startsWith('/ctf-rsi approve --pid rsi-001 --note ') && decCall.method === 'POST',
+  JSON.stringify(decCall))
 check('决策: 成功提示「决策已记入提案台账」上屏', htmlOf(sevMount()).includes('决策已记入提案台账'))
 check('决策: 成功后紧接着的远端调用是 rsi list 刷新',
   remoteCalls.length > 0 && remoteCalls[remoteCalls.length - 1].line === '/ctf-rsi list')
@@ -747,6 +881,9 @@ check('采纳: 成功提示 + 强制 eval-suite 提示上屏', adoptHtml.include
 
 // —— 单源隔离：research 失败只亮研究卡错误条，RSI 卡照常渲染 ——
 React.reset()
+// 清面板缓存：模拟无缓存首挂——有缓存时新设计保留旧数据不亮错误条，
+// 错误路径需从无缓存状态验证。
+try { globalThis.window.__ctfpilotPanelCacheReset__() } catch (_e) {}
 researchBroken = true
 await openSelfEvoTab()
 sevMount()
@@ -789,6 +926,8 @@ rsiDecisionBroken = false
 
 // —— 双源同时失败：双卡各亮错误条 + 各自重试（loaded 落地后不卡 loading）——
 React.reset()
+// 清面板缓存：同上——双源错误路径需无缓存状态验证。
+try { globalThis.window.__ctfpilotPanelCacheReset__() } catch (_e) {}
 researchBroken = true
 rsiListBroken = true
 await openSelfEvoTab()
@@ -804,6 +943,17 @@ check('双源失败: 不再停留在 loading 占位（loaded 落地）',
 researchBroken = false
 rsiListBroken = false
 
+// —— 双源失败场景后恢复双卡缓存（本场景的 reset 清掉了 research/rsi 数据；
+//    后续「面板缓存持久化」断言与重启场景依赖完整持久层）——
+await openSelfEvoTab()
+sevMount()
+await flushat()
+check('双源恢复: broken 开关复位后重挂拉回双卡数据并重建缓存',
+  (() => {
+    const html = htmlOf(sevMount())
+    return html.includes('PNG 多帧隐写') && html.includes('misc/chain-decode')
+  })())
+
 /* ------------------------------------------------------------------ *
  * 9. 「开始解题」：新建工作区 + 新会话端到端（doStart 四处 bug 的回归门禁）
  *    覆盖：① 服务经模块级持有者（组件内引用 ctx 必 ReferenceError）；
@@ -812,19 +962,20 @@ rsiListBroken = false
  *             只收 workspaceId 单参；④ 任一步失败降级为当前会话且显式提示。
  * ------------------------------------------------------------------ */
 
-const wsCalls = { createDirectory: [], create: [], createSession: [], open: [], openSession: [] }
+const wsCalls = { createDirectory: [], create: [], createSession: [], open: [], openSession: [], forkSession: [] }
 let sessListSnap = { ids: [], byId: {}, current: undefined, phase: 'ready' } // sessions 列表快照（零会话段重置）
 const wsStub = {
   listDirectory: async () => ({ path: 'C:/Users/mock', home: 'C:/Users/mock', entries: [], crumbs: [] }),
   createDirectory: async (parent, name) => { wsCalls.createDirectory.push({ parent, name }); return `${parent}/${name}` },
   openSession: (sid) => { wsCalls.openSession.push(sid) },
   pickDirectory: async () => null,
-  forkSession: async () => 'sess-fork-1',
+  forkSession: async () => { wsCalls.forkSession.push('called'); return 'sess-fork-1' },
 }
 const wssvcStub = {
   create: async (input) => { wsCalls.create.push(input); return { workspaceId: 'ws-777', path: input.path } },
+  list: { getSnapshot: () => reuseList },
 }
-let reuseList = null // workspaces 列表快照（既有工作区复用段）
+let reuseList = { items: [{ workspaceId: 'ws-home', title: 'Home', path: 'C:/Users/mock/default-ws' }] } // workspaces 列表快照（层1 推 parent 与层2 复用共用）
 const sessionsStub = {
   // 官方 New Session 同款 API：建会话（层1/层2 都走它）
   create: async (opts) => { wsCalls.createSession.push(opts); return 'sess-new-1' },
@@ -873,14 +1024,13 @@ startBtn.props.onClick()
 await flushat()
 await flushat()
 
-check('开始解题: createDirectory 在 Host home 下建 ctf-<时间戳> 新目录',
-  wsCalls.createDirectory.length === 1 &&
-  wsCalls.createDirectory[0].parent === 'C:/Users/mock' &&
-  /^ctf-\d{8}-\d{6}$/.test(wsCalls.createDirectory[0].name),
-  JSON.stringify(wsCalls.createDirectory))
-check('开始解题: workspaces.create 注册全新目录（path 不是 "."）',
-  wsCalls.create.length === 1 &&
-  String(wsCalls.create[0]?.path) === `C:/Users/mock/${wsCalls.createDirectory[0]?.name}`,
+check('开始解题: 无 CTF-worker 时层1 发 /ctf-ensure-workspace 建固定目录（父 = 既有工作区父，目录名 CTF-worker）',
+  ensureWorkspaceDirs.length === 1 &&
+    /[\\/]CTF-worker$/i.test(ensureWorkspaceDirs[0]) &&
+    ensureWorkspaceDirs[0].replace(/[\\/]CTF-worker$/i, '') === 'C:/Users/mock',
+  JSON.stringify(ensureWorkspaceDirs))
+check('开始解题: workspaces.create 注册 fs.mkdir 返回的目录（不再走 directoryPicker）',
+  wsCalls.create.length === 1 && wsCalls.create[0]?.path === ensureWorkspaceDirs[0],
   JSON.stringify(wsCalls.create))
 check('开始解题: sessions.create({workspaceId}) 建新对话（官方 New Session 同款 API，非导航方法）',
   wsCalls.createSession.length === 1 && wsCalls.createSession[0].workspaceId === 'ws-777',
@@ -888,17 +1038,42 @@ check('开始解题: sessions.create({workspaceId}) 建新对话（官方 New Se
 check('开始解题: sessions.open 聚焦新会话 sess-new-1（openSession 兑底未被触发）',
   wsCalls.open.length === 1 && wsCalls.open[0] === 'sess-new-1' && wsCalls.openSession.length === 0,
   JSON.stringify({ open: wsCalls.open, openSession: wsCalls.openSession }))
-check('开始解题: /ctf-solve-start 发往新会话 sess-new-1',
-  remoteCalls.some((c) => c.sessionId === 'sess-new-1' && /^\/ctf-solve-start quick /.test(String(c.line))),
+check('开始解题: /ctf-solve-start 发往新会话 sess-new-1（网关 POST + sid）',
+  remoteCalls.some((c) => c.sessionId === 'sess-new-1' && c.method === 'POST' && /^\/ctf-solve-start quick /.test(String(c.line))),
   JSON.stringify(remoteCalls.slice(-3)))
 check('开始解题: 成功提示上屏', htmlOf(openSolveTab()).includes('已完成'))
 
-// —— 层2 复用降级：listDirectory 失败 + 既有工作区存在 → 复用工作区新建对话 ——
-let listDirBroken = false
-wsStub.listDirectory = async () => { if (listDirBroken) throw new Error('mock-listdir-boom'); return { path: 'C:/Users/mock', home: 'C:/Users/mock', entries: [], crumbs: [] } }
-wssvcStub.list = { getSnapshot: () => reuseList }
+// —— 固定 CTF-worker 复用：列表里已有 CTF-worker → 不建不注册直接用 ——
+// （2026-11-20 用户令：只建唯一 CTF-worker，已存在则直接复用。）
+reuseList = { items: [
+  { workspaceId: 'ws-home', title: 'Home', path: 'C:/Users/mock' },
+  { workspaceId: 'ws-ctf-worker', title: 'CTF-worker', path: 'C:/Users/mock/CTF-worker' },
+] }
+ensureWorkspaceDirs.length = 0
+wsCalls.create.length = 0; wsCalls.createSession.length = 0; wsCalls.open.length = 0
+const sfWorker0 = openSolveTab()
+findByClass(sfWorker0, 'ctfp-input-area').props.onChange({ target: { value: '题目：CTF-worker 已存在场景' } })
+const startBtnW = findAllByClass(openSolveTab(), 'ctfc-btn--primary')
+  .find((b) => b.type === 'button' && String(b.children[0]) === '开始解题')
+if (!startBtnW) throw new Error('start button (worker-reuse case) not found')
+startBtnW.props.onClick()
+await flushat()
+await flushat()
+check('CTF-worker 复用: 已存在时不发 ensure-workspace、不注册新工作区',
+  ensureWorkspaceDirs.length === 0 && wsCalls.create.length === 0,
+  JSON.stringify({ ensure: ensureWorkspaceDirs, create: wsCalls.create }))
+check('CTF-worker 复用: sessions.create 直接指向 ws-ctf-worker',
+  wsCalls.createSession.length === 1 && wsCalls.createSession[0].workspaceId === 'ws-ctf-worker',
+  JSON.stringify(wsCalls.createSession))
+check('CTF-worker 复用: 成功提示附复用说明',
+  htmlOf(openSolveTab()).includes('已复用固定工作区 CTF-worker'),
+  htmlOf(openSolveTab()).slice(0, 300))
+
+// —— 层2 复用：ensure-workspace 失败 + 既有工作区存在 → 复用工作区新建对话 ——
+// （2026-11-19 改造：层1 不再走 directoryPicker，改为 /ctf-ensure-workspace；
+//   破坏开关也随之迁移。）
 reuseList = { items: [{ workspaceId: 'ws-home', title: 'Home', path: 'C:/Users/mock' }] }
-listDirBroken = true
+ensureWorkspaceBroken = true
 wsCalls.createDirectory.length = 0; wsCalls.create.length = 0; wsCalls.createSession.length = 0; wsCalls.open.length = 0
 const sfReuse0 = openSolveTab()
 findByClass(sfReuse0, 'ctfp-input-area').props.onChange({ target: { value: '题目：复用工作区场景' } })
@@ -910,8 +1085,8 @@ await flushat()
 await flushat()
 
 const reuseHtml = htmlOf(openSolveTab())
-check('层2复用: 目录环节失败时改在既有工作区新建对话（提示含工作区名与原因）',
-  reuseHtml.includes('既有工作区') && reuseHtml.includes('Home') && reuseHtml.includes('mock-listdir-boom'),
+check('层2复用: 建目录环节失败时改在既有工作区新建对话（提示含工作区名与原因）',
+  reuseHtml.includes('既有工作区') && reuseHtml.includes('Home') && reuseHtml.includes('ensure-workspace boom'),
   reuseHtml.slice(0, 400))
 check('层2复用: sessions.create 指向既有工作区 ws-home（真新对话，非聚焦旧会话）',
   wsCalls.createSession.length === 1 && wsCalls.createSession[0].workspaceId === 'ws-home',
@@ -922,7 +1097,7 @@ check('层2复用: /ctf-solve-start 发往复用工作区的新会话 sess-new-1
   JSON.stringify(remoteCalls.slice(-2)))
 
 // —— 层3 全失败：sessions.create 也抛错 → 降级当前会话 + 显式提示（绝不静默） ——
-listDirBroken = false
+ensureWorkspaceBroken = false
 sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); throw new Error('mock-sess-boom') }
 wsCalls.createDirectory.length = 0; wsCalls.create.length = 0; wsCalls.createSession.length = 0; wsCalls.open.length = 0
 const sfFail0 = openSolveTab()
@@ -941,35 +1116,368 @@ check('层3降级: 层1 与层2 都尝试过 sessions.create（各 1 次，均�
   wsCalls.createSession.length === 2, JSON.stringify(wsCalls.createSession))
 sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-new-1' } // 还原桩
 
-// —— 零会话路由：currentSessionId 清空后，sessions 快照兜底路由引擎命令 ——
-// （打开面板不应要求先开对话：引擎数据是全局账本，任一存在会话即可路由。）
+// —— 零会话（2026-11-20 网关改造后）：数据读取走 HTTP 网关，与会话完全
+// 解耦——currentSessionId 清空也照常拉数据（旧 routeSessionId 池已删）。
 sessListSnap = { ids: ['sess-x'], byId: {}, current: undefined, phase: 'ready' }
 byName('conversation.chat.turnTail').inject('') // 清空 currentSessionId：模拟「还没打开任何对话」
 await flushat() // 让 inject 唤醒的旧渲染帧 loadPanel 先 settle（防 dashboardInFlight 竞态）
 
 React.reset()
 remoteCalls.length = 0
-React.render(Panel, { t }) // 新帧：routeSessionId 从 sessions 快照拿 sess-x
+React.render(Panel, { t }) // 新帧：网关拉取，零会话依赖
 await flushat()
 const zeroFrame0 = React.render(Panel, { t })
 const zeroHtml = htmlOf(zeroFrame0)
-check('零会话: currentSessionId 为空时面板仍上屏引擎数据（非「打开会话」空态）',
-  zeroHtml.includes('622') && !zeroHtml.includes('打开任意会话后即可加载引擎数据'),
+check('零会话: currentSessionId 为空时面板仍上屏引擎数据（网关拉取，无会话要求）',
+  zeroHtml.includes('622') && !zeroHtml.includes('打开任意会话'),
   zeroHtml.slice(0, 200))
-// 点「刷新」强制重拉：新请求必须路由到 sessions 快照里的 sess-x
+// 点「刷新」强制重拉：GET /ctfpilot/data/ctf-dashboard 且不带 sid（零会话耦合）
 const refreshBtn = findAllByClass(zeroFrame0, 'ctfp-btn')
   .find((b) => b.type === 'button' && b.props && b.props['aria-label'] === t('refresh'))
 if (!refreshBtn) throw new Error('refresh button not found (zero-session case)')
 refreshBtn.props.onClick()
 await flushat()
-check('零会话: 强制刷新的引擎命令路由到 sessions 快照会话 sess-x',
-  remoteCalls.some((c) => c.sessionId === 'sess-x' && c.line === '/ctf-dashboard'),
+check('零会话: 强制刷新走网关 GET 且无 sid（数据读取零会话耦合）',
+  remoteCalls.some((c) => c.line === '/ctf-dashboard' && c.method === 'GET' && !c.sessionId),
   JSON.stringify(remoteCalls.slice(-3)))
 check('零会话: 「开始解题」表单仍可渲染（不因无会话被空态拦截）',
   (() => {
     clickTab(React.render(Panel, { t }), '开始解题')
     return Boolean(grabComponent(React.render(Panel, { t }), (n) => /SolveForm/.test(n)))
   })())
+
+/* ------------------------------------------------------------------ *
+ * 9b. 工具管理：点装/更/卸 → 新对话 → agent 注入模式（2026-11-20 用户方案）
+ *     覆盖：① 点安装先走 ensureSolveSession（固定 CTF-worker 复用链）；
+ *           ② /ctf-tools install <id> POST 路由到新会话 sid；③ 成功回执上屏
+ *              并跳新对话；④ 注入失败 error banner 停在本面板（不跳转）。
+ * ------------------------------------------------------------------ */
+
+// 复用第 9 章的服务桩（wsStub/wssvcStub/sessionsStub 已注入模块级持有者）：
+// 列表里已放 CTF-worker → 点装应直接复用 ws-ctf-worker 建新对话。
+reuseList = { items: [
+  { workspaceId: 'ws-home', title: 'Home', path: 'C:/Users/mock' },
+  { workspaceId: 'ws-ctf-worker', title: 'CTF-worker', path: 'C:/Users/mock/CTF-worker' },
+] }
+sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-tools-1' }
+wsCalls.create.length = 0; wsCalls.createSession.length = 0; wsCalls.open.length = 0
+remoteCalls.length = 0
+ensureWorkspaceDirs.length = 0
+
+/** 挂载面板并切到「工具管理」标签，返回该帧元素树。 */
+function openToolsTab() {
+  const p = React.render(Panel, { t })
+  const rawComp = grabComponent(p, (n) => /ToolsPanel/.test(n))
+  if (!rawComp) throw new Error('ToolsPanel missing (tab not active?)')
+  return React.render(rawComp.type, rawComp.props)
+}
+clickTab(React.render(Panel, { t }), '工具管理')
+openToolsTab() // 首次挂载：useEffect 同步发起 status 网关拉取
+await flushat()
+await flushat() // status 拉取落地后行才上屏（fake React 每次 render 都重跑 effect，取数前必须 flush）
+const toolsHtml = htmlOf(openToolsTab())
+check('工具管理: 快检行上屏（status 网关拉取 + 目录行）',
+  toolsHtml.includes('nmap') && toolsHtml.includes('sqlmap'), toolsHtml.slice(0, 200))
+
+// 点第一行「安装」→ ensureSolveSession（复用 CTF-worker）→ POST /ctf-tools install nmap 到新会话。
+wsCalls.createSession.length = 0; wsCalls.open.length = 0
+remoteCalls.length = 0
+const toolsFrame = openToolsTab() // 挂载取按钮帧（effect 已在前一轮 settle）
+await flushat()
+const installBtn = findAllByClass(toolsFrame, 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]) === '安装')
+if (!installBtn) throw new Error('install button not found')
+installBtn.props.onClick()
+await flushat()
+await flushat()
+const actFrame = openToolsTab() // act 完成 + loadStatus 复检落地后的结果帧
+
+check('工具管理点装: 先经 ensureSolveSession 复用 CTF-worker 建新对话（不建目录不注册）',
+  ensureWorkspaceDirs.length === 0 && wsCalls.create.length === 0 &&
+    wsCalls.createSession.some((c) => c && c.workspaceId === 'ws-ctf-worker'),
+  JSON.stringify({ ensure: ensureWorkspaceDirs, create: wsCalls.create, createSession: wsCalls.createSession }))
+check('工具管理点装: /ctf-tools install POST 路由到新会话 sess-tools-1',
+  remoteCalls.some((c) => c.method === 'POST' && c.sessionId === 'sess-tools-1' && /^\/ctf-tools install nmap$/.test(String(c.line))),
+  JSON.stringify(remoteCalls.slice(-5)))
+check('工具管理点装: agent 注入回执上屏（含「请求 agent」与注入内容）',
+  htmlOf(actFrame).includes('请求 agent') && htmlOf(actFrame).includes('注入内容'),
+  htmlOf(actFrame).slice(0, 400))
+check('工具管理点装: 成功后聚焦新对话 sess-tools-1（openSession 导航兜底未触发）',
+  wsCalls.open.length === 1 && wsCalls.open[0] === 'sess-tools-1' && wsCalls.openSession.length === 0,
+  JSON.stringify({ open: wsCalls.open, openSession: wsCalls.openSession }))
+
+// —— 注入失败场景：error banner 停在本面板、不跳转 ——
+toolsActionBroken = true
+wsCalls.createSession.length = 0; wsCalls.open.length = 0
+remoteCalls.length = 0
+const toolsFrame2 = openToolsTab()
+await flushat()
+const installBtn2 = findAllByClass(toolsFrame2, 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]) === '安装')
+if (!installBtn2) throw new Error('install button (broken case) not found')
+installBtn2.props.onClick()
+await flushat()
+await flushat()
+const brokenFrame2 = openToolsTab()
+
+check('工具管理失败: 注入失败的 error banner 上屏（含 stub 原因）',
+  htmlOf(brokenFrame2).includes('注入失败') && htmlOf(brokenFrame2).includes('stub boom'),
+  htmlOf(brokenFrame2).slice(0, 400))
+check('工具管理失败: 失败不跳转（sessions.open 未被调用，banner 可读）',
+  wsCalls.open.length === 0, JSON.stringify({ open: wsCalls.open }))
+toolsActionBroken = false
+
+// —— 一键安装（2026-11-24 用户令）：点一下 → 一个新对话装完全部未装工具 ——
+// 桩改回新会话 id（sess-tools-2）：上一段点装后 currentSessionId 已是
+// sess-tools-1，若仍回同 id 会命中「目标=当前」而不跳转——换 id 才能验跳转链。
+sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-tools-2' }
+wsCalls.createSession.length = 0; wsCalls.open.length = 0
+remoteCalls.length = 0
+const toolsFrame3 = openToolsTab()
+await flushat()
+const installAllBtn = findAllByClass(toolsFrame3, 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]).startsWith('一键安装'))
+if (!installAllBtn) throw new Error('install-all button not found')
+check('工具管理一键安装: 按钮带未装计数（stub 行 nmap/sqlmap 缺装 → 2 个未装）',
+  String(installAllBtn.children[0]).includes('一键安装（2 个未装）'), String(installAllBtn.children[0]))
+installAllBtn.props.onClick()
+await flushat()
+await flushat()
+const allFrame = openToolsTab()
+check('工具管理一键安装: POST /ctf-tools install-all 路由到新会话（一个对话装全部，非逐工具开对话）',
+  remoteCalls.some((c) => c.method === 'POST' && c.sessionId === 'sess-tools-2' && String(c.line) === '/ctf-tools install-all'),
+  JSON.stringify(remoteCalls.slice(-5)))
+check('工具管理一键安装: 成功回执上屏并聚焦新对话 sess-tools-2',
+  htmlOf(allFrame).includes('请求 agent 一键安装') &&
+    wsCalls.open.length === 1 && wsCalls.open[0] === 'sess-tools-2',
+  JSON.stringify({ open: wsCalls.open }) + ' | ' + htmlOf(allFrame).slice(0, 200))
+
+// —— 批量重刷（2026-11-25 用户令）：训练场新按钮 → 新开快解对话 → 一条协议注入 ——
+sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-drill-1' }
+wsCalls.createSession.length = 0; wsCalls.open.length = 0
+remoteCalls.length = 0
+clickTab(React.render(Panel, { t }), '训练场')
+const arenaRaw = grabComponent(React.render(Panel, { t }), (n) => /ArenaPanel/.test(n))
+if (!arenaRaw) throw new Error('ArenaPanel missing (arena tab not active?)')
+React.render(arenaRaw.type, arenaRaw.props) // 首挂：effect 发起 stats 拉取
+await flushat()
+await flushat() // stats 落地写 board（缓存命中 + 后台再校验）
+const arenaFrame = React.render(arenaRaw.type, arenaRaw.props) // 落定帧
+const drillBtn = findAllByClass(arenaFrame, 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]) === '批量重刷题库（新对话）')
+if (!drillBtn) throw new Error('drill button not found; buttons=' +
+  findAllByClass(arenaFrame, 'ctfp-btn').map((b) => String(b.children && b.children[0])).join('|'))
+drillBtn.props.onClick()
+await flushat()
+await flushat()
+const drillFrame = React.render(arenaRaw.type, arenaRaw.props)
+check('训练场批量重刷: POST /ctf-drill-start 路由到新会话 sess-drill-1',
+  remoteCalls.some((c) => c.method === 'POST' && c.sessionId === 'sess-drill-1' && String(c.line) === '/ctf-drill-start'),
+  JSON.stringify(remoteCalls.slice(-5)))
+check('训练场批量重刷: 成功回执上屏并聚焦新对话',
+  htmlOf(drillFrame).includes('批量重刷已注入') &&
+    wsCalls.open.length === 1 && wsCalls.open[0] === 'sess-drill-1',
+  JSON.stringify({ open: wsCalls.open }) + ' | ' + htmlOf(drillFrame).slice(0, 200))
+clickTab(React.render(Panel, { t }), '工具管理') // 还原标签：后续工具页缓存段仍假设 工具管理 激活
+
+// —— 工具页缓存（2026-11-20 改造门控）：节流零请求 + force 刷新发 --fresh ——
+remoteCalls.length = 0
+openToolsTab()
+await flushat()
+openToolsTab()
+check('工具页缓存: 节流窗口内重挂零请求（缓存命中 + 节流）',
+  !remoteCalls.some((c) => /^\/ctf-tools status/.test(String(c.line))),
+  JSON.stringify(remoteCalls))
+const toolsRefreshBtn = findAllByClass(openToolsTab(), 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]) === '一键快检')
+if (!toolsRefreshBtn) throw new Error('tools refresh button not found')
+toolsRefreshBtn.props.onClick()
+await flushat()
+check('工具页缓存: force 刷新绕节流且带 --fresh（Host 侧探针快照 TTL 跳过）',
+  remoteCalls.some((c) => String(c.line) === '/ctf-tools status --fresh' && c.method === 'POST'),
+  JSON.stringify(remoteCalls.slice(-3)))
+// —— 面板缓存持久化（localStorage panels.v1）：UI 重启可恢复（arena-stats 已在
+//    训练场段单独验证——统计失败场景的 reset 会清掉它）——
+const panelsStored = lsStore.get('ctfpilot.panels.v1')
+check('面板缓存: 拉取成功后持久化到 localStorage（panels.v1，重启可恢复）',
+  Boolean(panelsStored) && ['"tools-status"', '"research-list"', '"rsi-list"']
+    .every((k) => String(panelsStored).includes(k)),
+  `len=${panelsStored ? String(panelsStored).length : 0}`)
+
+/* ------------------------------------------------------------------ *
+ * 9.5 「未解出 → 同会话续攻」：卡片按钮端到端（2026-11-25 用户方案）
+ *     旧实现快解模式 fork 新会话——fork 出的会话继承回合历史导致预设锁定，
+ *     也无法正确接续原对话。现改为在原会话 POST /ctf-continue 开新回合：
+ *      ① 确认后只发 /ctf-continue，绝不再调用 forkSession；
+ *      ② 命令带齐题面/分类/靶机/附件，sid 指向原会话；
+ *      ③ 成功回执上屏，本地条目保持未解出并置 running（等 Host 快照接管）；
+ *      ④ 注入失败显式上屏（旧实现 void 发射后不管 → 点了没反应）。
+ * ------------------------------------------------------------------ */
+
+const boardEntry = (over) => ({
+  mode: 'quick', cat: 'web', target: 'http://10.0.0.5:8080',
+  attaches: ['C:/tmp/a.zip'], body: '帮我扫这个站并拿到 flag',
+  startedAt: Date.now(), running: false, flags: [], status: 'running',
+  ...over,
+})
+/** 挂载面板（等缓存上屏）→ 切「正在解题」→ 返回该帧元素树。 */
+async function openSolvingBoardPanel() {
+  React.render(Panel, { t })
+  await flushat() // 标签栏只在 blob && status==='ok' 时渲染：等 loadPanel 落地
+  const p0 = React.render(Panel, { t })
+  clickTab(p0, '正在解题')
+  return React.render(Panel, { t })
+}
+/** 在元素树里按按钮文字取第一个可点按钮。 */
+function findButtonByText(root, label) {
+  return findAllByClass(root, 'ctfp-btn')
+    .find((b) => b.type === 'button' && String(Array.isArray(b.children) ? b.children[0] : '') === label)
+}
+
+// SolvingBoard 的 4s 轮询在 React 桩里拿不到 cleanup（useEffect 返回值被丢弃），
+// 会把 Node 事件循环钉住 → 本场景临时禁用定时器，场景结束恢复。
+const realSetInterval = globalThis.setInterval
+globalThis.setInterval = () => 0
+lsStore.set('ctfpilot.solveboard.v1', JSON.stringify({ version: 1, sessions: { 'sess-board-1': boardEntry() } }))
+React.reset()
+remoteCalls.length = 0
+wsCalls.forkSession.length = 0
+const boardA = await openSolvingBoardPanel()
+const unsolvedBtnA = findButtonByText(boardA, '未解出')
+if (!unsolvedBtnA) throw new Error('未解出 button missing')
+unsolvedBtnA.props.onClick({ stopPropagation() {} })
+const boardA2 = React.render(Panel, { t })
+check('续攻: 确认面板文案说明「同一会话开新回合」（不再提 fork）',
+  htmlOf(boardA2).includes('在同一会话开新回合继续解题') && !htmlOf(boardA2).includes('fork'),
+  htmlOf(boardA2).slice(0, 200))
+const confirmBtnA = findButtonByText(boardA2, '确认执行')
+if (!confirmBtnA) throw new Error('确认执行 button missing')
+confirmBtnA.props.onClick({ stopPropagation() {} })
+await flushat()
+const contCall = remoteCalls.find((c) => String(c.line).startsWith('/ctf-continue'))
+check('续攻: 确认后先聚焦原会话再发 /ctf-continue，且绝不 fork 新会话',
+  Boolean(contCall) && wsCalls.forkSession.length === 0 && wsCalls.open.includes('sess-board-1'),
+  `calls=${JSON.stringify(remoteCalls.map((c) => c.line))} open=${JSON.stringify(wsCalls.open)} fork=${wsCalls.forkSession.length}`)
+check('续攻: 命令带齐题面/分类/靶机/附件且 sid 指向原会话',
+  Boolean(contCall) && contCall.sessionId === 'sess-board-1' && contCall.method === 'POST' &&
+    contCall.line.includes('--category web') &&
+    contCall.line.includes('--target') && contCall.line.includes('10.0.0.5') &&
+    contCall.line.includes('--attach') && contCall.line.includes('a.zip') &&
+    contCall.line.includes('扫这个站'),
+  contCall ? String(contCall.line).slice(0, 260) : 'no /ctf-continue call')
+const boardAok = htmlOf(React.render(Panel, { t }))
+check('续攻: 成功回执上屏（同会话开新回合，上下文与进度保留）',
+  boardAok.includes('已在同一会话开新回合继续解题'))
+const boardStoreA = JSON.parse(String(lsStore.get('ctfpilot.solveboard.v1') || '{}'))
+check('续攻: 本地条目保持未解出并置 running（Host 快照随后接管）',
+  Boolean(boardStoreA.sessions) && boardStoreA.sessions['sess-board-1'].status === 'unsolved' &&
+    boardStoreA.sessions['sess-board-1'].running === true,
+  JSON.stringify(boardStoreA.sessions && boardStoreA.sessions['sess-board-1']))
+// —— 多轮续攻：一轮结束（Host 快照翻 running=false）后按钮必须重新可点 ——
+boardStoreA.sessions['sess-board-1'].running = false
+lsStore.set('ctfpilot.solveboard.v1', JSON.stringify(boardStoreA))
+React.reset()
+const boardA3 = await openSolvingBoardPanel()
+const unsolvedBtnA3 = findButtonByText(boardA3, '未解出')
+check('续攻: 一轮结束（running=false）后「未解出」按钮重新可点（支持多轮续攻）',
+  Boolean(unsolvedBtnA3) && unsolvedBtnA3.props.disabled === false,
+  unsolvedBtnA3 ? `disabled=${unsolvedBtnA3.props.disabled}` : 'button missing')
+// —— 失败路径：注入失败必须显式上屏（旧实现静默吞掉）——
+continueBroken = true
+lsStore.set('ctfpilot.solveboard.v1', JSON.stringify({ version: 1, sessions: { 'sess-board-1': boardEntry() } }))
+React.reset()
+const boardB = await openSolvingBoardPanel()
+const unsolvedBtnB = findButtonByText(boardB, '未解出')
+if (!unsolvedBtnB) throw new Error('未解出 button missing (failure case)')
+unsolvedBtnB.props.onClick({ stopPropagation() {} })
+const boardB2 = React.render(Panel, { t })
+const confirmBtnB = findButtonByText(boardB2, '确认执行')
+if (!confirmBtnB) throw new Error('确认执行 button missing (failure case)')
+confirmBtnB.props.onClick({ stopPropagation() {} })
+await flushat()
+const boardBfail = htmlOf(React.render(Panel, { t }))
+check('续攻: 注入失败显式上屏（带 Host 原始原因，不再静默）',
+  boardBfail.includes('继续解题注入失败') && boardBfail.includes('stub gateway unavailable'),
+  boardBfail.slice(0, 240))
+continueBroken = false
+
+/* ------------------------------------------------------------------ *
+ * 9.6 解题卡状态行结构回归（2026-11-25 用户实锤「运行中/本轮已结束乱排」）：
+ *     根因 = 状态文字被塞进 8px 的 .ctfp-dot 圆点容器，溢出压排。正确结构
+ *     = .ctfp-runstate 组合容器下两个兄弟元素：空圆点 + 文字 span。
+ *     （本段在 9.5 的 setInterval 禁用作用域内挂载「正在解题」板。）
+ * ------------------------------------------------------------------ */
+
+check('状态行 CSS: ctfp-runstate 组合容器与 ctfp-dot--off 定义齐备（无悬空引用）',
+  /\.ctfp-runstate\{display:inline-flex/.test(cssText) && /\.ctfp-dot--off\{/.test(cssText),
+  'runstate/off rules missing in STYLE_TEXT')
+lsStore.set('ctfpilot.solveboard.v1', JSON.stringify({ version: 1, sessions: {
+  'sess-run-1': boardEntry({ running: true, status: 'running' }),
+  'sess-run-2': boardEntry({ running: false, status: 'unsolved' }),
+} }))
+React.reset()
+const boardState = await openSolvingBoardPanel()
+const runstates = findAllByClass(boardState, 'ctfp-runstate')
+check('状态行: 圆点与文字分置两个兄弟元素（点空、字有文，杜绝文字进 8px 圆点）',
+  runstates.length === 2 && runstates.every((rs) => {
+    const kids = (Array.isArray(rs.children) ? rs.children : []).filter(Boolean)
+    const dot = kids.find((k) => String((k.props && k.props.className) || '').includes('ctfp-dot'))
+    return kids.length === 2 && Boolean(dot) && (dot.children || []).length === 0
+  }),
+  `n=${runstates.length}`)
+const stateHtml = htmlOf(boardState)
+check('状态行: 运行中/本轮已结束按 running 分支上屏',
+  stateHtml.includes('运行中') && stateHtml.includes('本轮已结束'),
+  stateHtml.slice(0, 120))
+check('状态行: 「跳转到该对话」按钮归位操作行（acts 内，不再插在标题与 flag 行之间）',
+  findAllByClass(boardState, 'ctfp-scard__acts').length === 2 &&
+    findAllByClass(boardState, 'ctfp-scard__acts')
+      .every((acts) => (Array.isArray(acts.children) ? acts.children : [])
+        .filter(Boolean)
+        .some((k) => String((Array.isArray(k.children) ? k.children[0] : k.children) || '') === '跳转到该对话')),
+  'jump button not in acts row')
+
+globalThis.setInterval = realSetInterval
+
+/* ------------------------------------------------------------------ *
+ * 10. UI 重启模拟：localStorage 持久层恢复（stale-while-revalidate 首步）
+ * ------------------------------------------------------------------ */
+
+// —— 合法恢复：重载 client.js（新 factory、模块级缓存清零）→ 模块加载即从
+// localStorage 恢复上次看板 → 首帧零远程调用直接上屏（重启后打开面板即见数据，
+// 不再转「正在读取引擎」）。
+remoteCalls.length = 0
+loaded.length = 0
+new Function(fs.readFileSync(CLIENT, 'utf8'))()
+const pluginReboot = loaded[0].factory(requireShim)
+slotRegistrations.length = 0
+pluginReboot.apply(ctx)
+React.reset()
+const PanelReboot = byName('main').Component
+React.render(PanelReboot, { t }) // 恢复的缓存命中 → present 同步写桶 + 节流 return
+await flushat()
+const rebootHtml = htmlOf(React.render(PanelReboot, { t }))
+check('重启: 模块重载后首帧零请求上屏持久化看板（localStorage 恢复生效）',
+  rebootHtml.includes('622') && !remoteCalls.some((c) => c.line === '/ctf-dashboard'),
+  `calls=${JSON.stringify(remoteCalls)} html=${rebootHtml.slice(0, 120)}`)
+
+// —— 损坏数据防御：持久层被写坏（旧版残留/截断）→ 归一化丢弃 → 重新拉取，
+// 不炸不污染。
+lsStore.set('ctfpilot.dashboard.v1', '{corrupted!! not json')
+loaded.length = 0
+new Function(fs.readFileSync(CLIENT, 'utf8'))()
+const pluginBad = loaded[0].factory(requireShim)
+slotRegistrations.length = 0
+pluginBad.apply(ctx)
+React.reset()
+remoteCalls.length = 0
+const PanelBad = byName('main').Component
+React.render(PanelBad, { t }) // 恢复失败 → 无缓存 → 发请求重新拉取
+await flushat()
+React.render(PanelBad, { t })
+check('重启: 持久层损坏数据被丢弃并重新拉取（防御性归一化，不炸不污染）',
+  remoteCalls.some((c) => c.line === '/ctf-dashboard') && htmlOf(React.render(PanelBad, { t })).includes('622'),
+  `calls=${JSON.stringify(remoteCalls)}`)
 
 /* ------------------------------------------------------------------ *
  * 汇总

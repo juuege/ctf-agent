@@ -1,7 +1,7 @@
 {
   "name": "dsh-ctfpilot",
   "description": "CTFPilot dual-channel CTF solving engine as a model-facing DSH tool: fast-path deterministic detectors, experience recall, writeup learning, a human-confirmed submit gate (propose → card → record), and a main-column dashboard panel over the local Python engine",
-  "version": "0.2.0",
+  "version": "0.2.4",
   "publishConfig": {
     "access": "public"
   },

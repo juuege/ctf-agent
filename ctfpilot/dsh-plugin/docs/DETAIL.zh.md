@@ -1,10 +1,25 @@
-# CTFPilot 插件详情（v0.2.0）
+# CTFPilot 插件详情（v0.2.3）
 
 ![CTFPilot 解题看板与提交确认卡片](preview.svg)
 
 ## 概览
 
 dsh-ctfpilot 是 CTFPilot 双通道解题引擎的 DSH 插件（Host 半边 `lib/index.js` + Client 半边 `client.js` + 包内 bundle patch）。零运行时依赖（仅 `@deepseek-ai/schemastery`），经子进程桥接本地离线 Python 引擎。
+
+**v0.2.3 变更：批量重刷训练场（历史题重解闭环）**
+
+- 新命令 `/ctf-drill-start [--category C] [--name N …] [--limit N] [--dir D]` + 训练场页新按钮「批量重刷题库」：新开**一个**快解对话，Host 从引擎台账取已解题（默认最近 10 道，自带历史 flag），把整条练兵协议注入该对话——agent 逐题：定位题目→引擎快通道重解→与历史 flag 自验→`arena register/record` 记练（--fast/--fail 语义）→recall 对比历史，更优解法写 writeup 并 `learn-writeup` 入库→末尾 `rebuild-knowledge` 与逐题汇总表 + RSI 线索提示。
+- 纪律内建：不重复 record-win、诚实跳过（原件缺失）、止损（连败 3 次跳题）、认证边界硬停；引擎调用带完整前缀（本机无 ctfpilot PATH 垫片）；预设切换失败则 error 终止不注入（同 solve-start 删降级纪律）。
+
+**v0.2.2 变更：工具目录补齐五类空白（pcap 流量 / 包构造 / Web 目录爆破 / 元数据取证 / 逆向）**
+
+- 新增 5 项：tshark（pcap 流量分析，winget 包 WiresharkFoundation.Wireshark 4.6.10，choco 包名 wireshark）、scapy（数据包构造与解析，pip）、dirsearch（Web 目录爆破，pip）、exiftool（文件元数据取证，winget 包 OliverBetz.ExifTool 13.64）、radare2（逆向工程 CLI，choco 有包 / winget 无包→指引 GitHub w64 zip）。
+- 通道全部经实测验证（winget search / pip index / choco 官网），不拍脑袋；安装通道实测口径从「仅 nmap 有 winget 包」更新为「nmap/tshark/exiftool 有包」。
+
+**v0.2.1 变更：工具管理「一键安装」**
+
+- `/ctf-tools install-all` 新动词 + 工具管理页新按钮（带未装计数）：点一下 → 新开**一个**对话（固定 CTF-worker 工作区），Host 实探全部工具后把所有未装工具的安装请求合并成**一条**注入该对话，agent 按清单串行装完（失败不阻塞后续、末尾一次统一复检）——不再逐工具各开一个对话。
+- 全部就绪时如实回执不注入；blocked 工具带 choco/手动获取指引，且提示 choco 只需装一次；缺装集以 Host 侧实探为准（面板行仅作计数展示）。
 
 **v0.2.0 变更：合并双模式预设 + 三界面 UI/UX 升级**
 
@@ -31,11 +46,12 @@ dsh-ctfpilot 是 CTFPilot 双通道解题引擎的 DSH 插件（Host 半边 `lib
 - 双按钮「已解出」「未解出」均弹确认框避免误点：
   - 未解出在对话进行中禁用；
   - 已解出确认 → `agent.cancel({keepInbox:true})` 终止活动轮，同会话注入 writeup 请求（learn-writeup + rebuild-knowledge）；
-  - 本轮结束后未解出：快解迁移全部上下文 fork 新会话并转深度解析启动，深解析原地续探。
+  - 本轮结束后未解出 → 在同一会话直接 followup 开新回合继续解题（上下文/进度全保留；不迁移、不 fork——fork 会话不能切预设、也无法正确接续对话）。
 
 **UI-3 工具管理**（主面板新 tab「工具管理」）：
-- 条目常驻目录：nmap / sqlmap / john / hashcat / binwalk（Kali 式系统包）、volatility3 / pwntools（pip 类）、protocol-mcp（MCP，指引至 MCP Manager 页面）。
+- 条目常驻目录（13 项）：nmap / tshark / sqlmap / dirsearch / john / hashcat / binwalk / exiftool / radare2（Kali 式系统包，tshark=Wireshark CLI）；scapy / volatility3 / pwntools / dirsearch（pip 类）；protocol-mcp（MCP，指引至 MCP Manager 页面）。
 - 一键快检（健康探测）→ 每行安装/更新/卸载按钮；卸载后条目不消失，仅回到「安装」态。
+- **一键安装**（v0.2.1）：工具栏新按钮，把全部未装工具的安装请求合并成一条注入**一个**新对话，agent 按清单串行装完（失败不阻塞、末尾统一复检）。
 - **乱码消毒（源头）**：`shellRun` 固定 `pwsh` UTF-8 控制台编码 + `asciiOnly()` 把探测 stdout/stderr 里非 ASCII 字节全部丢弃。where.exe 在中文系统输出 GBK 本地化错误串（「系统找不到指定的文件。」），若按 UTF-8/1252 解读即乱码上屏——在源头丢弃是唯一可靠消毒点，不依赖控制台编码真生效。
 
 ### 3. 命令与入口汇总
@@ -44,8 +60,10 @@ dsh-ctfpilot 是 CTFPilot 双通道解题引擎的 DSH 插件（Host 半边 `lib
 |---|---|
 | `/ctfpilot` | 旧引擎入口（斜杠命令前缀） |
 | `/ctf-solve-start [mode] [--category] [--attach …] 题面` | 界面 1 后端：注入模式提示词 |
+| `/ctf-continue [--category] [--target] [--attach …] 题面` | 界面 2 未解出流：同会话 followup 开新回合续攻（不切预设、不 fork） |
 | `/ctf-writeup [--name]` | 界面 2 已解出流：终止轮 + 同会话 writeup |
-| `/ctf-tools status\|install\|update\|uninstall` | 界面 3 后端：pwsh 健康探测与装/更/卸 |
+| `/ctf-drill-start [--category] [--name] [--limit] [--dir]` | 批量重刷训练场：台账已解题的整条练兵协议注入一个快解对话（重解→自验→记练→更优入库→汇总） |
+| `/ctf-tools status\|install-all\|install\|update\|uninstall` | 界面 3 后端：pwsh 健康探测、一键安装（一条注入装全部）与单工具装/更/卸 |
 | `/ctf-record-win --name --category --flag` | 人审提交记账（模型提 flag → 确认卡 → 台账） |
 | `/ctf-dashboard` `/ctf-stats` | 看板数据 / 台账统计 |
 

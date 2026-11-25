@@ -1,11 +1,13 @@
 /**
  * dsh-ctfpilot 浏览器半边 —— CTFPilot 解题看板（侧栏主面板）+ 提交确认卡（回合尾部）
  *
- * 数据流：
- *  - 主面板：CtfpilotPanel 挂载时调用模块级 loadPanel()，经注入的
- *    remoteCommands.execute(currentSessionId, '/ctf-dashboard', [])
- *    拉取引擎看板 JSON（KPI / 分类进度 / 题目台账 / 探测器命中 / 经验卡），
- *    「刷新」按钮手动重取；无定时器、无网络层直连。
+ * 数据流（2026-11-20 起）：
+ *  - 主面板：CtfpilotPanel 挂载时调用模块级 loadPanel()，经 HTTP 数据网关
+ *    panelDataFetch → fetch('/ctfpilot/data/ctf-dashboard') 拉取引擎看板
+ *    JSON（KPI / 分类进度 / 题目台账 / 探测器命中 / 经验卡），「刷新」按钮
+ *    手动重取。**不走命令通道**：dsh-commands.execute 每执行一次必写
+ *    command/run + command/done 两个 log-only 事件，24KB 看板 JSON 会永久
+ *    落进会话日志并折成对话卡片（用户令：对话里只允许解题上下文）。
  *  - 提交确认卡：conversation.chat.turnTail 席位按会话注入；卡片读取会话
  *    投影 'ctfpilot'（{proposals:{...}, confirmed:[...]}），挑出与当前回合
  *    对应且已准入的 proposal，渲染「确认提交」人审卡；确认后执行
@@ -129,6 +131,13 @@ window.__ModuleLoader__.load({
       'arenaColRate': '通过率',
       'arenaColTier': '档位(e/n/h)',
       'arenaRecordOk': '已记入练兵台账，排行榜自动刷新',
+      // —— 批量重刷（2026-11-25 用户令：重解历史题→自验→记练→更优解法入库的自动化闭环）——
+      'arenaDrillTitle': '批量重刷',
+      'arenaDrillSub': '把台账已解题逐题重解（快通道优先）、与历史 flag 自验、自动记练；更优解法写 writeup 入库',
+      'arenaDrillBtn': '批量重刷题库（新对话）',
+      'arenaDrillBusy': '正在派发批量重刷…',
+      'arenaDrillHint': '新开一个快解对话执行重刷协议：逐题定位→引擎快通道重解→与历史 flag 比对→arena 记练→更优解法 learn-writeup 入库→末尾 rebuild-knowledge 与汇总（默认最近 10 道，更多用 /ctf-drill-start --limit）',
+      'arenaDrillFailed': '批量重刷派发失败：请查看下方信息',
       // —— 自进化：研究队列 + RSI 提案流（第六标签）——
       'tabSelfEvo': '自进化',
       'researchTitle': '研究队列',
@@ -157,7 +166,6 @@ window.__ModuleLoader__.load({
       'errorState': '引擎数据暂时不可用（请确认引擎目录配置正确）',
       'retry': '重试',
       'emptyState': '暂无数据',
-      'panelNeedsSession': '打开任意会话后即可加载引擎数据',
       // —— 提交确认卡 ——
       'cardTitleFallback': '提交确认',
       'cardHint': '将以下 Flag 记录到 CTFPilot 引擎账本',
@@ -185,8 +193,13 @@ window.__ModuleLoader__.load({
       'formAttachPick': '选择…',
       'formCat': '题型（可选）',
       'formCatPh': '如 crypto / web / pwn …',
+      'formTarget': '靶机地址（可选，扫描/连接类题目强烈建议填写）',
+      'formTargetPh': '如 127.0.0.1 / 192.168.1.10 / example.com —— 只填你已授权的靶标',
       'formStart': '开始解题',
       'formStartBusy': '正在切换预设并注入题面…',
+      'formShortWarn': '题面只有几个字、也没有附件路径——看起来不是有效题目。确定开跑吗？（占位/测试请点取消，避免 agent 全盘搜索白烧时钟）',
+      'formShortGo': '就是测试，开跑',
+      'formShortCancel': '取消',
       'formStarted': '已完成：已按所选模式切换本会话的 agent 预设，题面已注入，模型已开始解题。可在「正在解题」标签查看实时进度。',
       'formNeedInput': '请至少填写「题面」或「附件路径」之一。',
       'formNoSession': '请先打开任意一个对话，再开始解题。',
@@ -195,6 +208,7 @@ window.__ModuleLoader__.load({
       'formWsFallback': '新建工作区未成功，已降级为在当前对话继续（{err}）。',
       'formWsNoService': '客户端未提供会话服务（sessions），已降级为在当前对话继续。',
       'formWsReuse': '自动建目录未成，已用既有工作区「{name}」新建对话（原因：{err}）。',
+      'formWsWorkerReused': '（已复用固定工作区 CTF-worker 新建对话）',
       'formManualHint': '（以下提示词也已尝试复制到剪贴板，如未生效请手动复制。）',
       'formClipboardFail': '剪贴板不可用：请手动复制上方文本发送。',
       'solvingTab': '正在解题',
@@ -207,22 +221,23 @@ window.__ModuleLoader__.load({
       'solvingNoFlags': '暂未抽到 flag',
       'btnSolved': '已解出',
       'btnUnsolved': '未解出',
+      'startFailedBadge': '启动失败',
       'solvedQNote': '终止当前对话轮，并在同一会话上写 writeup 总结归档。',
-      'unsolvedQNote': '快解：把全部上下文迁移到新会话并转深度解析；深度解析：在原地继续深挖。',
+      'unsolvedQNote': '在同一会话开新回合继续解题：上下文与进度全部保留，可换策略再攻（不迁移、不重开对话）。',
       'unsolvedWhileRunning': '对话进行中，不能标记未解出——本轮结束后再点。',
       'solvedMarked': '已标记解出：活动轮已终止，并在同会话请求 writeup 归档。',
-      'unsolvedMarkedQuick': '已标记未解出：正在迁移全部上下文并启动深度解析…',
-      'unsolvedMarkedDeep': '已标记未解出：正在原地继续深挖…',
-      'migratedDone': '深度解析会话已就绪，正在切换过去。',
-      'forkFallbackNote': '（无法 fork 新会话，改在原会话原地以深度解析继续）',
+      'unsolvedContinueQueued': '已标记未解出：已在同一会话开新回合继续解题（上下文与进度保留）。',
       'jumpHint': '跳转到该对话',
       'solvingDelHint': '删除这条解题记录',
       'confirmAction': '确认执行',
       'tabSolve': '开始解题',
       'tabTools': '工具管理',
       'toolsTitle': 'CTF 工具管理',
-      'toolsSub': '常用解题工具的健康快检与装/更/卸；条目常驻，卸载后只回到「安装」态。',
+      'toolsSub': '常用解题工具的健康快检与装/更/卸；「一键安装」把全部未装工具合并进一个新对话串行装完；条目常驻，卸载后只回到「安装」态。',
       'toolsStatus': '一键快检',
+      'toolsInstallAll': '一键安装',
+      'toolsInstallAllCount': '一键安装（{n} 个未装）',
+      'toolsInstallAllHint': '新开一个对话，把所有未安装工具的安装请求一次性交给该对话的 agent 按清单串行安装（缺装集以 Host 快检为准）',
       'toolsStOk': '可用',
       'toolsStMissing': '未安装',
       'toolsActInstall': '安装',
@@ -323,6 +338,13 @@ window.__ModuleLoader__.load({
       'arenaColRate': 'win rate',
       'arenaColTier': 'tier(e/n/h)',
       'arenaRecordOk': 'Logged into the practice ledger; the leaderboard refreshes automatically',
+      // —— Batch re-drill (2026-11-25): re-solve → self-verify → arena record → learn improved writeups ——
+      'arenaDrillTitle': 'Batch re-drill',
+      'arenaDrillSub': 'Re-solve ledger challenges one by one (fast path first), self-verify against historical flags, auto-record drills, learn improved writeups',
+      'arenaDrillBtn': 'Batch re-drill ledger (new chat)',
+      'arenaDrillBusy': 'Dispatching batch re-drill…',
+      'arenaDrillHint': 'Open one quick-mode chat running the drill protocol: locate each challenge → re-solve via the engine fast path → verify against the historical flag → arena record → learn-writeup for improved solutions → rebuild-knowledge and a summary at the end (latest 10 by default; more via /ctf-drill-start --limit)',
+      'arenaDrillFailed': 'Batch re-drill dispatch failed: see the info below',
       // —— Self-evolution: research queue + RSI proposal stream (6th tab) ——
       'tabSelfEvo': 'Self-Evolution',
       'researchTitle': 'Research Queue',
@@ -350,7 +372,6 @@ window.__ModuleLoader__.load({
       'errorState': 'Engine data is temporarily unavailable (check the configured engine directory)',
       'retry': 'Retry',
       'emptyState': 'Nothing here yet',
-      'panelNeedsSession': 'Open any conversation to load the engine data',
       'cardTitleFallback': 'Submit confirmation',
       'cardHint': 'Record the Flag below into the CTFPilot engine ledger',
       'submitConfirm': 'Confirm and record',
@@ -377,8 +398,13 @@ window.__ModuleLoader__.load({
       'formAttachPick': 'Pick…',
       'formCat': 'Category (optional)',
       'formCatPh': 'e.g. crypto / web / pwn …',
+      'formTarget': 'Target host (optional; strongly recommended for scan/recon challenges)',
+      'formTargetPh': 'e.g. 127.0.0.1 / 192.168.1.10 / example.com — only targets you are authorized to test',
       'formStart': 'Start solving',
       'formStartBusy': 'Switching preset and injecting the challenge…',
+      'formShortWarn': 'The challenge text is only a few characters with no attachments — it does not look like a real challenge. Start anyway? (Cancel if this is just a placeholder/test, to avoid a pointless disk-wide hunt.)',
+      'formShortGo': 'Just testing — start anyway',
+      'formShortCancel': 'Cancel',
       'formStarted': 'Done: the preset matched to the mode is active, the challenge text is injected, the model is solving — follow it on the Solving tab',
       'formNeedInput': 'Fill in the challenge text or at least one attachment path.',
       'formNoBridge': 'The client has no session factory; copy the challenge text below and paste it into the composer to send manually.',
@@ -386,6 +412,7 @@ window.__ModuleLoader__.load({
       'formWsFallback': 'New-workspace creation failed; continuing in the current conversation ({err}).',
       'formWsNoService': 'The client provides no session service (sessions); continuing in the current conversation.',
       'formWsReuse': 'Auto directory creation failed; created the conversation inside the existing workspace "{name}" (reason: {err}).',
+      'formWsWorkerReused': '(Reused the fixed CTF-worker workspace for the new conversation)',
       'formNoSession': 'Open any conversation first, then start solving here.',
       'formManualHint': '(The brief below was also copied to the clipboard; copy manually if that failed.)',
       'formClipboardFail': 'Clipboard unavailable: copy the text above and send manually.',
@@ -399,22 +426,23 @@ window.__ModuleLoader__.load({
       'solvingNoFlags': 'no flag yet',
       'btnSolved': 'Solved',
       'btnUnsolved': 'Not solved',
+      'startFailedBadge': 'Start failed',
       'solvedQNote': 'Stop the active round, then ask the same conversation to write up the solution.',
-      'unsolvedQNote': 'Quick mode migrates all context to a fresh deep-analysis conversation; deep mode continues in place.',
+      'unsolvedQNote': 'Continue in the same conversation: a new turn keeps all context and progress so the agent can retry with a fresh strategy.',
       'unsolvedWhileRunning': 'Cannot mark not-solved while the round runs — click after the round ends.',
       'solvedMarked': 'Marked solved: round stopped, writeup requested on the same conversation.',
-      'unsolvedMarkedQuick': 'Marked not-solved: migrating context to deep analysis…',
-      'unsolvedMarkedDeep': 'Marked not-solved: continuing in place…',
-      'migratedDone': 'Deep-analysis session ready; switching to it now.',
-      'forkFallbackNote': '(fork failed: continuing deep analysis in place instead)',
+      'unsolvedContinueQueued': 'Marked not-solved: queued a new turn in the same conversation to keep solving (context and progress preserved).',
       'jumpHint': 'Open this conversation',
       'solvingDelHint': 'Remove this solve record',
       'confirmAction': 'Confirm',
       'tabSolve': 'Start Solving',
       'tabTools': 'Tools',
       'toolsTitle': 'CTF Tools',
-      'toolsSub': 'Health probe plus install/update/uninstall; rows persist, uninstalled ones return to Install state.',
+      'toolsSub': 'Health probe plus install/update/uninstall; Install-all merges every missing tool into one new conversation. Rows persist; uninstalled ones return to Install state.',
       'toolsStatus': 'Probe now',
+      'toolsInstallAll': 'Install all',
+      'toolsInstallAllCount': 'Install all ({n} missing)',
+      'toolsInstallAllHint': 'Open one new conversation and hand every missing tool to its agent for sequential installation (the Host probe decides the missing set)',
       'toolsStOk': 'available',
       'toolsStMissing': 'not installed',
       'toolsActInstall': 'Install',
@@ -451,9 +479,7 @@ window.__ModuleLoader__.load({
      * 宿主桥接（apply 时写入；组件只读）
      * ============================================================ */
 
-    /** ctx.remote.commands（apply 期间赋值；缺失时所有远程调用安全降级为错误态）。 */
-    let remoteCommands = null
-    /** 当前会话 id：由回合尾部席位注入捕获，主面板据此调用引擎命令。 */
+    /** 当前会话 id：由回合尾部席位注入捕获；解题表单/确认卡按它定位目标会话。 */
     let currentSessionId = ''
     /** 稳定翻译器：字典注册完成后捕获，供 props.t 缺位时兜底（同样走绑定翻译）。 */
     let boundTranslator = null
@@ -469,14 +495,49 @@ window.__ModuleLoader__.load({
         sessionListeners = sessionListeners.filter((x) => x !== fn)
       }
     }
-    /** 看板数据按会话记忆（模块级、跨组件挂载存活）：同会话重开面板直接复用，
-     *  不重复拉取——彻底消除「每次点进侧边栏都要重新加载」。 */
-    let dashboardCache = null // { sessionId: string, data: object }
+    /** 看板数据全局缓存（模块级，跨组件挂载/跨会话存活——数据是引擎全局账本，
+     *  与会话无关，不再按 sessionId 键控）：{ data, fingerprint, at }。
+     *  fingerprint = JSON.stringify(data)，用于「账本没变就不重渲染」的内容级比较；
+ *  at = 拉取时刻，再校验节流窗口的基准。 */
+    let dashboardCache = null
     /** 看板请求防重入：同一时刻只保留一个进行中的请求。 */
     let dashboardInFlight = false
-    /** 作废看板缓存：提交确认卡记账成功、或手动「刷新」时调用。 */
-    function invalidateDashboard() {
-      dashboardCache = null
+    /** 后台再校验节流窗口：窗口内缓存命中不再发请求（防 sessions.list 快照
+     *  订阅风暴）；手动刷新与记账作废不受节流。窗口过期后的一次 revalidate
+     *  在 Host 签名命中时 <50ms 往返，用户无感。 */
+    const DASHBOARD_REVALIDATE_MS = 30_000
+    /** localStorage 持久化键：跨 UI 重启恢复首帧（看板 JSON 实测 66KB，
+     *  远低于 localStorage 配额）；写入失败（隐私模式/超限）降级为仅内存缓存。 */
+    const DASHBOARD_STORE_KEY = 'ctfpilot.dashboard.v1'
+
+    /** 恢复持久化的看板缓存：结构性防御——旧版/损坏数据过 normalizeBlob
+     *  归一化后才可用，形状不对一律丢弃（宁可重新拉取，不用污染数据）。 */
+    function readPersistedDashboard() {
+      try {
+        const raw = localStorage.getItem(DASHBOARD_STORE_KEY)
+        if (!raw) return null
+        const saved = JSON.parse(raw)
+        if (!saved || typeof saved !== 'object') return null
+        const data = normalizeBlob(saved.data)
+        const at = typeof saved.at === 'number' && Number.isFinite(saved.at) ? saved.at : 0
+        return { data, fingerprint: typeof saved.fingerprint === 'string' ? saved.fingerprint : JSON.stringify(data), at }
+      } catch {
+        return null // localStorage 不可用（Node 测试环境/隐私模式）：内存缓存仍然有效
+      }
+    }
+
+    /** 把当前看板缓存写入 localStorage（66KB stringify 约 1ms，拉取路径专用）。 */
+    function persistDashboard() {
+      if (dashboardCache === null) return
+      try {
+        localStorage.setItem(DASHBOARD_STORE_KEY, JSON.stringify({
+          data: dashboardCache.data,
+          fingerprint: dashboardCache.fingerprint,
+          at: dashboardCache.at,
+        }))
+      } catch {
+        /* 配额/隐私模式：静默降级为仅内存缓存（数据本身已上屏） */
+      }
     }
 
     /* ============================================================
@@ -642,7 +703,7 @@ window.__ModuleLoader__.load({
 .ctfp-detail__list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;padding-right:2px}
 .ctfp-att__detail{color:var(--dsw-alias-label-primary,#1a1a1a)}
 .ctfp-att__verdict{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;align-self:flex-start;font-size:11.5px}
-.ctfp-lesson{border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.22));border-radius:8px;background:var(--dsw-alias-bg-layer-1,#f7f8fa);padding:8px 10px;font-size:12.5px;display:flex;flex-direction:column;gap:3px}
+.ctfp-lesson{border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.22));border-radius:8px;background:var(--dsw-alias-bg-layer-1,#f7f8fa);padding:7px 10px;font-size:12.5px;display:flex;flex-direction:column;gap:3px}
 .ctfp-lesson b{font-weight:600}
 .ctfp-tagbox{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .ctfp-tags{display:inline-flex;gap:5px;flex-wrap:wrap}
@@ -652,7 +713,6 @@ window.__ModuleLoader__.load({
 .ctfp-row--click:hover{border-color:var(--dsw-alias-state-business-primary,#3b82f6);background:var(--dsw-alias-card-fill-hover,var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.07)))}
 .ctfp-row{border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.22));border-radius:var(--ctfp-radius-sm);background:var(--dsw-alias-bg-layer-1,#f7f8fa);padding:8px 10px;display:flex;flex-direction:column;gap:5px;transition:background-color .15s ease,border-color .15s ease}
 .ctfp-row--solved{background:color-mix(in srgb, var(--dsw-alias-state-success-primary,#22c55e) 10%, transparent);border-color:var(--dsw-alias-state-success-primary,#22c55e);box-shadow:inset 3px 0 0 var(--dsw-alias-state-success-primary,#22c55e)}
-.ctfp-row--solved{background:color-mix(in srgb, var(--dsw-alias-state-success-primary,#22c55e) 10%, transparent);border-color:var(--dsw-alias-state-success-primary,#22c55e)}
 .ctfp-rowtop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .ctfp-rownm{font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 /* 徽标：shadcn Badge secondary 口径——muted 实底替代描边，语义色仅在小元素上 */
@@ -677,8 +737,6 @@ window.__ModuleLoader__.load({
 .ctfp-detrow:last-child{border-bottom:none}
 .ctfp-dethead{color:var(--dsw-alias-label-secondary,#667085);font-weight:600}
 .ctfp-lessons{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto;padding-right:2px}
-.ctfp-lesson{border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.22));border-radius:8px;background:var(--dsw-alias-bg-layer-1,#f7f8fa);padding:7px 10px;font-size:12.5px}
-.ctfp-lesson b{font-weight:600}
 .ctfp-lesson-dim{color:var(--dsw-alias-label-secondary,#667085);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 /* 工具行：操作按钮 + 计数徽标的标准布局（收编三处 inline style） */
 .ctfp-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
@@ -706,7 +764,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
 .ctfc-btn--ghost{border:1px solid var(--dsw-alias-border-l4,rgba(128,128,128,.45));background:transparent;color:var(--dsw-alias-label-primary,#1a1a1a)}
 .ctfc-btn--ghost:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.14))}
 .ctfc-btn:disabled{opacity:.55;cursor:default}
-.ctfc-status{font-size:12.5px;border-radius:8px;padding:6px 10px;margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctfc-status{font-size:12.5px;border-radius:8px;padding:6px 10px;margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;white-space:pre-wrap}
 .ctfc-status__detail{opacity:.85;font-size:12px}
 .ctfc-status--ok{background:color-mix(in srgb, var(--dsw-alias-state-success-primary,#22c55e) 12%, transparent);color:var(--dsw-alias-state-success-primary,#22c55e)}
 .ctfc-status--bad{background:rgba(220,38,38,.10);color:#dc2626}
@@ -723,15 +781,18 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
 .ctfp-formgrid textarea{min-height:58px;resize:vertical;line-height:1.6;font-family:inherit}
 .ctfp-attrow{display:flex;align-items:center;gap:8px}
 .ctfp-flags{display:flex;flex-wrap:wrap;gap:6px}
-.ctfp-sflag{font-family:var(--ctfp-mono);font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l3,rgba(128,128,128,.28));color:var(--dsw-alias-label-primary,#1a1a1a);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctfp-sflag{font-family:var(--ctfp-mono);font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l3,rgba(128,128,128,.28));color:var(--dsw-alias-label-primary,#1a1a1a);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:anywhere}
 .ctfp-boards{display:flex;flex-direction:column;gap:10px}
 .ctfp-scard{border:1px solid var(--dsw-alias-border-l3,rgba(128,128,128,.25));border-radius:var(--ctfp-radius-lg);padding:10px 12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;transition:background-color .15s ease,border-color .15s ease}
 .ctfp-scard:hover{border-color:var(--dsw-alias-state-brand-primary,var(--dsw-alias-brand-primary,#3b82f6));background:var(--dsw-alias-card-fill-hover,var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.06)))}
 .ctfp-scard__top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ctfp-scard__meta{font-size:12.5px;color:var(--dsw-alias-label-secondary,#667085)}
+.ctfp-scard__meta{font-size:12.5px;color:var(--dsw-alias-label-secondary,#667085);overflow-wrap:anywhere}
 .ctfp-scard__acts{display:flex;gap:8px;flex-wrap:wrap}
 .ctfp-actions-note{font-size:12px;color:var(--dsw-alias-label-secondary,#667085)}
+/* 状态行：圆点 + 状态文字的组合容器（点归点、字归字，两者不可塞进同一元素） */
+.ctfp-runstate{display:inline-flex;align-items:center;gap:6px;flex:none;white-space:nowrap}
 .ctfp-dot--run{width:9px;height:9px;border-radius:50%;background:var(--dsw-alias-state-warning-primary,#f59e0b);animation:ctfp-pulse 1.8s ease-in-out infinite}
+.ctfp-dot--off{background:var(--dsw-alias-label-secondary,#98a2b3)}
 @keyframes ctfp-pulse{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-state-warning-primary,#f59e0b) 22%,transparent)}50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--dsw-alias-state-warning-primary,#f59e0b) 8%,transparent)}}
 .ctfp-toolhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0 4px;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085);border-bottom:1px solid var(--dsw-alias-border-l3,rgba(128,128,128,.25))}
 .ctfp-toolrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px dashed var(--dsw-alias-border-l3,rgba(128,128,128,.18));padding:8px 0;font-size:12.5px}
@@ -740,14 +801,11 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
 .ctfp-toolrow>.ctfp-badge{flex:none}
 .ctfp-toolrow>span.ctfp-toolstate{flex:none;display:inline-flex;align-items:center;gap:6px}
 .ctfp-toolrow>.ctfp-tooldetail{flex-basis:100%;margin-top:2px;opacity:.85;word-break:break-all}
-.ctfp-badge--off{opacity:.55}
 @media (max-width:390px){.ctfp-formgrid{grid-template-columns:1fr}.ctfp-toolrow .ctfp-toolname{min-width:104px}.ctfp-sflag{max-width:170px}}
 /* v3：状态卡整卡可点（同 dsh-context 卡片交互）；题面/flag 长文溢出收敛；历史删除键 */
 .ctfp-scard{position:relative}
 .ctfp-scard--done{cursor:default}
 .ctfp-scard--done:hover{border-color:var(--dsw-alias-border-l3,rgba(128,128,128,.25))}
-.ctfp-scard__meta{overflow-wrap:anywhere}
-.ctfp-sflag{overflow-wrap:anywhere}
 .ctfp-scard__del{position:absolute;top:8px;right:10px;font-size:11px;line-height:1;opacity:.5;padding:4px 6px}
 .ctfp-scard__del:hover{opacity:1}
 /* v3：开始解题表单深色跟随——.ctfp-formlab/.ctfp-input-area 原无样式规则，
@@ -891,6 +949,99 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       }
       return { stats, bycat, challs, lessons, detectors, modes, errors }
     }
+
+    /** 台账搜索串缓存：每行 name/cat/mode/flag 只小写拼接一次，输入时纯
+     *  includes；WeakMap 不改数据形状，归一化对象被替换后自动回收。 */
+    const challSearchCache = new WeakMap()
+    function challSearchText(c) {
+      let s = challSearchCache.get(c)
+      if (s === undefined) {
+        s = [c.name, c.cat, c.mode, c.flag].join('\n').toLowerCase()
+        challSearchCache.set(c, s)
+      }
+      return s
+    }
+
+    // 模块加载即恢复持久化看板：UI 重启后首帧直接渲染上次数据（stale-while-
+    // revalidate 首步），后台再校验由 loadPanel 节流控制。注意必须放在
+    // num/str/truthy 等 const 小工具与 normalizeBlob 定义之后执行——
+    // normalizeBlob 内部引用它们，提前调用会踩 TDZ（浏览器二次启动必炸）。
+    dashboardCache = readPersistedDashboard()
+
+    // —— 通用面板数据缓存（2026-11-20 全界面推广：官方 sidebar-files 的
+    // ready+refreshing 语义——数据在模块级 store 不在组件状态，重挂只读快照；
+    // stale-while-revalidate：缓存命中立即上屏，节流窗口外后台静默再校验，
+    // 内容级比较替换；有缓存时后台失败保留旧数据显示，无缓存才 error 显形）。
+    // research-list / rsi-list / arena-stats / tools-status 持久化到 localStorage
+    // （UI 重启后首帧直接渲染）；detail:<题> 仅内存（数据大且点击式进入）。
+    const PANEL_REVALIDATE_MS = 30_000
+    const PANELS_STORE_KEY = 'ctfpilot.panels.v1'
+    const PERSISTED_PANEL_KEYS = new Set(['research-list', 'rsi-list', 'arena-stats', 'tools-status'])
+    /** key → { data: 归一化结果, fingerprint: string, at: number }。 */
+    const panelCache = readPersistedPanels()
+    /** 各 key 在途请求防重入。 */
+    const panelInFlight = new Set()
+
+    function readPersistedPanels() {
+      try {
+        const raw = localStorage.getItem(PANELS_STORE_KEY)
+        const saved = raw ? JSON.parse(raw) : null
+        const out = new Map()
+        if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+          for (const [k, v] of Object.entries(saved)) {
+            if (!PERSISTED_PANEL_KEYS.has(k) || !v || typeof v !== 'object') continue
+            const data = v.data
+            const shapeOk = Array.isArray(data) || (data && typeof data === 'object')
+            if (!shapeOk || typeof v.at !== 'number' || !Number.isFinite(v.at)) continue
+            out.set(k, {
+              data,
+              fingerprint: typeof v.fingerprint === 'string' ? v.fingerprint : JSON.stringify(data),
+              at: v.at,
+            })
+          }
+        }
+        return out
+      } catch {
+        return new Map() // localStorage 不可用（Node 测试/隐私模式）：仅内存缓存
+      }
+    }
+
+    function persistPanels() {
+      try {
+        const out = {}
+        for (const key of PERSISTED_PANEL_KEYS) {
+          const cur = panelCache.get(key)
+          if (cur !== undefined) out[key] = { data: cur.data, fingerprint: cur.fingerprint, at: cur.at }
+        }
+        localStorage.setItem(PANELS_STORE_KEY, JSON.stringify(out))
+      } catch { /* 配额/隐私模式：内存缓存仍有效 */ }
+    }
+
+    /** 读缓存：命中返回 { data, fingerprint, at }，无则 null。 */
+    function panelCacheGet(key) {
+      const cur = panelCache.get(key)
+      return cur === undefined ? null : cur
+    }
+
+    /** 写缓存并持久化；返回内容是否变化（未变时调用方跳过 setState 防抖动）。 */
+    function panelCacheSet(key, data) {
+      const fingerprint = JSON.stringify(data)
+      const prev = panelCache.get(key)
+      const changed = prev === undefined || prev.fingerprint !== fingerprint
+      panelCache.set(key, { data, fingerprint, at: Date.now() })
+      persistPanels()
+      return changed
+    }
+
+    // 测试钩子（verify-client 专用）：清空面板缓存 + 持久层，模拟「无缓存
+    // 首挂」场景。真实环境无人调用；挂 window（client.js 无导出面），
+    // 与 lib/index.js 的 resetPkgManagerCache 同款「仅测试用」惯例。
+    try {
+      window.__ctfpilotPanelCacheReset__ = () => {
+        panelCache.clear()
+        try { localStorage.removeItem(PANELS_STORE_KEY) } catch (_e) { /* localStorage 不可用 */ }
+      }
+    } catch (_e2) { /* window 不可用：跳过 */ }
 
     /* ============================================================
      * Feature 1 —— 侧栏全局面板（CtfpilotPanel）
@@ -1089,9 +1240,15 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
 
       useEffect(() => {
         let alive = true
-        const sid = routeSessionId()
-        if (!sid || !remoteCommands || typeof remoteCommands.execute !== 'function') {
-          if (alive) setStatus('error')
+        // 详情缓存（仅内存）：返回看板再进同一题零等待；重试（attempt 递增）强制再校验。
+        const cacheKey = `detail:${isNonEmptyString(ch.id) ? 'id:' + ch.id : 'name:' + String(ch.name || '')}`
+        const cached = panelCacheGet(cacheKey)
+        if (cached !== null) {
+          setRecord(cached.data)
+          setStatus('ok')
+        }
+        const force = attempt > 0
+        if (!force && cached !== null && Date.now() - cached.at < PANEL_REVALIDATE_MS) {
           return () => { alive = false }
         }
         ;(async () => {
@@ -1099,20 +1256,26 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
             const cmd = isNonEmptyString(ch.id)
               ? `/ctf-challenge-detail --id ${ch.id}`
               : `/ctf-challenge-detail --name "${String(ch.name || '').replace(/"/g, '')}"`
-            const out = await remoteCommands.execute(sid, cmd, [])
+            const out = await panelDataFetch(cmd)
             if (!alive) return
             const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
             const result = value && value.result && typeof value.result === 'object' ? value.result : null
             if (result && result.kind === 'success' && result.text !== undefined) {
               const parsed = JSON.parse(result.text)
               const rec = normalizeRecord(parsed)
-              setRecord(rec)
+              const changed = panelCacheSet(cacheKey, rec)
+              if (!alive) return
+              if (changed) setRecord(rec)
               setStatus('ok')
             } else {
-              setStatus('error')
+              // 无缓存：失败显形；有缓存：保留旧数据（后台校验失败不打断显示）。
+              if (alive && cached === null) setStatus('error')
             }
           } catch (_err) {
-            if (alive) setStatus('error')
+            if (alive) {
+              if (cached === null) setStatus('error')
+              else { try { console.error('[ctfpilot] detail revalidate failed:', _err) } catch (_c) { /* console 不可用 */ } }
+            }
           }
         })()
         return () => { alive = false }
@@ -1361,42 +1524,53 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       const busyRef = useRef(false) // 一次性守卫：state+ref 双写，不随闭包过期
       const lastDecision = useRef(null) // {action, pid}：失败后同动作重试
 
-      async function loadCard(cmd, setRows, setErr) {
-        const sid = routeSessionId()
-        if (!sid || !remoteCommands || typeof remoteCommands.execute !== 'function') {
-          setErr(t('errorState'))
-          return []
+      async function loadCard(cmd, setRows, setErr, force) {
+        const key = cmd === '/ctf-research list' ? 'research-list'
+          : cmd === '/ctf-rsi list' ? 'rsi-list' : cmd
+        // 缓存命中：立即上屏归一化行并清该卡错误条（旧数据已可见）。
+        const cached = panelCacheGet(key)
+        if (cached !== null) {
+          setRows((prev) => (prev === cached.data ? prev : cached.data))
+          setErr('')
         }
+        // 节流窗口内跳过（防订阅风暴）；force（决策/重试后）绕过。
+        if (!force && cached !== null && Date.now() - cached.at < PANEL_REVALIDATE_MS) {
+          return cached.data
+        }
+        if (panelInFlight.has(key)) return cached !== null ? cached.data : []
+        panelInFlight.add(key)
         try {
-          const out = await remoteCommands.execute(sid, cmd, [])
+          const out = await panelDataFetch(cmd)
           const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
           const result = value && value.result && typeof value.result === 'object' ? value.result : null
-          // 非 success 视为拉取失败：该卡内联报错，绝不静默清空另一卡的数据。
+          // 非 success 视为拉取失败：无缓存时该卡内联报错，绝不静默清空另一卡的数据。
           if (!result || result.kind !== 'success') throw new Error(String(result && result.text ? result.text : 'self-evolution call failed'))
           const text = result.text
           const norm = String(cmd).startsWith('/ctf-research') ? normalizeResearch(text) : normalizeRsi(text)
-          setRows(norm)
+          const changed = panelCacheSet(key, norm)
+          if (changed) setRows(norm)
           return norm
         } catch (err) {
-          // 单源失败只亮该卡错误条，另一卡照常渲染（双源互不影响）。
-          setErr(err && err.message ? err.message : t('errorState'))
+          // 有缓存：保留已上屏数据，失败记 console（Host 侧 logError 已落盘双通道）；
+          // 无缓存：单源失败只亮该卡错误条，另一卡照常渲染。
+          if (cached === null) setErr(err && err.message ? err.message : t('errorState'))
+          else { try { console.error('[ctfpilot] ' + key + ' revalidate failed:', err) } catch (_c) { /* console 不可用 */ } }
           return []
+        } finally {
+          panelInFlight.delete(key)
         }
       }
 
-      async function loadBoth() {
-        if (!routeSessionId()) {
-          setResearchErr(t('errorState'))
-          setRsiErr(t('errorState'))
-          setLoaded(true)
-          return
-        }
+      async function loadBoth(force) {
+        // 缓存先行：任一卡有缓存即立即出标签内容（loaded），后台静默校验。
+        const hasCache = panelCacheGet('research-list') !== null || panelCacheGet('rsi-list') !== null
+        if (hasCache) setLoaded(true)
         // 不闪屏：刷新路径不清空已上屏数据（离线桩下每次渲染都会重跑 effect，
         // 若刷新前先置 loading，任意中间渲染都会把面板打回 loading 帧）。
         // 两卡独立拉取：Promise.all 下任一失败不阻断另一卡（各自 setErr 已兜住）。
         await Promise.all([
-          loadCard('/ctf-research list', setResearchRows, setResearchErr),
-          loadCard('/ctf-rsi list', setRsiRows, setRsiErr),
+          loadCard('/ctf-research list', setResearchRows, setResearchErr, force),
+          loadCard('/ctf-rsi list', setRsiRows, setRsiErr, force),
         ])
         setLoaded(true)
       }
@@ -1411,18 +1585,13 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         busyRef.current = true
         setBusy(true)
         setOkMsg('')
-        const sid = routeSessionId()
         try {
-          if (!sid || !remoteCommands || typeof remoteCommands.execute !== 'function') {
-            throw new Error('transport')
-          }
           // 显式 --pid 形式：位置词解析在桥接里历史上会把动词误当 PID（生产实锤
           // '[error] no such proposal: adopt'），显式 flag 无歧义且人眼可读；
           // shellArg 防注入/引号断裂。
-          const out = await remoteCommands.execute(
-            sid,
+          const out = await panelDataFetch(
             `/ctf-rsi ${actionName} --pid ${shellArg(pid)} --note ${shellArg('from-panel')}`,
-            [],
+            { method: 'POST' },
           )
           const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
           const result = value && value.result && typeof value.result === 'object' ? value.result : null
@@ -1433,7 +1602,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           lastDecision.current = null
           setAdoptedNote(actionName === 'adopt' ? t('rsiAdoptedNote') : '')
           setOkMsg(t('rsiDecisionOk'))
-          void loadBoth(false) // 决策后自动刷新提案流（loaded 控制不闪屏）
+          void loadBoth(true) // 决策后强制刷新提案流（绕节流；Host 侧已作废重查）
         } catch (_err) {
           lastDecision.current = decision // 重试同动作
           setAdoptedNote('')
@@ -1460,7 +1629,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
                   className: 'ctfp-btn',
                   style: { marginLeft: '10px' },
                   type: 'button',
-                  onClick: () => { void loadBoth(false) },
+                  onClick: () => { void loadBoth(true) },
                 }, t('retry')),
               ])
             : null,
@@ -1495,7 +1664,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
                   style: { marginLeft: '10px' },
                   type: 'button',
                   onClick: async () => {
-                    await loadBoth(false)
+                    await loadBoth(true)
                     const dec = lastDecision.current
                     if (dec) void doDecide(dec.action)
                   },
@@ -1544,16 +1713,22 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       const [okMsg, setOkMsg] = useState('')
       const [busy, setBusy] = useState(false)
       const busyRef = useRef(false) // 一次性守卫：state+ref 双写，不随闭包过期
+      // 批量重刷（2026-11-25）：派发回执与状态面（ToolsPanel 同款 banner 形态）。
+      const [drillMsg, setDrillMsg] = useState('')
+      const [drillKind, setDrillKind] = useState('')
 
-      async function loadBoard(first) {
-        const sid = currentSessionId
-        if (!sid || !remoteCommands || typeof remoteCommands.execute !== 'function') {
-          setStatus('error')
-          return
+      async function loadBoard(force) {
+        // 缓存命中：立即上屏旧榜并修状态面，后台静默校验。
+        const cached = panelCacheGet('arena-stats')
+        if (cached !== null) {
+          setBoard((prev) => (prev === cached.data ? prev : cached.data))
+          if (status === 'loading' || status === 'error') setStatus('ok')
         }
-        if (first) setStatus('loading') // 刷新路径保留旧榜上屏，不闪 loading
+        if (!force && cached !== null && Date.now() - cached.at < PANEL_REVALIDATE_MS) return
+        if (panelInFlight.has('arena-stats')) return
+        panelInFlight.add('arena-stats')
         try {
-          const out = await remoteCommands.execute(sid, '/ctf-arena stats', [])
+          const out = await panelDataFetch('/ctf-arena stats', { method: 'POST' })
           const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
           const result = value && value.result && typeof value.result === 'object' ? value.result : null
           // 非 success（如引擎退出码≠0）视为拉取失败，绝不静默当空榜。
@@ -1561,17 +1736,24 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           const text = result.text
           const norm = normalizeArena(text)
           if (!norm.overall && norm.items.length === 0) {
-            if (first) setStatus('empty') // 合法空榜：empty 态而非 error 态，表单仍可操作
+            // 合法空榜：也缓存（Host 侧同样有快照）；有缓存时保持当前状态面。
+            panelCacheSet('arena-stats', norm)
+            if (cached === null) setStatus('empty')
             return
           }
-          setBoard(norm)
-          if (first) setStatus('ok')
+          const changed = panelCacheSet('arena-stats', norm)
+          if (changed) setBoard(norm)
+          if (cached === null) setStatus('ok')
         } catch (_err) {
-          setStatus('error') // 失败显式上屏，绝不静默留在旧数据上
+          // 无缓存：失败显式上屏；有缓存：保留旧榜（后台校验失败不打断显示）。
+          if (cached === null) setStatus('error')
+          else { try { console.error('[ctfpilot] arena revalidate failed:', _err) } catch (_c) { /* console 不可用 */ } }
+        } finally {
+          panelInFlight.delete('arena-stats')
         }
       }
 
-      useEffect(() => { void loadBoard(true) }, [])
+      useEffect(() => { void loadBoard() }, [])
 
       async function doRecord() {
         if (busyRef.current) return // 反双击
@@ -1585,21 +1767,17 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         setBusy(true)
         setRecordErr('')
         setOkMsg('')
-        const sid = routeSessionId()
         try {
-          if (!sid || !remoteCommands || typeof remoteCommands.execute !== 'function') {
-            throw new Error('transport')
-          }
           const parts = [`/ctf-arena record --name ${shellArg(name)} --category ${shellArg(category)}`]
           if (form.fail) parts.push('--fail')
           else if (form.fast) parts.push('--fast')
-          const out = await remoteCommands.execute(sid, parts.join(' '), [])
+          const out = await panelDataFetch(parts.join(' '), { method: 'POST' })
           const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
           const result = value && value.result && typeof value.result === 'object' ? value.result : null
           if (result && result.kind === 'success') {
             setOkMsg(t('arenaRecordOk'))
             setForm({ name: '', category: '', fail: false, fast: false })
-            void loadBoard(false) // 引擎记完自动刷新排行榜（保留旧榜不闪屏）
+            void loadBoard(true) // 引擎记完强制刷新排行榜（Host 侧已作废；保留旧榜不闪屏）
             return
           }
           const detail = result && isNonEmptyString(result.text) ? result.text : undefined
@@ -1612,7 +1790,52 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         }
       }
 
-      const disabledBtn = busy || !routeSessionId()
+      /** 批量重刷（2026-11-25 用户令）：与「开始解题」同款三层链——新开 CTF-worker
+       *  对话 → /ctf-drill-start 路由到新会话 → Host 切快解预设 + 注入整条练兵
+       *  协议（逐题重解→自验→记练→更优入库→末尾汇总）。成功才跳新对话。 */
+      async function startDrill() {
+        if (busyRef.current) return
+        busyRef.current = true
+        setBusy(true)
+        setDrillMsg('')
+        setDrillKind('')
+        try {
+          let targetSid = ''
+          let wsNote = ''
+          try {
+            const ensured = await ensureSolveSession(currentSessionId, t)
+            targetSid = ensured.sid
+            wsNote = ensured.note
+          } catch (e2) {
+            targetSid = ''
+            wsNote = t('formWsFallback', { err: String((e2 && e2.message) || e2).slice(0, 120) })
+          }
+          const routeSid = isNonEmptyString(targetSid) ? targetSid : currentSessionId
+          const out = await panelDataFetch('/ctf-drill-start', { method: 'POST', sid: routeSid })
+          const oc = remoteOutcome(out)
+          if (oc.ok) {
+            setDrillMsg(wsNote ? `${oc.text}\n（新建会话降级备注：${wsNote}）` : oc.text)
+            setDrillKind(wsNote ? 'bad' : 'ok')
+            // 成功才跳新对话页——agent 正在那里逐题执行重刷协议。
+            if (isNonEmptyString(targetSid) && targetSid !== currentSessionId) {
+              currentSessionId = targetSid
+              notifySessionChanged()
+              void openTargetSession(targetSid)
+            }
+          } else {
+            setDrillMsg(oc.text || t('arenaDrillFailed'))
+            setDrillKind('bad')
+          }
+        } catch (_err) {
+          setDrillMsg(t('arenaDrillFailed'))
+          setDrillKind('bad')
+        } finally {
+          busyRef.current = false
+          setBusy(false)
+        }
+      }
+
+      const disabledBtn = busy
       const formCard = h(
         'section',
         { className: 'ctfp-section' },
@@ -1685,6 +1908,26 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           : null,
       )
 
+      const drillCard = h(
+        'section',
+        { className: 'ctfp-section' },
+        h('h2', null, t('arenaDrillTitle')),
+        h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('arenaDrillSub')),
+        h('button', {
+          className: 'ctfp-btn',
+          type: 'button',
+          onClick: () => { void startDrill() },
+          disabled: busy,
+          title: t('arenaDrillHint'),
+        }, busy ? t('arenaDrillBusy') : t('arenaDrillBtn')),
+        drillMsg
+          ? h('div', {
+              className: drillKind === 'ok' ? 'ctfc-status ctfc-status--ok' : 'ctfc-status ctfc-status--bad',
+              role: drillKind === 'ok' ? 'status' : 'alert',
+            }, drillMsg)
+          : null,
+      )
+
       if (status === 'loading' && !board) {
         return h('div', { className: 'ctfp-note ctfp-note--loading', role: 'status' }, t('loadingState'))
       }
@@ -1750,6 +1993,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
                 ),
               ),
             ),
+        drillCard,
         formCard,
       )
     }
@@ -1761,7 +2005,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
     function CtfpilotPanel(props) {
       const t = typeof props.t === 'function' ? props.t : boundTranslator || identityT
       const [blob, setBlob] = useState(null)
-      const [status, setStatus] = useState('loading') // loading | error | ok | empty | noSession
+      const [status, setStatus] = useState('loading') // loading | error | ok | empty
       const [query, setQuery] = useState('')
       /** 详情页目标题目；非 null 时整屏渲染该题详情页。 */
       const [detailCh, setDetailCh] = useState(null)
@@ -1787,37 +2031,44 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         )
       }
 
-      // 拉取引擎看板并写入模块级缓存；缓存命中或请求进行中时不再发起。
-      const loadPanel = useCallback(async () => {
-        const sid = routeSessionId()
-        if (!sid) {
-          setBlob(null)
-          setStatus('noSession')
-          return
-        }
-        if (dashboardCache !== null && dashboardCache.sessionId === sid) {
-          // 同会话缓存命中：重挂零请求，直接上屏。
-          present(dashboardCache.data)
-          return
-        }
+      // 拉取引擎看板并写入模块级缓存。stale-while-revalidate（官方 sidebar-files
+      // 的 ready+refreshing 语义）：缓存命中立即上屏旧数据，后台静默再校验，
+      // 新数据到达后内容级比较替换；只有真正无缓存时才显示 loading。
+      const loadPanel = useCallback(async (opts) => {
+        const force = Boolean(opts && opts.force)
+        // ① 缓存命中（含 UI 重启后的 localStorage 恢复）：立即上屏，零等待。
+        if (dashboardCache !== null) present(dashboardCache.data)
+        // ② 后台再校验：节流窗口内跳过（防 sessions.list 快照订阅风暴）；
+        //    强制刷新不受节流。
+        if (
+          !force &&
+          dashboardCache !== null &&
+          Date.now() - dashboardCache.at < DASHBOARD_REVALIDATE_MS
+        ) return
         if (dashboardInFlight) return
         dashboardInFlight = true
         try {
-          if (!remoteCommands || typeof remoteCommands.execute !== 'function') {
-            throw new Error('remote commands unavailable')
-          }
-          const out = await remoteCommands.execute(sid, '/ctf-dashboard', [])
-          // 会话已切换：本次结果作废，交给新会话的那次刷新。
-          if (routeSessionId() !== sid) return
+          const out = await panelDataFetch('/ctf-dashboard')
           const text = resultTextOf(out)
           if (text === undefined) throw new Error('dashboard call failed')
           const normalized = normalizeBlob(JSON.parse(text))
-          dashboardCache = { sessionId: sid, data: normalized }
-          present(normalized)
+          const fingerprint = JSON.stringify(normalized)
+          // 内容级比较：账本未变（Host 侧签名命中直接回快照）时不重渲染；
+          // 变了才替换上屏。看板数据全局，与会话无关，切会话不作废。
+          const changed = dashboardCache === null || dashboardCache.fingerprint !== fingerprint
+          dashboardCache = { data: normalized, fingerprint, at: Date.now() }
+          persistDashboard()
+          if (changed) present(normalized)
         } catch (_err) {
-          if (routeSessionId() !== sid) return
-          setBlob(null)
-          setStatus('error')
+          // 无缓存：失败必须显形（error 态 + 重试按钮）；有缓存：保留旧数据
+          // 继续显示（refreshing 语义），失败记入 console 诊断——Host 侧命令
+          // 包装层已把异常落盘 ctfpilot-errors.log（第二显形通道）。
+          if (dashboardCache === null) {
+            setBlob(null)
+            setStatus('error')
+          } else {
+            try { console.error('[ctfpilot] dashboard revalidate failed:', _err) } catch (_c) { /* console 不可用 */ }
+          }
         } finally {
           dashboardInFlight = false
         }
@@ -1827,8 +2078,8 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         void loadPanel()
       }, [loadPanel])
 
-      // 会话 id 就绪（任意会话的回合尾部渲染过）后触发首次拉取；
-      // 用订阅而非定时器：事件到达才触发，无轮询。
+      // 会话切换（任意会话的回合尾部渲染过）触发一次再校验：
+      // 事件订阅而非定时器，无轮询成本。
       const loadLatest = useRef(loadPanel)
       loadLatest.current = loadPanel
       useEffect(() => {
@@ -1837,10 +2088,8 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         })
       }, [])
 
-      // sessions 列表快照就绪/变更也驱动一次拉取：零会话首帧（DSSH 刚启动、
-      // 还没打开任何对话）时 routeSessionId 依赖该快照——快照从 pending 变
-      // ready 那一刻必须有人叫醒 loadPanel，否则面板停在 noSession。
-      // loadPanel 有防重入 + 同引用 present bail out，无渲染风暴风险。
+      // sessions 列表快照变更也驱动一次再校验：切工作区/会话可能伴随记账
+      // 更新。loadPanel 有防重入 + 同引用 present bail out，无渲染风暴风险。
       useEffect(() => {
         const s = sessionsHolder
         if (!s || !s.list || typeof s.list.subscribe !== 'function') return () => {}
@@ -1848,8 +2097,6 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           void loadLatest.current()
         })
       }, [])
-
-      const sessionReady = isNonEmptyString(routeSessionId())
 
       const filtered = useMemo(() => {
         if (!blob) return []
@@ -1859,19 +2106,24 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           // kind='learn' 只有学 writeup 的导入记录，非真实解题：默认隐藏。
           (!showLearned && c.kind === 'learn' ? false :
             (!cat || c.cat === cat) &&
-            (!q || [c.name, c.cat, c.mode, c.flag].some((v) => v.toLowerCase().includes(q)))),
+            (!q || challSearchText(c).includes(q))),
         )
       }, [blob, query, catFilter, showLearned])
-      const detSorted = useMemo(
-        () =>
-          blob === null || !Array.isArray(blob.detectors)
-            ? []
-            : blob.detectors
-              .slice()
-              .sort((a, b) => b.hits - a.hits || b.attempts - a.attempts)
-              .slice(0, 12),
-        [blob],
-      )
+      // Top-12：单遍插入有序小数组（O(n·12)），避免全量 slice+sort
+      // （O(n log n) + 两次数组复制）；detectors 随账本增长时可感知。
+      const detSorted = useMemo(() => {
+        const arr = blob === null || !Array.isArray(blob.detectors) ? [] : blob.detectors
+        const top = []
+        for (const d of arr) {
+          let i = 0
+          while (i < top.length &&
+            (top[i].hits > d.hits || (top[i].hits === d.hits && top[i].attempts >= d.attempts))) i++
+          if (i >= 12) continue
+          top.splice(i, 0, d)
+          if (top.length > 12) top.pop()
+        }
+        return top
+      }, [blob])
 
       const kpis = useMemo(
         () =>
@@ -1884,7 +2136,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
                 { label: t('lessons'), value: blob.stats.lessons, unit: t('unitChalls') },
               ]
             : [],
-        [blob],
+        [blob, t],
       )
 
       const refreshButton = h(
@@ -1892,13 +2144,10 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         {
           className: 'ctfp-btn',
           onClick: () => {
-            // 手动刷新：作废模块级缓存后强制重取（路由池全空时不动作，按钮亦禁用）。
-            if (!routeSessionId()) return
-            invalidateDashboard()
-            dashboardInFlight = false
-            void loadPanel()
+            // 手动刷新：绕过节流强制再校验；在途请求未落地时由其完成后
+            // 内容比较自然刷新，不重复并发。
+            void loadPanel({ force: true })
           },
-          disabled: !sessionReady,
           'aria-label': t('refresh'),
         },
         [h('span', null, '↻'), h('span', null, t('refresh'))],
@@ -1922,10 +2171,8 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           refreshButton,
         ),
 
-        // 状态面：需要会话 / 加载中 / 失败 / 空态
-        !sessionReady && status === 'noSession'
-          ? h('div', { className: 'ctfp-note', role: 'status' }, t('panelNeedsSession'))
-          : status === 'loading' && !blob
+        // 状态面：加载中 / 失败 / 空态（数据读取走 HTTP 网关，无会话要求）
+        status === 'loading' && !blob
             ? h('div', { className: 'ctfp-note ctfp-note--loading', role: 'status' }, t('loadingState'))
             : status === 'error'
               ? h(
@@ -2236,15 +2483,11 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         if (phaseRef.current !== '') return
         setErrorText('')
         setPhase('pending')
-        try {
-          if (!remoteCommands || typeof remoteCommands.execute !== 'function') {
-            throw new Error('transport')
-          }
-          const out = await remoteCommands.execute(
-            sessionId,
-            buildRecordWinCmd(p.challenge || title, category, flag),
-            [],
-          )
+          try {
+            const out = await panelDataFetch(
+              buildRecordWinCmd(p.challenge || title, category, flag),
+              { method: 'POST', sid: sessionId },
+            )
           const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
           const result = value && value.result && typeof value.result === 'object' ? value.result : null
           if (result && result.kind === 'success') {
@@ -2374,25 +2617,23 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       )
     }
 
-    /** 作废看板缓存：提交确认卡记账成功、或手动「刷新」时调用。 */
+    /** 作废看板缓存新鲜度：提交确认卡记账成功后调用。数据已确定陈旧，但保留
+     *  data 先行显示（下次进面板立即出旧数据 + 强制后台再校验，Host 侧快照
+     *  已被 /ctf-record-win 作废重查，内容比较后静默替换），不再退回 loading。 */
     function invalidateDashboard() {
-      dashboardCache = null
+      if (dashboardCache !== null) dashboardCache = { ...dashboardCache, at: 0 }
     }
 
     /* ============================================================
      * 三界面共享状态与工具
      * ============================================================ */
 
-    /** 工作区服务持有者（跳转会话 / 目录选择 / fork 迁移；缺服务时安全降级）。 */
+    /** 工作区服务持有者（跳转会话 / 目录选择；缺服务时安全降级）。 */
     let uiWorkspaceHolder = null
     /** Workspace Controller 服务持有者（新建工作区注册：create({path})；缺服务时安全降级）。 */
     let workspacesHolder = null
-    /** Session Controller 客户端服务持有者：命令路由的会话 id 池（引擎数据与会话无关）。 */
+    /** Session Controller 客户端服务持有者：sessions.open 聚焦会话（openTargetSession）。 */
     let sessionsHolder = null
-    /** 最近成功路由的会话 id（localStorage 跨启动兑底：零会话首帧也能拉数据）。 */
-    const ROUTE_SID_KEY = 'ctfpilot.routeSid.v1'
-    /** 「正在解题」投影键（与 Host 侧 ctfsolve 单元对应）。 */
-    const PROJECTION_SOLVE_KEY = 'ctfsolve'
     /** 状态板持久化键（localStorage：跨会话、跨重载存活）。 */
     const SOLVEBOARD_KEY = 'ctfpilot.solveboard.v1'
 
@@ -2419,7 +2660,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
     function defaultSolveEntry(mode) {
       return {
         mode: mode === 'deep' ? 'deep' : 'quick',
-        cat: '', attaches: [], body: '',
+        cat: '', target: '', attaches: [], body: '',
         startedAt: 0, running: true, flags: [], status: 'running',
       }
     }
@@ -2440,30 +2681,31 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       return base
     }
 
-    function markSolveRunning(sid, running) {
+    /** 把投影快照并入状态板：running 翻转 + flags 只追加计数（上限 99），
+     *  一次读写 + 一次广播。轮询每 4s 一次，按会话逐条 read/write 会把
+     *  JSON.parse/stringify 放大成 O(会话数) 次。 */
+    function applySolveBoardSnapshot(snapSessions) {
+      if (!snapSessions || typeof snapSessions !== 'object') return
       const all = readSolveBoard()
-      if (!all[sid]) return
-      all[sid].running = running
-      writeSolveBoard(all)
-      notifySolveBoardChanged()
-    }
-
-    /** 把投影扫出的 flag 并入条目：只追加、重复计数（上限 99），绝不覆盖旧值。 */
-    function applySolveFlagsFromSnap(sid, snapSession) {
-      if (!snapSession || !Array.isArray(snapSession.flags) || snapSession.flags.length === 0) return
-      const all = readSolveBoard()
-      const cur = all[sid]
-      if (!cur) return
-      const flags = Array.isArray(cur.flags) ? cur.flags.slice() : []
-      let dirty = false
-      for (const f of snapSession.flags) {
-        const i = flags.findIndex((x) => x && x.f === f)
-        if (i < 0) { flags.push({ f, n: 1 }); dirty = true }
-        else if ((flags[i].n || 1) < 99) { flags[i].n = (flags[i].n || 1) + 1; dirty = true }
+      let touched = false
+      for (const sid of Object.keys(snapSessions)) {
+        const cur = all[sid]
+        const ss = snapSessions[sid]
+        if (!cur || !ss || typeof ss !== 'object') continue
+        if (typeof ss.running === 'boolean' && !!cur.running !== ss.running) {
+          cur.running = ss.running
+          touched = true
+        }
+        if (Array.isArray(ss.flags) && ss.flags.length > 0) {
+          const flags = Array.isArray(cur.flags) ? cur.flags : (cur.flags = [])
+          for (const f of ss.flags) {
+            const i = flags.findIndex((x) => x && x.f === f)
+            if (i < 0) { flags.push({ f, n: 1 }); touched = true }
+            else if ((flags[i].n || 1) < 99) { flags[i].n = (flags[i].n || 1) + 1; touched = true }
+          }
+        }
       }
-      if (!dirty) return
-      cur.flags = flags
-      all[sid] = cur
+      if (!touched) return
       writeSolveBoard(all)
       notifySolveBoardChanged()
     }
@@ -2499,43 +2741,77 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       return { sessions: cand.sessions || {} }
     }
 
-    /** 远端结果解包：{ok, value:{result:{kind,text}}}。 */
+    /** 远端结果解包：{ok, value:{result:{kind,text}}}。
+     *  2026-11-19 用户令「删光吞错降级」：传输失败（out.ok===false）时把
+     *  out.error（code+message）完整取出——此前返回空串，一切失败都成了
+     *  面板上的「无事发生」。 */
     function remoteOutcome(out) {
       const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
       const result = value && value.result && typeof value.result === 'object' ? value.result : null
-      if (!result) return { ok: false, text: '' }
-      return { ok: result.kind === 'success', text: isNonEmptyString(result.text) ? result.text : '' }
+      if (result) {
+        return { ok: result.kind === 'success', text: isNonEmptyString(result.text) ? result.text : '' }
+      }
+      if (out && out.ok === false) {
+        const err = out.error
+        const code = err && isNonEmptyString(err.code) ? err.code : 'transport-error'
+        const message = err && isNonEmptyString(err.message) ? err.message : (isNonEmptyString(out.message) ? out.message : '远端命令执行失败（无详情）')
+        return { ok: false, text: `[${code}] ${message}` }
+      }
+      return { ok: false, text: '命令结果结构异常（无 result 字段）' }
     }
 
     /* ============================================================
-     * 命令路由会话 id 池：引擎数据是全局 SQLite 账本，与会话无关，但命令
-     * 桥需要「任一存在的会话」作为路由键（执行时 resolveAgent）。打开面板
-     * 不应要求先开对话：当前会话 → sessions 列表快照 → 最近成功缓存。
+     * HTTP 数据网关（2026-11-20）：面板↔Host 的数据与动作全走
+     * fetch('/ctfpilot/data/<cmd>')——官方 webServer 命名路由，经
+     * connection 认证（与 /api 同款 owner cookie，同源自动携带）。
+     * 官方命令通道（remoteCommands.execute）每执行一次必写
+     * command/run + command/done 两个 log-only 事件，24KB 看板 JSON 会
+     * 永久落进会话日志并折成对话卡片（用户令：对话里只允许解题上下文）。
+     * 返回值刻意保持与 remoteCommands.execute 相同的信封形状
+     * {ok, value:{result:{kind,text}}} / {ok:false, error:{code,message}}，
+     * 下游 remoteOutcome / resultTextOf / 手工解包零改动。
+     * GET 走 ?args=（URL 编码）；POST 走请求体（题面正文/含反斜杠路径
+     * 零转码）。会话作用域命令（solve-start/writeup/record-win）带 ?sid=，
+     * Host 侧经 ctx.agents 解析 agent——与命令通道同源语义。
      * ============================================================ */
-
-    /** 取一个可用于命令路由的会话 id：池全空返回 ''。 */
-    function routeSessionId() {
-      if (isNonEmptyString(currentSessionId)) return currentSessionId
+    async function panelDataFetch(command, opts) {
+      const o = opts || {}
+      const line = String(command || '').trim()
+      const sp = line.indexOf(' ')
+      const head = (sp < 0 ? line : line.slice(0, sp)).replace(/^\//, '')
+      const args = sp < 0 ? '' : line.slice(sp + 1).trim()
+      if (!head) throw new Error('数据网关：空命令')
+      const method = o.method === 'POST' ? 'POST' : 'GET'
+      const qs = []
+      if (isNonEmptyString(o.sid)) qs.push('sid=' + encodeURIComponent(String(o.sid)))
+      if (method === 'GET' && args) qs.push('args=' + encodeURIComponent(args))
+      const url = '/ctfpilot/data/' + encodeURIComponent(head) + (qs.length ? '?' + qs.join('&') : '')
+      let res = null
       try {
-        const s = sessionsHolder
-        const snap = s && s.list && typeof s.list.getSnapshot === 'function' ? s.list.getSnapshot() : null
-        const cur = snap && snap.current
-        if (isNonEmptyString(String(cur || ''))) return String(cur)
-        const ids = snap && Array.isArray(snap.ids) ? snap.ids : []
-        // ids 按时间序（旧→新），取最新一个：命令落到最近活动的会话上。
-        if (ids.length > 0) return String(ids[ids.length - 1])
-      } catch (_e) { /* 快照不可读：落最近缓存 */ }
-      try {
-        const cached = localStorage.getItem(ROUTE_SID_KEY)
-        if (isNonEmptyString(cached)) return cached
-      } catch (_e2) { /* localStorage 不可用（隐私模式） */ }
-      return ''
-    }
-
-    /** 记住最近一次成功路由的会话 id，供下一次零会话首帧兑底。 */
-    function rememberRouteSid(sid) {
-      if (!isNonEmptyString(sid)) return
-      try { localStorage.setItem(ROUTE_SID_KEY, sid) } catch (_e) { /* 写失败静默 */ }
+        res = await fetch(url, method === 'POST' ? { method, body: args } : { method })
+      } catch (e) {
+        // 网络层失败（Host 不可达/路由未挂）：显式带修复指引，绝不静默。
+        throw new Error('数据网关不可达（fetch 失败）：' + String((e && e.message) || e) +
+          '——若刚更新插件，请完全退出 DSH（任务管理器确认进程清零）后重启，使 Host 挂载 /ctfpilot/data 路由。')
+      }
+      let payload = null
+      try { payload = await res.json() } catch (_e) { payload = null }
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: {
+            code: 'gateway-' + String(res.status),
+            message: (payload && isNonEmptyString(payload.text) ? String(payload.text) : '') ||
+              (res.status === 404
+                ? 'Host 未挂 /ctfpilot/data 路由（旧版 Host 未加载新插件）——请完全退出 DSH（确认进程清零）后重启。'
+                : `HTTP ${String(res.status)}`),
+          },
+        }
+      }
+      if (!payload || typeof payload !== 'object' || typeof payload.kind !== 'string') {
+        return { ok: false, error: { code: 'gateway-bad-json', message: '网关返回非 CommandResult JSON' } }
+      }
+      return { ok: true, value: { result: payload } }
     }
 
     function toolsKindLabel(t, kind) {
@@ -2551,26 +2827,21 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       return oneLine.length > 120 ? `${oneLine.slice(0, 117)}…` : oneLine
     }
 
-    async function executeRemote(command, sid) {
-      if (!remoteCommands || typeof remoteCommands.execute !== 'function') throw new Error('transport')
-      // 路由 id 池化：显式传入的 sid 优先；引擎类命令（dashboard/stats 等）
-      // 与会话无关，任一存在会话即可路由；池全空才报 no-route-session。
-      const target = isNonEmptyString(sid) ? sid : routeSessionId()
-      if (!isNonEmptyString(target)) throw new Error('no-route-session')
-      rememberRouteSid(target)
-      return remoteCommands.execute(target, command, [])
-    }
-
     async function openTargetSession(sid) {
       // 聚焦新会话优先走 sessions.open（官方选择当前会话的标准方法，同步 select）；
-      // uiWorkspace.openSession 作兜底；都不在时静默（新会话已在列表，用户可手点）。
+      // uiWorkspace.openSession 作兜底。2026-11-19 删光吞错：两路都失败时
+      // console.error 显形（此前静默——新会话建好却没跳转，用户看到「无事发生」）。
       const ss = sessionsHolder
       if (ss && typeof ss.open === 'function') {
-        try { ss.open(sid); return } catch (_e) { /* 落 openSession 兜底 */ }
+        try { ss.open(sid); return } catch (e1) {
+          try { console.error('[ctfpilot] sessions.open failed:', e1) } catch (_c) { /* console 不可用 */ }
+        }
       }
       const ws = uiWorkspaceHolder
       if (ws && typeof ws.openSession === 'function') {
-        try { await ws.openSession(sid) } catch (_e2) { /* 跳转失败不影响状态流转 */ }
+        try { await ws.openSession(sid) } catch (e2) {
+          try { console.error('[ctfpilot] uiWorkspace.openSession failed:', e2) } catch (_c2) { /* console 不可用 */ }
+        }
       }
     }
 
@@ -2583,19 +2854,42 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
     }
 
     function mergeAttachUnique(prev, incoming) {
-      const set = []
+      // Set 去重：原 indexOf 在附件列表上是 O(n²)（粘贴整段路径时可能几十项）。
+      const seen = new Set()
+      const out = []
       for (const p of [...(prev || []), ...(incoming || [])]) {
         const v = String(p == null ? '' : p).trim()
-        if (v && set.indexOf(v) < 0) set.push(v)
+        if (v && !seen.has(v)) { seen.add(v); out.push(v) }
       }
-      return set
+      return out
     }
 
-    function buildStartCommand(mode, cat, attaches, body) {
+    function buildStartCommand(mode, cat, attaches, body, target) {
       const parts = ['/ctf-solve-start', mode === 'deep' ? 'deep' : 'quick']
       const c = String(cat || '').trim()
       if (c) parts.push('--category', shellArg(c))
+      // 靶机地址（2026-11-24）：扫描/连接类题目的授权靶标——session-2193d69d
+      // 实锤：题面只说「nmap 扫出来的所有端口」没给目标，agent 无法使用已装好的
+      // nmap 只能反问。显式传 --target 后题面自带靶标，agent 可直接开扫。
+      const tg = String(target || '').trim()
+      if (tg) parts.push('--target', shellArg(tg))
       for (const a of attaches) if (isNonEmptyString(a)) parts.push('--attach', shellArg(a))
+      const b = String(body || '').trim()
+      // 正文永远带引号：单词正文也不被 Host 的位置模式词（quick/deep）误吞。
+      if (b) parts.push(shellQuote(b))
+      return parts.join(' ')
+    }
+
+    /** 「未解出 → 同会话续攻」命令（2026-11-25 用户方案）：字段拼装同
+     *  buildStartCommand，但命令头是 /ctf-continue——Host 不切预设、不 fork，
+     *  直接对原会话 followup 开新回合（上下文与进度全保留）。 */
+    function buildContinueCommand(cat, attaches, body, target) {
+      const parts = ['/ctf-continue']
+      const c = String(cat || '').trim()
+      if (c) parts.push('--category', shellArg(c))
+      const tg = String(target || '').trim()
+      if (tg) parts.push('--target', shellArg(tg))
+      for (const a of (attaches || [])) if (isNonEmptyString(a)) parts.push('--attach', shellArg(a))
       const b = String(body || '').trim()
       // 正文永远带引号：单词正文也不被 Host 的位置模式词（quick/deep）误吞。
       if (b) parts.push(shellQuote(b))
@@ -2619,68 +2913,94 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       const [feedback, setFeedback] = useState('')
       const [feedbackKind, setFeedbackKind] = useState('') // '' | 'ok' | 'bad'
       const [busy, setBusy] = useState(false)
+      // 反双击守卫：state 更新是异步的，窗口内第二次点击会读到旧 busy=false；
+      // ref 同步生效，保证一次操作只发一条命令。
+      const busyRef = useRef(false)
 
       async function actSolved() {
-        if (!sid || busy) return
-        busyRefGuard_setTrue(setBusy)
+        if (!sid || busyRef.current) return
+        busyRef.current = true
+        setBusy(true)
         try {
           const name = String(entry.body || '').slice(0, 60) || String(entry.cat || '')
-          const out = await executeRemote(
-            '/ctf-writeup' + (name ? ' --name ' + shellArg(name) : ''), sid)
-          const oc = remoteOutcome(out)
-          if (!oc.ok) throw new Error(oc.text || t('submitFailed'))
+          // 2026-11-25 用户实锤「已解出按钮不好使」：旧实现把「标记解出」与
+          // 「writeup 归档注入」捆成一个事务——归档请求失败（会话已关/无活动
+          // agent/网关瞬断/401）时 catch 直接吃掉点击，本地状态也不落，用户
+          // 观感就是按钮没反应。现拆开：标记解出永远落地（用户点按钮的本意），
+          // 归档注入是增值链，失败以警示文案附上原始原因，绝不回滚用户意图。
+          let warn = ''
+          try {
+            const out = await panelDataFetch(
+              '/ctf-writeup' + (name ? ' --name ' + shellArg(name) : ''),
+              { method: 'POST', sid })
+            const oc = remoteOutcome(out)
+            if (!oc.ok) warn = String(oc.text || '')
+          } catch (_err) {
+            warn = String((_err && _err.message) || _err || '')
+          }
           upsertSolveEntry(sid, { status: 'solved', running: false })
-          setFeedback(t('solvedMarked'))
-          setFeedbackKind('ok')
-        } catch (_err) {
-          setFeedback(_err && _err.message ? _err.message : t('submitFailed'))
-          setFeedbackKind('bad')
-        } finally { busyRefGuard_setFalse(setBusy) }
+          if (warn) {
+            setFeedback(`${t('solvedMarked')}（writeup 归档未注入：${warn}）`)
+            setFeedbackKind('bad')
+          } else {
+            setFeedback(t('solvedMarked'))
+            setFeedbackKind('ok')
+          }
+        } finally { busyRef.current = false; setBusy(false) }
       }
 
       async function actUnsolved() {
-        if (!sid || busy) return
-        busyRefGuard_setTrue(setBusy)
+        if (!sid || busyRef.current) return
+        busyRef.current = true
+        setBusy(true)
         try {
           if (entry.running) throw new Error(t('unsolvedWhileRunning'))
-          const wasQuick = entry.mode !== 'deep'
-          const migrated = upsertSolveEntry(sid, { status: 'unsolved', running: false })
-          if (wasQuick) {
-            setFeedback(t('unsolvedMarkedQuick'))
-            setFeedbackKind('ok')
-            const ws = uiWorkspaceHolder
-            if (ws && typeof ws.forkSession === 'function') {
-              try {
-                const newSid = String(await ws.forkSession(sid) || '')
-                if (newSid) {
-                  upsertSolveEntry(newSid, {
-                    mode: 'deep', cat: migrated.cat, attaches: migrated.attaches,
-                    body: migrated.body, startedAt: Date.now(),
-                    running: true, flags: [], status: 'running',
-                  })
-                  void openTargetSession(newSid)
-                  void executeRemote(
-                    buildStartCommand('deep', migrated.cat, migrated.attaches, migrated.body), newSid)
-                  setFeedback(t('migratedDone'))
-                  return
-                }
-              } catch (_e) { /* 落到下方兜底文案 */ }
+          // 2026-11-25 用户方案定稿：fork 出的新会话不能切换 agent 预设
+          // （回合历史被继承 → 预设锁定），也无法正确接续原对话；放弃 fork
+          // 迁移，改为在同一会话开新回合继续解题——上下文与进度全保留。
+          // 注入必须 await + 检查结果：旧实现 `void panelDataFetch(...)`
+          // 发射后不管，网关瞬断/agent 未注册时失败被吞成「点了没反应」。
+          const merged = upsertSolveEntry(sid, { status: 'unsolved', running: false })
+          const cmd = buildContinueCommand(merged.cat, merged.attaches, merged.body, merged.target)
+          // 先确保该会话在 Host 活动表中：从看板点击「已关闭会话」的卡片续攻时，
+          // agent 可能尚未注册（POST 会撞「无活动会话 agent」）。sessions.open
+          // 聚焦并触发会话加载；打不开也继续走注入 + 重试兜底。
+          try { await openTargetSession(sid) } catch (_e) { /* 打不开也先尝试注入 */ }
+          let lastText = ''
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const out = await panelDataFetch(cmd, { method: 'POST', sid })
+              const oc = remoteOutcome(out)
+              if (oc.ok) {
+                upsertSolveEntry(sid, { status: 'unsolved', running: true })
+                setFeedback(t('unsolvedContinueQueued'))
+                setFeedbackKind('ok')
+                return
+              }
+              lastText = String(oc.text || '')
+              // 会话刚重建/agent 尚未注册的竞态：等 1.5s 重试一次。
+              if (attempt === 0 && /无活动会话 agent|agent 不存在/.test(lastText)) {
+                await new Promise((r) => setTimeout(r, 1500))
+                continue
+              }
+              break
+            } catch (_err) {
+              lastText = String((_err && _err.message) || _err || '')
+              if (attempt === 0) { await new Promise((r) => setTimeout(r, 1500)); continue }
+              break
             }
-            setFeedback(t('forkFallbackNote'))
-            setFeedbackKind('bad')
-            void executeRemote(
-              buildStartCommand('deep', migrated.cat, migrated.attaches, migrated.body), sid)
-          } else {
-            upsertSolveEntry(sid, { status: 'unsolved', running: true })
-            setFeedback(t('unsolvedMarkedDeep'))
-            setFeedbackKind('ok')
-            void executeRemote(
-              buildStartCommand('deep', migrated.cat, migrated.attaches, migrated.body), sid)
           }
+          setFeedback(`✗ 继续解题注入失败：${lastText || t('submitFailed')}`)
+          setFeedbackKind('bad')
         } catch (_err) {
           setFeedback(_err && _err.message ? _err.message : t('submitFailed'))
           setFeedbackKind('bad')
-        } finally { busyRefGuard_setFalse(setBusy) }
+        } finally {
+          busyRef.current = false
+          setBusy(false)
+          // 动作落地即收起确认面板：避免「成功后又点一次确认」重复入队续攻。
+          setConfirming('')
+        }
       }
 
       if (!entry) return null
@@ -2706,10 +3026,16 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           'div',
           { className: 'ctfp-scard__top' },
           h('span', { className: 'ctfp-badge' }, modeLbl),
-          h('span', { className: 'ctfp-dot ' + (entry.running ? 'ctfp-dot--run' : 'ctfp-dot--off') },
-            entry.running ? t('solvingRunning') : t('solvingIdle')),
+          // 点归点、字归字：.ctfp-dot 是 8px 圆点容器，文字必须作兄弟元素
+          // 塞进圆点会溢出压排（2026-11-25 用户实锤「运行中/本轮已结束
+          // 乱排」的根因；正确范式同工具管理行 ctfp-toolstate）。
+          h('span', { className: 'ctfp-runstate' },
+            h('span', { className: 'ctfp-dot ' + (entry.running ? 'ctfp-dot--run' : 'ctfp-dot--off') }),
+            h('span', null, entry.running ? t('solvingRunning') : t('solvingIdle')),
+          ),
           entry.status === 'solved' ? h('span', { className: 'ctfp-badge ctfp-badge--ok' }, t('solved')) : null,
           entry.status === 'unsolved' ? h('span', { className: 'ctfp-badge ctfp-badge--off' }, t('btnUnsolved')) : null,
+          entry.status === 'failed' ? h('span', { className: 'ctfp-badge ctfp-badge--off' }, t('startFailedBadge')) : null,
           h('span', { style: { marginLeft: 'auto', fontSize: '11.5px', opacity: '.75' } }, fmtClock(entry.startedAt)),
           onDelete !== null ? h('button', {
             type: 'button',
@@ -2720,16 +3046,6 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           }, '✕') : null,
         ),
         titlePreview ? h('div', { className: 'ctfp-scard__meta' }, titlePreview) : null,
-        onJump ? h(
-          'button',
-          {
-            className: 'ctfp-btn ctfp-toolbtn',
-            type: 'button',
-            'aria-label': t('jumpHint'),
-            onClick: () => { void onJump(sid) },
-          },
-          t('jumpHint'),
-        ) : null,
         h('div', { className: 'ctfp-flags' }, [
           h('span', { style: { fontSize: '11.5px', opacity: '.8' } }, t('solvingFlagsTitle')),
           flagsView.length === 0
@@ -2745,7 +3061,11 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
             {
               className: 'ctfp-btn',
               type: 'button',
-              onClick: () => { setFeedback(''); setConfirming('solved') },
+              // 2026-11-25 用户实锤「点按钮跳到原会话然后无事发生」：整张卡片
+              // 绑定了 onClick=跳转会话，按钮点击默认冒泡到卡片 → 点「已解出/
+              // 未解出」瞬间被导航带走，确认面板根本来不及操作。卡片内所有
+              // 交互按钮必须 stopPropagation（删除键早已有，其余键补齐）。
+              onClick: (e) => { e.stopPropagation(); setFeedback(''); setConfirming('solved') },
               disabled: busy || entry.status === 'solved',
             },
             t('btnSolved'),
@@ -2755,12 +3075,23 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
             {
               className: 'ctfp-btn',
               type: 'button',
-              onClick: () => { setFeedback(''); setConfirming('unsolved') },
-              disabled: busy || entry.running || entry.status === 'unsolved',
+              onClick: (e) => { e.stopPropagation(); setFeedback(''); setConfirming('unsolved') },
+              // 2026-11-25 同会话续攻：status='unsolved' 不再永久禁用——一轮续攻
+              // 结束仍未解出时，用户可再次点按发起下一轮（仅运行中禁用）。
+              disabled: busy || entry.running,
               title: entry.running ? t('unsolvedWhileRunning') : undefined,
             },
             t('btnUnsolved'),
           ),
+          // 跳转按钮归位操作行（曾误插在标题行与 flag 行之间，缩进/位置
+          // 突兀，构成「乱排字样」的一部分）；整卡可点跳转仍是主入口。
+          onJump ? h('button', {
+            className: 'ctfp-btn ctfp-toolbtn',
+            type: 'button',
+            'aria-label': t('jumpHint'),
+            title: t('jumpHint'),
+            onClick: (e) => { e.stopPropagation(); void onJump(sid) },
+          }, t('jumpHint')) : null,
           confirming
             ? h('div', { className: 'ctfp-tooldetail', role: 'alertdialog' }, [
                 h('p', null, confirming === 'solved' ? t('solvedQNote') : t('unsolvedQNote')),
@@ -2769,13 +3100,16 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
                     className: 'ctfp-btn',
                     type: 'button',
                     disabled: busy,
-                    onClick: () => { void (confirming === 'solved' ? actSolved() : actUnsolved()) },
+                    onClick: (e) => {
+                      e.stopPropagation()
+                      void (confirming === 'solved' ? actSolved() : actUnsolved())
+                    },
                   }, t('confirmAction')),
                   h('button', {
                     className: 'ctfp-btn',
                     type: 'button',
                     disabled: busy,
-                    onClick: () => { setConfirming('') },
+                    onClick: (e) => { e.stopPropagation(); setConfirming('') },
                   }, t('skip')),
                 ]),
               ])
@@ -2822,52 +3156,83 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
 
       // 层2：目录/注册/建会话任一环节失败时，退到「既有工作区里新建对话」；
       // 新对话是核心诉求，工作区复用既有目录可接受（官方 New Session 同口径）。
+      // 2026-11-19：catch 不再吞原因——复用失败时带出原始错误，层3 文案含全链失败原因。
       async function reuseExistingWorkspace() {
         try {
           const snap = wssvc && wssvc.list && typeof wssvc.list.getSnapshot === 'function'
             ? wssvc.list.getSnapshot() : null
           const items = snap && Array.isArray(snap.items) ? snap.items : []
           const first = items.find((it) => it && isNonEmptyString(it.workspaceId)) || null
-          if (!first) return { sid: '', name: '' }
+          if (!first) return { sid: '', name: '', err: '既有工作区列表为空（无可复用行）' }
           const wid = String(first.workspaceId)
           const nsid = await createSessionIn(wid)
           const name = String(first.title || first.path || wid)
-          return isNonEmptyString(nsid) ? { sid: nsid, name } : { sid: '', name: '' }
-        } catch (_e) {
-          return { sid: '', name: '' }
+          return isNonEmptyString(nsid)
+            ? { sid: nsid, name, err: '' }
+            : { sid: '', name: '', err: `sessions.create 未返回会话 id（workspaceId=${wid}）` }
+        } catch (e) {
+          return { sid: '', name: '', err: brief(e) }
         }
       }
 
-      // —— 层1：Host home 下建 ctf-<stamp> 新目录，注册后在其中开新对话 ——
-      if (wsvc && wssvc && typeof wsvc.listDirectory === 'function' &&
-          typeof wsvc.createDirectory === 'function' && typeof wssvc.create === 'function') {
+      // —— 层1：固定 CTF-worker 工作区（2026-11-20 用户令改造）——
+      // 不再按时间戳建新工作区：全部解题对话固定住在唯一的 CTF-worker。
+      // 顺序：workspaces.list 已有 CTF-worker（path 尾段/标题匹配，大小写不
+      // 敏感——Windows 文件系统同口径）→ 直接复用其 workspaceId 建新对话；
+      // 没有 → /ctf-ensure-workspace 用 fs.mkdir 建目录（绕开 directoryPicker
+      // ——它在 Windows 上永远路由 browse 交互对、capability 链接不上，
+      // "list needs the browse capability" 即层1 历史上从未成功的真因）→
+      // workspaces.create 注册 → 建对话。
+      if (wssvc && typeof wssvc.create === 'function' &&
+          wssvc.list && typeof wssvc.list.getSnapshot === 'function') {
         let wid = ''
+        let reusedWorker = false
         try {
-          const listing = await wsvc.listDirectory()
-          const home = listing && isNonEmptyString(listing.home) ? listing.home : ''
-          const now = new Date()
-          const stamp = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}-${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`
-          const dir = home ? await wsvc.createDirectory(home, `ctf-${stamp}`) : ''
-          const wv = dir ? await wssvc.create({ path: dir }) : null
-          wid = wv && isNonEmptyString(wv.workspaceId) ? String(wv.workspaceId) : ''
+          const snap = wssvc.list.getSnapshot()
+          const items = snap && Array.isArray(snap.items) ? snap.items : []
+          const worker = items.find((it) => it && isNonEmptyString(it.workspaceId) &&
+            ((isNonEmptyString(it.path) && /[\\/]CTF-worker$/i.test(String(it.path).trim())) ||
+             (isNonEmptyString(it.title) && /^CTF-worker$/i.test(String(it.title).trim()))))
+          if (worker) {
+            wid = String(worker.workspaceId)
+            reusedWorker = true
+          } else {
+            const withPath = items.find((it) => it && isNonEmptyString(it.workspaceId) && isNonEmptyString(it.path))
+            const parent = withPath
+              ? String(withPath.path).replace(/[\\/][^\\/]+$/, '')
+              : ''
+            if (!isNonEmptyString(parent)) throw new Error('无法推导工作区根目录（既有工作区列表为空或无 path）')
+            const wantDir = `${parent}\\CTF-worker`
+            const out = await panelDataFetch(`/ctf-ensure-workspace --dir ${shellArg(wantDir)}`, { method: 'POST' })
+            const oc = remoteOutcome(out)
+            if (!oc.ok) throw new Error(oc.text)
+            let payload = null
+            try { payload = JSON.parse(String(oc.text || '{}')) } catch { /* 下方兜底报错 */ }
+            const dir = payload && isNonEmptyString(payload.dir) ? String(payload.dir) : ''
+            if (!isNonEmptyString(dir)) throw new Error(`ctf-ensure-workspace 未返回目录（${String(oc.text).slice(0, 120)}）`)
+            const wv = await wssvc.create({ path: dir })
+            wid = wv && isNonEmptyString(wv.workspaceId) ? String(wv.workspaceId) : ''
+            if (!isNonEmptyString(wid)) throw new Error(`workspaces.create(${dir}) 未返回 workspaceId`)
+          }
         } catch (e) {
           const reused = await reuseExistingWorkspace()
           if (isNonEmptyString(reused.sid)) {
             return { sid: reused.sid, note: t('formWsReuse', { name: reused.name, err: `workspace: ${brief(e)}` }) }
           }
-          return { sid: currentSid, note: t('formWsFallback', { err: `workspace: ${brief(e)}` }) }
+          return { sid: currentSid, note: t('formWsFallback', { err: `workspace: ${brief(e)}；层2 复用也失败：${reused.err}` }) }
         }
-        if (isNonEmptyString(wid)) {
-          try {
-            const nsid = await createSessionIn(wid)
-            if (isNonEmptyString(nsid)) return { sid: nsid, note: '' }
-          } catch (e) {
-            const reused = await reuseExistingWorkspace()
-            if (isNonEmptyString(reused.sid)) {
-              return { sid: reused.sid, note: t('formWsReuse', { name: reused.name, err: `session: ${brief(e)}` }) }
-            }
-            return { sid: currentSid, note: t('formWsFallback', { err: `session: ${brief(e)}` }) }
+        try {
+          const nsid = await createSessionIn(wid)
+          if (isNonEmptyString(nsid)) {
+            return { sid: nsid, note: reusedWorker ? t('formWsWorkerReused') : '' }
           }
+          return { sid: currentSid, note: t('formWsFallback', { err: `sessions.create(CTF-worker ${wid}) 未返回会话 id` }) }
+        } catch (e) {
+          const reused = await reuseExistingWorkspace()
+          if (isNonEmptyString(reused.sid)) {
+            return { sid: reused.sid, note: t('formWsReuse', { name: reused.name, err: `session: ${brief(e)}` }) }
+          }
+          return { sid: currentSid, note: t('formWsFallback', { err: `session: ${brief(e)}；层2 复用也失败：${reused.err}` }) }
         }
       }
 
@@ -2877,7 +3242,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         return { sid: reused.sid, note: t('formWsReuse', { name: reused.name, err: 'no new workspace registered' }) }
       }
       // —— 层3：当前会话 ——
-      return { sid: currentSid, note: t('formWsFallback', { err: 'no workspace available' }) }
+      return { sid: currentSid, note: t('formWsFallback', { err: `无工作区服务/注册失败：${reused.err}` }) }
     }
 
     /* ============================================================
@@ -2893,6 +3258,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
 
       const [body, setBody] = useState('')
       const [cat, setCat] = useState('')
+      const [target, setTarget] = useState('')
       const [mode, setMode] = useState('quick')
       const [newSession, setNewSession] = useState(true)
       const [attaches, setAttaches] = useState([])
@@ -2901,6 +3267,8 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       const [startKind, setStartKind] = useState('')
       const [busy, setBusy] = useState(false)
       const [entry, setEntry] = useState(null)
+      /** 短题面二次确认（时钟纪律：占位文本开跑前拦一道，防无界全盘搜索） */
+      const [shortConfirm, setShortConfirm] = useState(false)
 
       // 看板广播 → 本表单下方的实时条目卡刷新。
       useEffect(() => {
@@ -2916,7 +3284,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         setAttaches((prev) => mergeAttachUnique(prev, parts))
       }
 
-      async function doStart() {
+      async function doStart(forceShort) {
         if (busy) return
         const b = String(body || '').trim()
         if (!b && attaches.length === 0) {
@@ -2924,51 +3292,77 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           setStartKind('bad')
           return
         }
+        // 短题面防呆（2026-11-23 实锤：题面「测试」两字开跑后 agent 在空
+        // 工作区把整块磁盘当靶场，20 步全盘搜索白烧 4 分钟）——开跑前拦一道
+        // 二次确认；点「就是测试，开跑」后 forceShort 放行。
+        if (!forceShort && b && b.length < 8 && attaches.length === 0) {
+          setShortConfirm(true)
+          setStartMsg('')
+          setStartKind('')
+          return
+        }
+        setShortConfirm(false)
         setBusy(true)
         setStartMsg('')
+        // 提到 try 外：catch 分支要按实际目标会话标 failed；
+        // 原实现声明在 try 内，catch 访问会抛 ReferenceError 并吞掉真实异常。
+        let targetSid = sid
         try {
-          const cmd = buildStartCommand(mode, cat, attaches, body)
-          let targetSid = sid
+          const cmd = buildStartCommand(mode, cat, attaches, body, target)
           let wsFallbackNote = ''
           if (newSession) {
-            // 「新建工作区 + 对话」：三层降级链，每一层失败都显式提示（绝不静默）：
+            // 「新建工作区 + 对话」：三层链每一层失败都显式提示（绝不静默）：
             //   层1 全新工作区：listDirectory() 取 Host home → createDirectory 建
             //      新目录 → workspaces.create({path}) 注册 → sessions.create
             //      ({workspaceId}) 开新对话（官方 New Session 同款 API）；
             //   层2 既有工作区新对话：目录/注册/建会话失败时，用 workspaces.list
             //      快照里的既有工作区 sessions.create——新对话（核心诉求）仍达成；
-            //   层3 当前会话：全部失败才降级，附原始错误。
+            //   层3 当前会话：全部失败才退，附原始错误。
             // 服务一律走模块级持有者；agent 预设由 Host /ctf-solve-start 在新
             // 会话（生而为 blank）上切换，前端不介入。
             const ensured = await ensureSolveSession(sid, t)
             targetSid = ensured.sid
             wsFallbackNote = ensured.note
             if (isNonEmptyString(targetSid) && targetSid !== sid) {
+              // 只登记 currentSessionId（状态板路由用）；**跳转推迟到命令成功后**——
+              // 2026-11-19 实锤：先跳新会话页会把面板里的错误 banner 冲掉，
+              // 失败时用户只看到「跳过去后无事发生」。
               currentSessionId = targetSid
               notifySessionChanged()
-              void openTargetSession(targetSid)
             }
           }
           upsertSolveEntry(targetSid, {
-            mode, cat, attaches, body,
+            mode, cat, target, attaches, body,
             startedAt: Date.now(), running: true, flags: [], status: 'running',
           })
-          const out = await executeRemote(cmd, targetSid)
+          const out = await panelDataFetch(cmd, { method: 'POST', sid: targetSid })
           const oc = remoteOutcome(out)
           if (oc.ok) {
+            // 成功才跳转新会话页（见上）。
+            if (isNonEmptyString(targetSid) && targetSid !== sid) void openTargetSession(targetSid)
             // 新建工作区降级但注入仍成功：成功文案后附降级原因（红色警示），不静默。
             setStartMsg(wsFallbackNote ? `${t('formStarted')} ${wsFallbackNote}` : t('formStarted'))
             setStartKind(wsFallbackNote ? 'bad' : 'ok')
           } else {
-            setStartMsg(oc.text || t('formStartFail'))
+            // Host 返回 error：不跳转（用户停留在面板上，错误 banner 可见）。
+            // 原文完整上屏（remoteOutcome 已携带 code+message），不再折成通用文案。
+            // 状态板同拍把条目标为 failed（2026-11-19 实锤：否则板子永远挂一张
+            // running 幽灵卡，用户点「正在解题」看到的就是它）。
+            upsertSolveEntry(targetSid, { status: 'failed', running: false })
+            setStartMsg(`✗ ${oc.text || t('formStartFail')}${wsFallbackNote ? `\n（新建会话降级备注：${wsFallbackNote}）` : ''}`)
             setStartKind('bad')
           }
         } catch (_err) {
-          // 区分两类硬失败：路由池全空（零会话且建不了新会话）→ 指引先开对话；
-          // 其余（无桥接/传输）→ 复制题面手动发送的指引。绝不静默吞掉。
+          // 2026-11-19 用户令「删光吞错降级」：原始异常全文上屏，不再映射通用文案。
+          // 通用指引仅作追加行，真因永远可见。
+          const raw = String((_err && _err.message) || _err || '(unknown error)')
+          const stack = String((_err && _err.stack) || '').slice(0, 400)
           const noRoute = _err && _err.message === 'no-route-session'
-          setStartMsg(noRoute ? t('formNoSession') : t('formNoBridge'))
+          const extra = noRoute ? t('formNoSession') : `${t('formNoBridge')}`
+          setStartMsg(`✗ 启动异常：${raw}${stack ? `\n${stack}` : ''}\n${extra}`)
           setStartKind('bad')
+          upsertSolveEntry(isNonEmptyString(targetSid) ? targetSid : sid, { status: 'failed', running: false })
+          try { console.error('[ctfpilot] doStart failed:', _err) } catch (_c0) { /* console 不可用时忽略 */ }
           if (!noRoute) {
             try {
               if (typeof navigator !== 'undefined' && navigator.clipboard &&
@@ -3063,6 +3457,19 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
             onChange: (e) => { setCat(e.target.value) },
           }),
         ),
+        // 靶机地址（2026-11-24）：扫描/连接类题目无靶标时 agent 无法开扫
+        // （session-2193d69d 实锤）。显式填写后随 --target 注入题面。
+        h(
+          'label',
+          { className: 'ctfp-formlab' },
+          t('formTarget'),
+          h('input', {
+            className: 'ctfp-search',
+            placeholder: t('formTargetPh'),
+            value: target,
+            onChange: (e) => { setTarget(e.target.value) },
+          }),
+        ),
         h(
           'div',
           { className: 'ctfp-actions' }, [
@@ -3081,6 +3488,24 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
                     : 'ctfc-status ctfc-status--bad',
                   role: startKind === 'ok' ? 'status' : 'alert',
                 }, h('span', null, startMsg))
+              : null,
+            // 短题面二次确认：确认才真正注入开跑，取消回到表单。
+            shortConfirm
+              ? h('div', { className: 'ctfp-tooldetail', role: 'alertdialog' }, [
+                  h('p', { style: { margin: '0 0 8px' } }, t('formShortWarn')),
+                  h('div', { style: { display: 'flex', gap: '8px' } }, [
+                    h('button', {
+                      className: 'ctfp-btn ctfc-btn--primary',
+                      type: 'button',
+                      onClick: () => { void doStart(true) },
+                    }, t('formShortGo')),
+                    h('button', {
+                      className: 'ctfp-btn',
+                      type: 'button',
+                      onClick: () => { setShortConfirm(false) },
+                    }, t('formShortCancel')),
+                  ]),
+                ])
               : null,
           ],
         ),
@@ -3101,34 +3526,27 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         return () => { if (typeof unsub === 'function') unsub() }
       }, [])
 
-      // 4 秒快照轮询：Host /ctf-solving-state 实时回各会话的 running 与
+// 4 秒快照轮询：Host /ctf-solving-state 实时回各会话的 running 与
       // flag 扫出结果——对话回合一结束 running 立刻翻 false（修复「未解出
       // 不随对话结束可点」），flag 只追加合并（修复提取遗漏）。
+      // 2026-11-25 用户实锤「卡片不能正确读取到会话结束」：旧实现不带参数，
+      // Host 只能回自折叠镜像（该折叠曾因不存在的 event.sessionId 恒空）。
+      // 现把本地看板里的会话 id 全带上，Host 逐会话读官方 turnBoundary
+      // 投影（openTurnStartSeq = 回合进行中），running 的翻转不再依赖
+      // 任何自折叠状态。
       // 失败静默，下一拍重试；当前会话 id 走模块级持有者（闭包读活值）。
       useEffect(() => {
         async function poll() {
-          const rsid = routeSessionId()
-          if (!isNonEmptyString(rsid)) return
           try {
-            const out = await executeRemote('/ctf-solving-state', rsid)
+            const known = Object.keys(readSolveBoard())
+            const out = await panelDataFetch('/ctf-solving-state' + (known.length ? ' ' + known.join(',') : ''))
             const oc = remoteOutcome(out)
             if (!oc.ok || !oc.text) return
             const snap = asSolveSnap(JSON.parse(oc.text))
             if (!snap) return
-            const all = readSolveBoard()
-            let touched = false
-            for (const sid of Object.keys(snap.sessions || {})) {
-              const cur = all[sid]
-              const ss = snap.sessions[sid]
-              if (cur && ss && !!cur.running !== !!ss.running) {
-                cur.running = ss.running
-                touched = true
-              }
-            }
-            if (touched) { writeSolveBoard(all); notifySolveBoardChanged() }
-            for (const sid of Object.keys(snap.sessions || {})) {
-              applySolveFlagsFromSnap(sid, snap.sessions[sid])
-            }
+            // 一次读写 + 一次广播：running 与 flags 同拍合并（原实现两次遍历、
+            // 每个会话各一次 localStorage 读写）。
+            applySolveBoardSnapshot(snap.sessions)
           } catch (_e) { /* 静默重试 */ }
         }
         const timer = setInterval(() => { void poll() }, 4000)
@@ -3185,45 +3603,91 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
     function ToolsPanel(props) {
       const t = typeof props.t === 'function' ? props.t : boundTranslator || identityT
       const [rows, setRows] = useState(null)
-      const [status, setStatus] = useState('loading') // loading | error | ok | empty | noSession
+      const [status, setStatus] = useState('loading') // loading | error | ok | empty
       const [msg, setMsg] = useState('')
       const [msgKind, setMsgKind] = useState('')
       const [busy, setBusy] = useState(false)
       const busyRef = useRef(false)
 
-      async function loadStatus(first) {
-        const sid = routeSessionId()
-        if (!sid) { setStatus('noSession'); return }
-        if (first) setStatus('loading')
+      async function loadStatus(force) {
+        // 缓存命中：立即上屏旧快检行并修状态面，后台静默校验。
+        const cached = panelCacheGet('tools-status')
+        if (cached !== null) {
+          setRows((prev) => (prev === cached.data ? prev : cached.data))
+          if (status === 'loading' || status === 'error') setStatus('ok')
+        }
+        if (!force && cached !== null && Date.now() - cached.at < PANEL_REVALIDATE_MS) return
+        if (panelInFlight.has('tools-status')) return
+        panelInFlight.add('tools-status')
         try {
-          const out = await executeRemote('/ctf-tools status', currentSessionId)
+          // force 时带 --fresh：跳过 Host 侧探针快照 TTL，刷新必拿新状态。
+          const out = await panelDataFetch(`/ctf-tools status${force ? ' --fresh' : ''}`, { method: 'POST' })
           const oc = remoteOutcome(out)
           if (!oc.ok) throw new Error(oc.text || t('errorState'))
           const idx = String(oc.text).indexOf('[')
           if (idx < 0) throw new Error('malformed status output')
           const parsed = JSON.parse(String(oc.text).slice(idx))
-          if (!Array.isArray(parsed) || parsed.length === 0) { setRows([]); setStatus('empty'); return }
-          setRows(parsed)
-          setStatus('ok')
+          if (!Array.isArray(parsed)) throw new Error('malformed status output')
+          const rowsNext = parsed
+          const changed = panelCacheSet('tools-status', rowsNext)
+          if (changed) setRows(rowsNext)
+          if (cached === null) setStatus(rowsNext.length === 0 ? 'empty' : 'ok')
         } catch (_err) {
-          setStatus('error')
+          // 无缓存：失败显式上屏；有缓存：保留旧行（后台校验失败不打断显示）。
+          if (cached === null) setStatus('error')
+          else { try { console.error('[ctfpilot] tools revalidate failed:', _err) } catch (_c) { /* console 不可用 */ } }
+        } finally {
+          panelInFlight.delete('tools-status')
         }
       }
 
-      useEffect(() => { void loadStatus(true) }, [])
+      useEffect(() => { void loadStatus() }, [])
 
-      async function act(row, verb) {
-        if (busyRef.current || !row || !row.id) return
+      // 一键安装按钮的未装计数（仅展示用；真正缺装集由 Host 侧 install-all
+      // 实探决定，面板行有 30s TTL/本地缓存滞后，不作为注入依据）。
+      const missingCount = rows ? rows.filter((r) => r && !r.ok && r.kind !== 'mcp').length : 0
+
+      /** 装更卸动作共用链（单工具 act 与一键安装 installAll 同路）：
+       * 新开 CTF-worker 对话 → 命令路由到新会话 → Host 注入该对话的 agent。 */
+      async function runToolAction(cmdLine) {
         busyRef.current = true
         setBusy(true)
         setMsg('')
         setMsgKind('')
         try {
-          const out = await executeRemote(`/ctf-tools ${verb} ${row.id}`, routeSessionId())
+          // 2026-11-20 用户方案：点装/更/卸 → 自动开新对话（与「开始解题」
+          // 同款三层链，固定 CTF-worker 工作区）→ /ctf-tools <verb> <id> 路由到
+          // 新会话 → Host 把安装请求注入该对话的 agent 代跑包管理器。
+          // agent 能看真实输出、自适应处理（winget GUI 卸载器、PATH 快照
+          // 过期等坑），错误天然显示在对话里。跳转推迟到命令成功后——失败
+          // 时 banner 停在本面板可读（solve 表单同款纪律）。
+          // 2026-11-24 一键安装同链路：/ctf-tools install-all 由 Host 实探
+          // 全部工具，把「所有未装工具」的安装请求合并成一条注入这**一个**
+          // 新对话，agent 按清单串行装完——不再每个工具各开一个对话。
+          let targetSid = ''
+          let wsNote = ''
+          try {
+            const ensured = await ensureSolveSession(currentSessionId, t)
+            targetSid = ensured.sid
+            wsNote = ensured.note
+          } catch (e2) {
+            // ensureSolveSession 内部各层自带降级 note，正常不抛；真抛出（代码
+            // 缺陷）时如实带出，命令退到当前会话路由（不静默吞错）。
+            targetSid = ''
+            wsNote = t('formWsFallback', { err: String((e2 && e2.message) || e2).slice(0, 120) })
+          }
+          const routeSid = isNonEmptyString(targetSid) ? targetSid : currentSessionId
+          const out = await panelDataFetch(cmdLine, { method: 'POST', sid: routeSid })
           const oc = remoteOutcome(out)
           if (oc.ok) {
-            setMsg(t('toolsStatusDone'))
-            setMsgKind('ok')
+            setMsg(wsNote ? `${oc.text}\n（新建会话降级备注：${wsNote}）` : oc.text)
+            setMsgKind(wsNote ? 'bad' : 'ok')
+            // 成功才跳新对话页——agent 正在那里执行安装。
+            if (isNonEmptyString(targetSid) && targetSid !== currentSessionId) {
+              currentSessionId = targetSid
+              notifySessionChanged()
+              void openTargetSession(targetSid)
+            }
           } else {
             setMsg(oc.text || t('toolsResult'))
             setMsgKind('bad')
@@ -3234,17 +3698,25 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         } finally {
           busyRef.current = false
           setBusy(false)
-          void loadStatus(false)
+          void loadStatus(true)
         }
+      }
+
+      async function act(row, verb) {
+        if (busyRef.current || !row || !row.id) return
+        await runToolAction(`/ctf-tools ${verb} ${row.id}`)
+      }
+
+      /** 一键安装（2026-11-24 用户令）：点一下 → 新开**一个**对话，把全部
+       *  未安装工具的安装请求一次性交给该对话的 agent 按清单串行装完。 */
+      async function installAll() {
+        if (busyRef.current) return
+        await runToolAction('/ctf-tools install-all')
       }
 
       if (status === 'loading' && rows === null) {
         return h('div', { className: 'ctfp-note ctfp-note--loading', role: 'status' }, t('loadingState'))
       }
-      if (status === 'noSession') {
-        return h('div', { className: 'ctfp-note', role: 'status' }, t('panelNeedsSession'))
-      }
-
       return h(
         'section',
         { className: 'ctfp-section' },
@@ -3257,18 +3729,27 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
             'button', {
               className: 'ctfp-btn',
               type: 'button',
-              onClick: () => { void loadStatus(false) },
+              onClick: () => { void loadStatus(true) },
               disabled: busy,
             }, busy ? t('toolsBusy') : t('toolsStatus'),
           ),
-          rows ? h('span', { className: 'ctfp-catcount' }, t('toolsStatusDone')) : null,
+          h(
+            'button', {
+              className: 'ctfp-btn',
+              type: 'button',
+              onClick: () => { void installAll() },
+              disabled: busy,
+              title: t('toolsInstallAllHint'),
+            }, busy ? t('toolsBusy') : (missingCount > 0 ? t('toolsInstallAllCount', { n: missingCount }) : t('toolsInstallAll')),
+          ),
+          rows ? h('span', { className: 'ctfp-catcount' }, String(rows.length)) : null,
         ]),
         status === 'error'
           ? h('div', { className: 'ctfp-note', role: 'alert' }, [
               h('div', null, t('errorState')),
               h('button', {
                 className: 'ctfp-btn', style: { marginLeft: '10px' }, type: 'button',
-                onClick: () => { void loadStatus(false) },
+                onClick: () => { void loadStatus(true) },
               }, t('retry')),
             ])
           : null,
@@ -3342,7 +3823,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
      * ============================================================ */
 
     return {
-      inject: ['slots', 'locale', 'remote', 'remote.commands', 'uiWorkspace', 'sessions', 'workspaces'],
+      inject: ['slots', 'locale', 'uiWorkspace', 'sessions', 'workspaces'],
       apply(ctx) {
         const t = ctx.locale.bind(NS)
         // 捕获绑定翻译器：props.t 缺位（未注入场景）时组件仍能取到文案。
@@ -3354,9 +3835,6 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         )
 
         ctx.effect(() => {
-          // 宿主命令桥：组件经模块级持有者访问（不进 React 依赖图）。
-          remoteCommands = ctx.remote && ctx.remote.commands ? ctx.remote.commands : null
-
           // —— Feature 1：侧栏全局面板 ——
           const stopPanelIcon = ctx.slots.inject(
             'sidebar.panellist',
@@ -3397,7 +3875,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
               }, SubmitConfirmCard),
           )
 
-          // 捕获 uiWorkspace / workspaces 服务（跳转会话 / 目录选择 / fork 迁移 /
+          // 捕获 uiWorkspace / workspaces 服务（跳转会话 / 目录选择 /
           // 新建工作区注册）；缺失时「开始解题」表单降级为当前会话并显式提示。
           try {
             const uiws = ctx.uiWorkspace || (ctx.get ? ctx.get('uiWorkspace') : null)
@@ -3412,7 +3890,6 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
             stopPanelIcon()
             stopMainPanel()
             stopTurnTail()
-            remoteCommands = null
             currentSessionId = ''
             uiWorkspaceHolder = null
             workspacesHolder = null

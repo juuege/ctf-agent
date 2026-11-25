@@ -53,7 +53,7 @@ const CATS = ['crypto', 'web', 'reverse', 'pwn', 'misc', 'osint', 'forensics']
 /* ---------------- 工具函数 ---------------- */
 
 // 引擎 CLI stdout 契约（随引擎版本演进，不内嵌知识，只内嵌协议）
-const FLAG_RE = /\b(?:flag|FLAG|ctf|CTF|DASCTF|NSSCTF|SUCTF|hgame)\s*\{[^}\s]{4,256}\}/i
+const FLAG_RE = /\b(?:flag|FLAG|ctf|CTF|DASCTF|NSSCTF|SUCTF|hgame)\s*\{[^}\s]{3,256}\}/i
 const SOLVED_LINE = /\[result\]\s+SOLVED/
 const TRIAGE_RE = /\[triage\]\s+category=([a-z]+)/i
 
