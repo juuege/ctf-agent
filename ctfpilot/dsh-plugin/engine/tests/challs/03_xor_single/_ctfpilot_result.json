@@ -1,0 +1,14 @@
+{
+  "name": "03_xor_single",
+  "category": "reverse",
+  "solved": true,
+  "flag": "flag{s1ngl3_byt3_x0r_sw33p}",
+  "time_seconds": 0.056,
+  "attempts": 6,
+  "mode": "auto",
+  "provenance": {
+    "require_derived": true,
+    "status": "derived",
+    "raw_file": null
+  }
+}

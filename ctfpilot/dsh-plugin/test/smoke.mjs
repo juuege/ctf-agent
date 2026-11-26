@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import * as plugin from '../lib/index.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -27,6 +28,27 @@ const candidates = [
 ]
 const explicitPython = candidates.find(p => p && existsSync(p))
 const cfg = { engineDir, ...(explicitPython ? { python: explicitPython } : {}) }
+
+// —— 考核期闸门（closed-book）：活跃 redrill campaign 期间，引擎侧禁用裸
+// ctfpilot 工具（ERR_REDRILOCK）。smoke 的真实引擎段此时整段让路并大声 SKIP：
+// 锁是产品特性，不是桥接缺陷；注册/桩/输出形状断言照常跑。考核结束后重跑可
+// 拿全量结果。探测失败不阻断（按空闲处理，真锁会在执行时显形，不吞错）。
+let campaignActive = false
+let campaignNote = ''
+try {
+  const probe = spawnSync(explicitPython || 'python', ['-X', 'utf8', join(engineDir, 'ctfpilot.py'), 'redrill', 'status'], {
+    encoding: 'utf8',
+    env: { ...process.env, PYTHONUTF8: '1' },
+    timeout: 60_000,
+  })
+  const probeOut = `${probe.stdout || ''}\n${probe.stderr || ''}`
+  const m = /\[redrill\]\s+(\S+)\s+status=active/.exec(probeOut)
+  campaignActive = Boolean(m)
+  if (m) campaignNote = m[1]
+} catch (_e) { /* 探测失败按空闲处理；真锁会在执行时显形 */ }
+console.log(campaignActive
+  ? `[SKIP] 真实引擎段：考核 ${campaignNote} 进行中（closed-book 闸门），仅跑注册/桩断言`
+  : 'real-engine segment: idle (no active campaign)')
 
 // 1. apply() registers the model-facing tools on a mock ctx.
 let defs = []
@@ -55,7 +77,9 @@ assert.equal(Object.keys(byName.propose_submit.output.schema.properties).sort().
 await plugin.apply({ tools: { register() {} } }, { engineDir: '/nonexistent-xyz' }) // must not throw
 const badDefs = []
 await plugin.apply({ tools: { register(d) { badDefs.push(d) } } }, { engineDir: 'C:\\bogus' })
-assert.equal(badDefs.length, 2)
+// ctfpilot + redrill (closed-book exam runner) + propose_submit (human confirm gate).
+assert.equal(badDefs.length, 3)
+assert.ok(badDefs.some((d) => d.name === 'redrill'), 'redrill tool missing')
 const badCtf = badDefs.find(d => d.name === 'ctfpilot')
 await assert.rejects(
   badCtf.execute({ command: 'stats' }, { signal: AbortSignal.timeout(10_000) }),
@@ -87,6 +111,9 @@ assert.ok(String(longRes.summary).includes('module selftests: 65/65'), `summary 
 assert.ok(String(longRes.output).includes('截断'), 'long output should report truncation')
 rmSync(stubDir, { recursive: true, force: true })
 console.log('long-output tail ok')
+
+// 3~8. Real-engine segment — 考核活跃时整段让路（见顶部探测）。
+if (!campaignActive) {
 
 // 3. Real engine: selftest. The engine runs its whole module suite and
 // reports "module selftests: N/M"; evolve20-deepflag depends on the deep mock
@@ -229,6 +256,8 @@ assert.ok(d.output.includes('[dashboard] wrote'), `dashboard output unexpected: 
 console.log('dashboard ok:', d.summary)
 rmSync(dashOut, { force: true })
 
+} // end real-engine segment (campaign-aware)
+
 // 9. propose_submit: executes against a mock agent/session without throwing,
 // and hands back the model-facing action contract.
 let psExecuted = false
@@ -242,4 +271,6 @@ await byName.propose_submit.execute(
 psExecuted = true
 assert.ok(psExecuted, 'propose_submit.execute never ran')
 
-console.log('\nALL SMOKE TESTS PASSED')
+console.log(campaignActive
+  ? `\nALL SMOKE TESTS PASSED (real-engine segment skipped: active redrill campaign ${campaignNote})`
+  : '\nALL SMOKE TESTS PASSED')

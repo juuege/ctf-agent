@@ -1,0 +1,12 @@
+{
+  "cases": 148,
+  "solved": 83,
+  "with_signals": 132,
+  "with_pitfalls": 66,
+  "with_transferable": 72,
+  "with_failure": 124,
+  "generated": "2026-11-18 10:08:11",
+  "writeups_dir": "writeups",
+  "mode": "production",
+  "excluded": 0
+}

@@ -3,3 +3,23 @@ node_modules.bak/
 *.tsbuildinfo
 
 .temp-dashboard-smoke.html
+
+# —— 随包引擎的运行时数据（只发代码与基础知识，不发个人账本/日志）——
+engine/**/__pycache__/
+engine/memory/*.sqlite*
+engine/memory/*.log
+engine/memory/_traj_index.json
+engine/memory/redrill-*
+engine/skills/learned/
+engine/skills/arena/
+engine/skills/research/
+engine/skills/rsi/
+engine/skills/knowledge-holdout/
+engine/skills/knowledge/metrics-history.jsonl
+engine/.temp/
+engine/*.log
+engine/CTFPilot-*.html
+engine/writeups-redrill/
+
+.temp-dist/
+.temp-verify-commands.txt

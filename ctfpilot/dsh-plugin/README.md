@@ -4,6 +4,42 @@
 
 引擎纯 Python 标准库、本机离线运行（详见 [CTFPilot README](../README.md)）。插件零运行时依赖（仅 `@deepseek-ai/schemastery`），通过子进程桥接引擎 CLI。
 
+## 安装与部署（2026-11-26 交付级整改）
+
+从 GitHub / npm 安装即开箱可用，**不需要另外 clone CTFPilot 引擎**：
+
+- **引擎随包分发**：`engine/` 目录内含完整引擎（纯 Python 标准库，约 2.5MB，只含代码与基础知识库，不含任何个人账本/日志）。插件解析顺序：`config.engineDir`（可选）→ `CTFPILOT_HOME` → `<plugin>/engine` → 仓库/工作区 sibling 布局。
+- **唯一环境要求：Python 3.10+**。留空 `config.python` 即自动探测 `python3` / `python`（Windows 另含 `py -3`）；探测不到时按提示设置 `config.python` 或 `CTFPILOT_PYTHON`。
+- **配置不再写死路径**：`cordis.patch.yml` 里 `engineDir` / `python` 默认空串。历史配置带作者机绝对路径也不会拦死面板——会告警一次并回落到自动探测。
+- **运行时数据位置**：`<plugin>/engine/memory`（轨迹库）与 `<plugin>/engine/skills`（学习/考核资产）。升级插件前建议备份该目录。
+- **自检**：面板「系统演进 → 工装体检」或 `/ctf-doctor --json`，`engine.dir` 字段直接给出最终解析到的引擎目录。
+
+## 0.4.0 工作台信息架构（2026-11-26）
+
+主面板固定六个标签，顺序即用户动线；前三个是操作面，后三个是记忆与两类演进：
+
+| 顺序 | 标签 | 职责 | 边界 |
+|---|---|---|---|
+| 1 | **开始解题** | 选题型/模式、填题面与靶机、建新对话并注入 | 只发起解题 |
+| 2 | **正在解题** | 各会话运行状态、flag 追加、已解出/未解出流转 | 只观察与收尾 |
+| 3 | **工具管理** | 工具健康快检、单装/更/卸、一键安装 | 只动本机工具链 |
+| 4 | **知识库** | KPI + 分类覆盖；二级分段为 题目 / 经验卡 / 引擎观察（原概览、台账、探测器、经验卡四屏合并） | 只读，不改账本 |
+| 5 | **题库精炼** | 交叉重刷（k-fold 闭卷考核）、批量重刷、演练台账与手工记练 | 只动题库/经验卡/探测器 |
+| 6 | **系统演进** | 工装体检（引擎/Python/账本/网关/预设/日志）、RSI 提案人审、知识研究队列 | 只动插件/预设/运行时接线 |
+
+- **命名去歧义**：原「训练场」更名为「题库精炼」（Library Refinery），原「自进化」更名为「系统演进」（System Evolution）；两个标签页各自写明分工，互相指路。
+> 历史章节中的「训练场」「自进化」为旧称，现分别对应「题库精炼」「系统演进」；命令名与引擎资产名未变。
+- **标签记忆**：重开面板回到上次所在屏，首访默认「开始解题」。
+- **标签栏常驻**：账本为空或看板读取失败时，六个标签仍全部可用——工具管理/题库精炼/系统演进不依赖台账数据，不会被数据门槛锁死；知识库的加载/空态只在该屏内提示。
+- **角标**：正在解题=运行中会话数；工具管理=未装工具数；题库精炼=考核进行中；系统演进=待审提案数（均由模块级缓存订阅驱动，零额外轮询）。
+
+## 0.4.0 运维与 AI 可诊断
+
+- **`/ctf-doctor [--json]`**：一次只读体检——引擎目录/`ctfpilot.py`、Python 版本、账本大小、HTTP 网关挂载、三个 CTF 预设 resolve、最近错误与 ops 事件尾部。失败项 `✗`、警告项 `△`；`--json` 输出结构化 `checks/engine/python/presets/logs`，可直接交给 AI 运维。
+- **`ctfpilot-ops.log`（JSONL）**：每条命令一行 `{ts,pid,event,name,via,rid,ms,kind,...}`；高频轮询命令（dashboard / solving-state / redrill-status / challenge-detail）成功不落盘、慢调用与失败照记。与 `ctfpilot-errors.log` 共用 `rid`，面板错误可一键对上日志。
+- **日志轮转**：错误日志 2MB、ops 日志 4MB、redrill Host 链路 2MB，均保留一代 `.1`。
+- **网关拒绝也留痕**：401/403/404/405/413 与 500 全部写 ops 事件（含 rid、method、url、原因），不再是「面板空白但日志无记录」。
+
 ## 工具
 
 ```
@@ -67,6 +103,26 @@ ctfpilot(command, ...)
 预设切换诊断：`/ctf-preset-audit`（服务可达性 / roster 全量行 / ctf 预设逐个
 resolve / 本会话 turnBoundary 锁定态）。
 
+### 运维日志（2026-11-26 用户令：交付可运维）
+
+三层观测，各有分工：
+
+| 日志 | 位置 | 内容 | 轮转 |
+|---|---|---|---|
+| 引擎 ops | `<memory>/redrill-ops.log`（JSONL） | 每个 redrill 动作 `start→ok/error` + 耗时毫秒；参数脱敏（flag 只记 sha256 前 8 位 + 长度 + 格式，真值永不落盘） | 2MB → `.1` |
+| Host 链路 | `<engineDir>/redrill-host.log`（JSONL） | 面板链路关键事件：start 的 resume 标志/workspace/folds、盲副本 staging、预设切换、注入结果、每个失败环节的 phase（plan/state/agent/stage/preset/inject/throw） | 2MB → `.1` |
+| 命令错误 | `<engineDir>/ctfpilot-errors.log` | 注册包装层统一落盘的所有命令错误（含 redrill 命令族），`/ctf-logs` 查看 | 手动 clear |
+
+- **诊断入口**：`/ctf-redrill-diag` 或训练场面板「🩺 诊断」——引擎环境
+  （engine/memory/python）、state（campaign/fold/状态）、沙箱目录、ops 日志尾部、
+  最近 10 条错误、Host 侧 workspace 注册与最近 15 条链路事件，一次输出。
+- **面板直显**：campaign `status` JSON 内嵌 `last_errors`（最近 5 条引擎错误），
+  训练场进度区直接上屏，无需进日志目录。
+- **排障口径**：点按钮无反应 → 先看 `redrill-host.log` 有没有
+  `ctf-redrill-start/start` 行：有 start 无 ok/error = Host 侧卡住；有 error 看
+  `phase` 定位环节；正常注入但 agent 不动 → `redrill-ops.log` 看引擎侧 begin/
+  verify/record 是否到达。
+
 `/ctf-solve-start` 的预设切换失败即**终止**（不降级注入）：切换不过去却继续解题
 = 用错预设假装修题。失败回报按官方错误码分类（locked / not-found / invalid /
 no-service），并指引用 `/ctf-preset-audit` 与 `/ctf-logs` 定位。
@@ -115,24 +171,20 @@ rebuild-knowledge 与汇总——注入**一个**快解对话，训练场页有�
 
 ## 安装与挂载
 
-前提：已安装 DSH（≥0.2，含桌面端或 CLI），系统有 Python 3.10+，且已 clone 本仓库：
+前提：已安装 DSH（≥0.2，含桌面端或 CLI），系统有 Python 3.10+。**不需要 clone 引擎仓库**——引擎已随包在 `engine/`（约 2.5MB，纯 Python 标准库，零第三方依赖）。
+
+**方式 A：DSH 桌面端 / 任意 profile（推荐）**
+
+把本仓库的 `ctfpilot/dsh-plugin` 目录复制（或软链）到任意本地路径，然后用 `dsh plugin` 安装——声明了 `dsh.bundle.patch` 的包会被 **reconcile 自动启用**（自动写入 profile 的 `dsh.profile.bundles`），包内 `cordis.patch.yml` 随 profile 启动自动挂载：
 
 ```bash
-git clone https://github.com/juuege/ctf-agent.git
-```
-
-本仓库布局即默认解析路径（`ctfpilot/{CTFPilot-v0.1, dsh-plugin}` 互为兄弟目录，插件按相对位置自动找到引擎，无需配置）。
-
-**方式 A：DSH 桌面端 / 任意 profile（标准）**
-
-把插件目录复制（或软链）到任意本地路径，然后用 `dsh plugin` 安装——声明了 `dsh.bundle.patch` 的包会被 **reconcile 自动启用**（自动写入 profile 的 `dsh.profile.bundles`），包内 `cordis.patch.yml` 随 profile 启动自动挂载：
-
-```bash
-dsh plugin --profile desktop add "file:C:/dsh-plugins/dsh-ctfpilot"
+dsh plugin --profile desktop add "file:<你的插件目录>"
 # 然后完全退出并重启 DSH（托盘右键退出，node 不热重载磁盘模块）
 ```
 
-桌面端默认配置（引擎路径 / Python 路径）已写在包内 `cordis.patch.yml`，按需修改后重装。
+包内 `cordis.patch.yml` 的 `engineDir` / `python` 默认留空 = 自动探测：`<plugin>/engine` → 仓库/工作区 sibling → `CTFPILOT_HOME`；Python 自动探测 `python3` / `python`（Windows 另含 `py -3`）。需要自定义时才填绝对路径。
+
+> 旧布局兼容：直接 clone 全仓库时 `ctfpilot/{CTFPilot-v0.1, dsh-plugin}` 互为兄弟，仍按相对位置解析；但分发插件只需 `dsh-plugin` 目录即可开箱运行。
 
 > pnpm 多 TeleAgent 用户共用一台机时可能报 `ERR_PNPM_UNEXPECTED_STORE`，追加
 > `--config.store-dir=<旧store父目录>`（不带 v11 后缀）复用原 store 即可。
@@ -199,6 +251,8 @@ dsh tui --patch ctfpilot-overlay.yml
 cd dsh-plugin
 npm install              # 仅装 schemastery
 node test/smoke.mjs      # 注册面 + 真实引擎 selftest/solve/recall/rebuild-knowledge/eval-retrieval/dashboard 端到端
+# 考核期（活跃 redrill campaign）smoke 自动让路：引擎侧禁用裸 ctfpilot 工具，
+# smoke 打印 [SKIP] 并只跑注册/桩断言，退出码 0；考核结束后重跑拿全量结果。
 ```
 
 要求引擎目录与 dsh-plugin 平级（同仓库布局）。挂载级验证：
@@ -214,3 +268,32 @@ dsh headless --patch your-overlay.yml "hi"   # 无 LLM 凭据时，若仅报 MIS
 - 仅用于授权比赛与本地靶场。
 
 > AI生成
+
+## 0.3.0 交叉重刷训练（k-fold 闭卷）
+
+历史抄题解问题的 harness 级根治（SOTA 出处：ExpeL AAAI-24 四折验证、NYU CTF Bench 白名单+私有 flag 裁判、SWE-rebench 时间戳污染标记、SWE-Bench Pro V2 hardened protocol）：
+
+- **引擎 `redrill` 命令族**：`plan`（同 flag 分组→原件预检→固定种子分折→盲副本+flag 打码/剔除）/ `begin` / `fast-try` / `recall`（闭卷视图）/ `hint` / `verify`（布尔判定恒不回真值）/ `record --via fast|manual|fail|missing`（引擎证据守门：无 verify MATCH 的 fast/manual 一律物理拒记）/ `fold-done` / `control`（面板 pause/abort/skip）/ `audit`（答案串溯源+禁区路径+搜题解检测，R1-R4 分级）/ `finalize`（HTML 训练报告）/ `selftest`（17 断言隔离自检）
+- **k-fold 记忆隔离**：考核期间 recall 强制闭卷——考批组 writeup 卡、孤儿卡（ch=0）、冻结点后新卡一律不可见；`arena record` 直记考批题被拒；`learn-writeup` 对无 verify 证据的考批 writeup 拒收；生产 rebuild 冻结
+- **插层面**：`redrill` agent 工具（Host 持引擎路径，注入协议零路径/零题名/零 flag）；campaign 活跃期间裸 `ctfpilot` 工具整体禁用（harness 级封锁）；`ctf-redrill-start/status/control/audit/finalize` 面板命令族；`preset-ctf-redrill` 专用预设（去 recall-first）
+- **训练场面板**：「交叉重刷」卡片——开始/恢复按钮、折进度与 slot 状态行、暂停/继续/中止、审计/收尾，30s 轮询
+- **测试**：engine selftest 17/17、plug-in commands 138/0、client 124/0、workflow 45/0、argv 0
+
+## 0.3.1 修复与可运维（2026-11-26）
+
+- **修复：训练场「恢复考核」按钮无反应**——`startRedrill(!rdActive)` 方向传反：
+  campaign 处于 active 时点按钮走了 `plan` 分支，被引擎拒（campaign already
+  active）且无路径上屏。现 active 时正确发 `--resume`（读现有状态直接续跑）。
+- **修复：训练工作区目录解析时序**——`ensureSolveSession` 现在显式返回解析出的
+  目录（复用 worker 取 `path`、新建取 ensure-workspace 返回值），`startRedrill`
+  直接使用它；不再依赖 `workspaces` 快照的毫秒级时序（快照空窗会导致「找不到
+  训练工作区」静默失败）。
+- **可运维（三层日志 + 两个诊断入口）**：引擎 ops 日志统一收口在
+  `ctfpilot.py::do_redrill`（所有调用方的唯一入口）；Host 链路日志补齐 staging/
+  预设/注入事件；新增 `redrill diag` / `ctf-redrill-diag` 命令与面板「🩺 诊断」
+  按钮；`status` JSON 内嵌 `last_errors` 直接上屏。详见「运维日志」小节。
+- **selftest**：17 → 21 断言（ops 落盘、flag 脱敏不回显、diag JSON 完整性）。
+- **连带修复**：selftest 开头重置 `MEMORY_DIR` 缓存——ops 包装层会先解析并缓存
+  生产 memory 目录，不重置的话 selftest 的 state 会写进生产目录。
+- **测试**：engine selftest 21/21、plug-in commands 138/0、client 124/0、
+  workflow 45/0、argv 0

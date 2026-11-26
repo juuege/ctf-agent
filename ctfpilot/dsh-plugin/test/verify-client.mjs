@@ -248,6 +248,8 @@ let ensureWorkspaceDirs = [] // 层1 发往 Host 的 --dir 路径回录
 let toolsActionBroken = false // /ctf-tools install 注入失败模拟（错误 banner 不跳转）
 let continueBroken = false // /ctf-continue 注入失败模拟（未解出续攻必须显式上屏）
 let gateway404 = false // 网关路由未挂模拟（旧 Host + 新 client 版本偏斜 → HTTP 404）
+let dashboardEmpty = false // 空账本模拟（新装/清库：看板全零，操作屏必须仍可达）
+let redrillStatusBlob = null // /ctf-redrill-status 测试响应（null → {}；设对象 → 原样 JSON）
 
 
 /** /ctf-research list 与 /ctf-rsi list 的引擎 stdout 形态（当前引擎 do_research/do_rsi 行格式）。 */
@@ -284,6 +286,10 @@ function fakeRemoteExecute(sessionId, line) {
     }
     return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: arenaBoardText } } })
   }
+  if (String(line).startsWith('/ctf-redrill-status')) {
+    // 面板 30s 轮询同源：测试用可切换 blob（active / done / 空态）。
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: JSON.stringify(redrillStatusBlob || {}) } } })
+  }
   if (String(line).startsWith('/ctf-arena record')) {
     if (arenaRecordBroken) {
       return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'error', text: '[error] arena record needs --name and --category' } } })
@@ -308,7 +314,23 @@ function fakeRemoteExecute(sessionId, line) {
     }
     return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: "[rsi] approved: rsi-001 (detector)" } } })
   }
+  if (String(line).startsWith('/ctf-doctor')) {
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: 'CTFPilot 体检 2026-11-26T00:00:00.000Z · 插件 0.4.0\n结论：PASS（8 通过 / 0 警告 / 0 失败）\n✓ engine-dir：C:/mock/engine\n✓ python：C:/mock/python.exe (Python 3.12.4)' } } })
+  }
+  if (String(line).startsWith('/ctf-logs')) {
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: 'C:/mock/engine/ctfpilot-errors.log\n[error] mock-log-line' } } })
+  }
+  if (String(line).startsWith('/ctf-preset-audit')) {
+    return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: 'service: reachable\nresolve(ctf-quick): ok\nresolve(ctf-deep): ok\nresolve(ctf-redrill): ok' } } })
+  }
   if (String(line).startsWith('/ctf-dashboard')) {
+    if (dashboardEmpty) {
+      const emptyJson = {
+        stats: { total: 0, solved: 0, rate: 0, checkpoints: 0, lessons: 0, attempts: 0, distinct: 0, challs: 0 },
+        bycat: [], modes: [], challs: [], lessons: [], detectors: [], errors: [],
+      }
+      return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: JSON.stringify(emptyJson) } } })
+    }
     return Promise.resolve({ ok: true, value: { commandId: `cmd-${remoteCalls.length}`, result: { kind: 'success', text: JSON.stringify(engineJson) } } })
   }
   if (String(line).startsWith('/ctf-challenge-detail')) {
@@ -378,6 +400,11 @@ async function fakeFetch(input, init) {
   return { ok: true, status: 200, json: async () => result }
 }
 globalThis.fetch = fakeFetch
+// 全局禁真定时器（2026-11-26）：ArenaPanel 现带 redrill campaign 30s 轮询，
+// 渲染期间任何窗口外的 mount 都会注册真 interval 把 node 进程吊死
+// （桩环境无 unmount 语义）。离线测试全程零真定时器——原 9.5 段的
+// 禁用/恢复窗口保留（重复禁用幂等，其"恢复"恢复的也是本桩）。
+globalThis.setInterval = () => 0
 
 const ctx = {
   locale: {
@@ -572,12 +599,18 @@ check('看板: 节流窗口内重挂零请求（缓存命中+节流，防 sessio
   !remoteCalls.some((c) => c.line === '/ctf-dashboard'),
   JSON.stringify(remoteCalls))
 
-/** 按标签文字点击切换（四个功能屏互斥；文字在元素树 .children 上）。 */
-function clickTab(el, label) {
-  const btn = findAllByClass(el, 'ctfp-tab')
-    .find((b) => String(Array.isArray(b.children) ? b.children[0] : '') === label)
-  if (!btn) throw new Error(`tab "${label}" not found`)
-  btn.props.onClick()
+/** 按标签文字点击切换（外层 ctfp-tab 与子屏 ctfp-seg-btn 同号匹配）。
+ *  labels 支持数组：2026-11-26 另一会话重构了标签体系（题目台账→知识库、
+ *  训练场→题库精炼、自进化→系统演进、四子屏合并为 题目/经验卡/引擎观察），
+ *  按候选顺序兜底，两线并发时测试不互相踩。 */
+function clickTab(el, labels) {
+  const cands = Array.isArray(labels) ? labels : [labels]
+  for (const label of cands) {
+    const btn = [...findAllByClass(el, 'ctfp-tab'), ...findAllByClass(el, 'ctfp-seg-btn')]
+      .find((b) => String(Array.isArray(b.children) ? b.children[0] : '') === label)
+    if (btn) { btn.props.onClick(); return }
+  }
+  throw new Error(`tab "${cands.join('|')}" not found`)
 }
 
 /** 在原始元素树中按组件名抓取组件元素（不执行其渲染体）。 */
@@ -597,17 +630,29 @@ const htmlOf = (el) => JSON.stringify(expand(el), (k, v) => (typeof v === 'funct
 const panelEl = React.render(Panel, { t })
 const clsP = classesOf(panelEl)
 const htmlLike = htmlOf(panelEl)
-check('面板: 功能标签栏渲染（概览/题目台账/探测器/经验卡四标签）',
-  clsP.has('ctfp-tabs') && ['概览', '题目台账', '探测器', '经验卡'].every((l) => htmlLike.includes(l)))
-check('面板: 默认概览屏渲染 KPI（总数 622）与分类进度（crypto 40/80）',
-  clsP.has('ctfp-kpis') && htmlLike.includes('622') && htmlLike.includes('40/80'))
-check('面板: KPI 新增「累计尝试」（131000 次）', htmlLike.includes('131000'))
-check('面板: 概览屏渲染解题模式（auto 118）与失败画像（semantic:no-progress 128）',
-  htmlLike.includes('118') && htmlLike.includes('semantic:no-progress') && htmlLike.includes('128'))
-check('面板: 失败画像标题含类别计数（共 2 类）', htmlLike.includes('共 2 类'))
+check('面板: 功能标签栏渲染（6 主标签）',
+  clsP.has('ctfp-tabs') && ['开始解题', '正在解题', '工具管理', '知识库', '题库精炼', '系统演进'].every((l) => htmlLike.includes(l)))
+const mainTabLabels = findAllByClass(panelEl, 'ctfp-tab').map((b) => String(b.children[0]))
+check('面板: 主标签顺序固定为 开始解题 → 正在解题 → 工具管理 → 知识库 → 题库精炼 → 系统演进',
+  JSON.stringify(mainTabLabels) === JSON.stringify(['开始解题', '正在解题', '工具管理', '知识库', '题库精炼', '系统演进']),
+  JSON.stringify(mainTabLabels))
+check('面板: 首访默认落在「开始解题」（操作动线最短）',
+  Boolean(grabComponent(panelEl, (n) => /SolveForm/.test(n))) && htmlLike.includes('CTFPilot 解题工作台'),
+  htmlLike.slice(0, 160))
+// 2026-11-26 另一会话重构：首访默认「开始解题」；知识库合并原四屏为「题目/经验卡/引擎观察」。
+clickTab(panelEl, '知识库')
+const kb1 = React.render(Panel, { t })
+const clsKb = classesOf(kb1)
+const kbHtml = htmlOf(kb1)
+check('面板: 知识库屏渲染 KPI（总数 622）与分类进度（crypto 40/80）',
+  clsKb.has('ctfp-kpis') && kbHtml.includes('622') && kbHtml.includes('40/80'))
+check('面板: KPI 新增「累计尝试」（131000 次）', kbHtml.includes('131000'))
+check('面板: 知识库三子屏（题目/经验卡/引擎观察）就位',
+  ['题目', '经验卡', '引擎观察'].every((l) => kbHtml.includes(l)))
 
-// —— 切到「题目台账」标签：分类下拉预选 + 计数 + 搜索 + 行 ——
-clickTab(panelEl, '题目台账')
+// —— 切到「题目」子屏：分类下拉预选 + 计数 + 搜索 + 行 ——
+clickTab(React.render(Panel, { t }), ['题目台账', '知识库'])
+clickTab(React.render(Panel, { t }), ['题目'])
 const panelLedger = React.render(Panel, { t })
 const ledgerHtml = htmlOf(panelLedger)
 check('面板: 台账屏分类下拉与结果计数（真实解题 2 条，学习导入默认隐藏）',
@@ -628,22 +673,26 @@ if (toggle) {
 check('面板: 台账屏渲染题目行（b64chain 与 flag）',
   ledgerHtml.includes('b64chain') && ledgerHtml.includes('flag{f4st_p4th_b64_w1n}'))
 
-// —— 切到「探测器」标签 ——
-clickTab(panelLedger, '探测器')
+// —— 切到「引擎观察」子屏：探测器命中 + 失败画像 + 解题模式 ——
+clickTab(panelLedger, ['探测器', '引擎观察'])
 const panelDets = React.render(Panel, { t })
 const detHtml = htmlOf(panelDets)
-check('面板: 探测器屏渲染命中统计（34110 次尝试 / base64-chain）',
+check('面板: 引擎观察屏渲染探测器命中统计（34110 次尝试 / base64-chain）',
   detHtml.includes('34110') && detHtml.includes('base64-chain'))
+check('面板: 引擎观察屏渲染解题模式（auto 118）与失败画像（semantic:no-progress 128）',
+  detHtml.includes('118') && detHtml.includes('semantic:no-progress') && detHtml.includes('128'))
+check('面板: 失败画像标题含类别计数（共 2 类）', detHtml.includes('共 2 类'))
 
-// —— 切到「经验」标签 ——
+// —— 切到「经验卡」子屏 ——
 clickTab(panelDets, '经验卡')
 const panelLessons = React.render(Panel, { t })
 const lesHtml = htmlOf(panelLessons)
 check('面板: 经验屏渲染经验卡（技术 / 来源）',
   lesHtml.includes('base64') && lesHtml.includes('juuege/ctf-agent'))
 
-// —— 点击台账行 → 详情页链路：客户端 → /ctf-challenge-detail --id 822 → 渲染 ——
-clickTab(panelLessons, '题目台账')
+// —— 点击题目行 → 详情页链路：客户端 → /ctf-challenge-detail --id 822 → 渲染 ——
+clickTab(React.render(Panel, { t }), ['题目台账', '知识库'])
+clickTab(React.render(Panel, { t }), ['题目'])
 const panelForClick = React.render(Panel, { t })
 const rowEls = findAllByClass(panelForClick, 'ctfp-row--click')
 check('面板: 台账行可点击进入详情', rowEls.length >= 2, `rows=${rowEls.length}`)
@@ -676,10 +725,15 @@ const detailEl2 = grabComponent(afterDetail, (n) => /ChallengeDetail/.test(n))
 if (detailEl2 && typeof detailEl2.props.onBack === 'function') detailEl2.props.onBack()
 
 // —— 切到「训练场」标签：ArenaPanel 自加载 /ctf-arena stats，排行榜归一化上屏 ——
-clickTab(panelLessons, '训练场')
+// （ArenaPanel 现带 redrill campaign 30s 轮询：桩环境不会 unmount，真
+//  setInterval 句柄会把 node 进程吊死 + 30s 齐射——本段与 9.5 段同款，
+//  训练场整段禁用，一次性 mount 拉取仍会照常发出。）
+const _realSetIntervalArena = globalThis.setInterval
+globalThis.setInterval = () => 0
+clickTab(panelLessons, ['训练场', '题库精炼'])
 const panelArena = React.render(Panel, { t })
-check('训练场: 功能标签栏含「训练场」（第 5 个）',
-  findAllByClass(panelArena, 'ctfp-tab').some((b) => String(b.children[0]) === '训练场'))
+check('训练场: 功能标签栏含「训练场/题库精炼」（第 5 个）',
+  findAllByClass(panelArena, 'ctfp-tab').some((b) => ['训练场', '题库精炼'].includes(String(b.children[0]))))
 check('训练场: 自加载触发 /ctf-arena stats', remoteCalls.some((c) => c.line === '/ctf-arena stats'))
 
 /** 挂载 ArenaPanel 并返回其展开后的元素树（stub effect 同步发起一次 stats 拉取）。 */
@@ -752,8 +806,12 @@ check('记练: 远端命令为 /ctf-arena record 含转义后的 name/category �
 
 const okHtml = htmlOf(arenaMount())
 check('记练: 成功提示「已记入练兵台账」上屏', okHtml.includes('已记入练兵台账'))
-check('记练: 记账成功后紧接着的远端调用是 stats 刷新',
-  remoteCalls.length > 0 && remoteCalls[remoteCalls.length - 1].line === '/ctf-arena stats')
+check('记练: 记账成功后紧接着的 arena 拉取是 stats 刷新（容忍 redrill 状态轮询插入）',
+  remoteCalls.length > 0 && String(remoteCalls[remoteCalls.length - 1].line).startsWith('/ctf-arena stats') ||
+  (() => { // 允许其后紧随 /ctf-redrill-status 轮询（arena 轮询插进来的同窗口）
+    const idx = remoteCalls.map((c) => String(c.line)).lastIndexOf('/ctf-arena stats')
+    return idx >= 0 && remoteCalls.slice(idx + 1).every((c) => String(c.line).startsWith('/ctf-redrill-status'))
+  })())
 
 // —— 失败路径：引擎返回 kind:'error' → 可行动错误信息上屏 + 重试按钮 ——
 arenaRecordBroken = true
@@ -772,7 +830,7 @@ React.reset() // 清空 hooks 桶：干净挂载 ArenaPanel 走 loadBoard 首次
 const p1 = React.render(Panel, { t })
 await flushat() // dashboard 落地后标签栏才上屏（首帧为 loading）
 const p2 = React.render(Panel, { t })
-clickTab(p2, '训练场')
+clickTab(p2, ['训练场', '题库精炼'])
 const brokenRaw = React.render(Panel, { t })
 const brokenComp = grabComponent(brokenRaw, (n) => /Arena/.test(n))
 if (!brokenComp) throw new Error('ArenaPanel missing on stats failure')
@@ -785,6 +843,7 @@ check('统计失败: 显式错误态 + 重试按钮（不被误当空榜）',
   brokenHtml2.includes('引擎数据暂时不可用') && brokenHtml2.includes('重试'))
 check('统计失败: 「记练」表单仍可操作（错误不拦死操作路径）',
   brokenHtml2.includes('题目名') && brokenHtml2.includes('记录本次结果'))
+globalThis.setInterval = _realSetIntervalArena // 训练场段结束：恢复（后续 9.5 段自有禁用窗口）
 
 /* ------------------------------------------------------------------ *
  * 8. 自进化（第六标签）：研究队列卡 + RSI 提案流卡（生命周期配色 + 人审决策）
@@ -798,7 +857,7 @@ async function openSelfEvoTab() {
   React.render(Panel, { t })
   await flushat()
   const p2 = React.render(Panel, { t })
-  clickTab(p2, '自进化')
+  clickTab(p2, ['自进化', '系统演进'])
 }
 
 /** 挂载 SelfEvoPanel 并返回其展开后的元素树（首帧 loading，effect 双源拉取）。 */
@@ -814,10 +873,24 @@ await openSelfEvoTab()
 sevMount()
 await flushat()
 const sevHtml1 = htmlOf(sevMount())
-check('自进化: 标签栏含「自进化」（第 6 个）',
-  findAllByClass(React.render(Panel, { t }), 'ctfp-tab').some((b) => String(b.children[0]) === '自进化'))
+check('自进化: 标签栏含「自进化/系统演进」（第 6 个）',
+  findAllByClass(React.render(Panel, { t }), 'ctfp-tab').some((b) => ['自进化', '系统演进'].includes(String(b.children[0]))))
 check('自进化: 双源远端调用（/ctf-research list 与 /ctf-rsi list）',
   remoteCalls.some((c) => c.line === '/ctf-research list') && remoteCalls.some((c) => c.line === '/ctf-rsi list'))
+check('系统演进: 工装体检卡与三键（一键体检 / 错误日志 / 预设审计）',
+  sevHtml1.includes('工装体检') && ['一键体检', '错误日志', '预设审计'].every((l) => sevHtml1.includes(l)))
+remoteCalls.length = 0
+const doctorBtn = findAllByClass(sevMount(), 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]) === '一键体检')
+if (!doctorBtn) throw new Error('doctor button not found')
+doctorBtn.props.onClick()
+await flushat()
+const docHtml = htmlOf(sevMount())
+check('工装体检: 网关 GET /ctf-doctor 被调用（只读白名单）',
+  remoteCalls.some((c) => c.line === '/ctf-doctor' && c.method === 'GET'),
+  JSON.stringify(remoteCalls.slice(-3)))
+check('工装体检: 诊断结论与检查项上屏（结论 PASS / engine-dir）',
+  docHtml.includes('结论：PASS') && docHtml.includes('engine-dir'))
 check('自进化: 研究队列卡渲染专题与证据门槛（PNG 多帧隐写 / 0/2 / 排队中）',
   sevHtml1.includes('PNG 多帧隐写') && sevHtml1.includes('证据 0/2') && sevHtml1.includes('排队中'))
 check('自进化: 研究队列卡双门槛明示（两条证据才入知识库）',
@@ -1126,6 +1199,8 @@ React.reset()
 remoteCalls.length = 0
 React.render(Panel, { t }) // 新帧：网关拉取，零会话依赖
 await flushat()
+// 2026-11-26：首访默认标签已改为「开始解题」，KPI 在知识库屏——先切标签再断言。
+clickTab(React.render(Panel, { t }), '知识库')
 const zeroFrame0 = React.render(Panel, { t })
 const zeroHtml = htmlOf(zeroFrame0)
 check('零会话: currentSessionId 为空时面板仍上屏引擎数据（网关拉取，无会话要求）',
@@ -1256,7 +1331,7 @@ check('工具管理一键安装: 成功回执上屏并聚焦新对话 sess-tools
 sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-drill-1' }
 wsCalls.createSession.length = 0; wsCalls.open.length = 0
 remoteCalls.length = 0
-clickTab(React.render(Panel, { t }), '训练场')
+clickTab(React.render(Panel, { t }), ['训练场', '题库精炼'])
 const arenaRaw = grabComponent(React.render(Panel, { t }), (n) => /ArenaPanel/.test(n))
 if (!arenaRaw) throw new Error('ArenaPanel missing (arena tab not active?)')
 React.render(arenaRaw.type, arenaRaw.props) // 首挂：effect 发起 stats 拉取
@@ -1278,6 +1353,80 @@ check('训练场批量重刷: 成功回执上屏并聚焦新对话',
   htmlOf(drillFrame).includes('批量重刷已注入') &&
     wsCalls.open.length === 1 && wsCalls.open[0] === 'sess-drill-1',
   JSON.stringify({ open: wsCalls.open }) + ' | ' + htmlOf(drillFrame).slice(0, 200))
+
+// —— 交叉重刷（2026-11-26 修复回归）：active campaign 点「恢复/继续考核」必须发 --resume ——
+// 修复前 startRedrill(!rdActive) 方向反：active 时传 resume=false → Host 走 plan
+// 分支被引擎拒（campaign already active），表现为点按钮无任何反应。
+// 同段覆盖 ensureSolveSession 显式返回 dir 的修复：--workspace 必须取自 ensure
+// 返回值（快照二次推导有时序空窗）。
+redrillStatusBlob = {
+  campaign: 'c-test', status: 'active', fold: 1, folds: 3,
+  slots: [{ fold: 1, slot: 'S01', category: 'crypto', state: 'pending', via: null, suspicious: false }],
+  last_errors: [{ ts: '2026-11-26T14:00:00+0800', action: 'begin', phase: 'error', detail: { error: 'stub recent error' } }],
+}
+reuseList = { items: [
+  { workspaceId: 'ws-home', title: 'Home', path: 'C:/Users/mock' },
+  { workspaceId: 'ws-redrill-worker', title: 'CTF-redrill-worker', path: 'C:/Users/mock/CTF-redrill-worker' },
+] }
+sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-redrill-1' }
+wsCalls.createSession.length = 0; wsCalls.open.length = 0
+remoteCalls.length = 0
+const rdMount = () => {
+  const raw = grabComponent(React.render(Panel, { t }), (n) => /ArenaPanel/.test(n))
+  if (!raw) throw new Error('ArenaPanel missing (redrill scenario)')
+  return { raw, frame: React.render(raw.type, raw.props) }
+}
+rdMount() // 首挂：effect 发起 /ctf-redrill-status
+await flushat()
+await flushat()
+const rdFrameA = rdMount().frame
+const resumeBtn = findAllByClass(rdFrameA, 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]).includes('恢复/继续考核'))
+if (!resumeBtn) throw new Error('resume button not found; buttons=' +
+  findAllByClass(rdFrameA, 'ctfp-btn').map((b) => String(b.children && b.children[0])).join('|'))
+resumeBtn.props.onClick()
+await flushat()
+await flushat()
+const rdStartCall = [...remoteCalls].reverse().find((c) => String(c.line).startsWith('/ctf-redrill-start'))
+check('交叉重刷恢复: active 点「恢复/继续考核」→ 发 --resume 且路由到新训练会话（2026-11-26 修复回归）',
+  Boolean(rdStartCall) && rdStartCall.line.includes('--resume') && rdStartCall.method === 'POST' &&
+    rdStartCall.sessionId === 'sess-redrill-1',
+  JSON.stringify({ line: rdStartCall && rdStartCall.line, sid: rdStartCall && rdStartCall.sessionId }))
+check('交叉重刷恢复: --workspace 取自 ensureSolveSession 返回的目录（不依赖快照二次推导）',
+  Boolean(rdStartCall) && rdStartCall.line.includes('--workspace') && rdStartCall.line.includes('CTF-redrill-worker'),
+  String(rdStartCall && rdStartCall.line))
+const rdFrameA2 = rdMount().frame
+check('交叉重刷: 进度区直显最近引擎错误（last_errors 运维通道）',
+  htmlOf(rdFrameA2).includes('最近引擎错误') && htmlOf(rdFrameA2).includes('stub recent error'),
+  htmlOf(rdFrameA2).slice(0, 400))
+check('交叉重刷: 「诊断」按钮就位（/ctf-redrill-diag 入口）',
+  findAllByClass(rdFrameA2, 'ctfp-btn').some((b) => b.type === 'button' && String(b.children[0]).includes('诊断')))
+
+// 反向：非 active（done）→ 按钮「开始交叉重刷」，不得带 --resume（新建而非恢复）。
+redrillStatusBlob = { campaign: 'c-old', status: 'done', fold: 3, folds: 3, slots: [] }
+sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-redrill-2' }
+remoteCalls.length = 0
+rdMount()
+await flushat()
+await flushat()
+const rdFrameB = rdMount().frame
+const startBtn2 = findAllByClass(rdFrameB, 'ctfp-btn')
+  .find((b) => b.type === 'button' && String(b.children[0]).includes('开始交叉重刷'))
+if (!startBtn2) throw new Error('start button not found; buttons=' +
+  findAllByClass(rdFrameB, 'ctfp-btn').map((b) => String(b.children && b.children[0])).join('|'))
+startBtn2.props.onClick()
+await flushat()
+await flushat()
+const rdStartCallB = [...remoteCalls].reverse().find((c) => String(c.line).startsWith('/ctf-redrill-start'))
+check('交叉重刷开始: 非 active 点「开始交叉重刷」→ 不带 --resume（不会误走恢复分支）',
+  Boolean(rdStartCallB) && !rdStartCallB.line.includes('--resume') && rdStartCallB.sessionId === 'sess-redrill-2',
+  JSON.stringify({ line: rdStartCallB && rdStartCallB.line, sid: rdStartCallB && rdStartCallB.sessionId }))
+redrillStatusBlob = null
+reuseList = { items: [
+  { workspaceId: 'ws-home', title: 'Home', path: 'C:/Users/mock' },
+  { workspaceId: 'ws-ctf-worker', title: 'CTF-worker', path: 'C:/Users/mock/CTF-worker' },
+] }
+sessionsStub.create = async (opts) => { wsCalls.createSession.push(opts); return 'sess-tools-2' }
 clickTab(React.render(Panel, { t }), '工具管理') // 还原标签：后续工具页缓存段仍假设 工具管理 激活
 
 // —— 工具页缓存（2026-11-20 改造门控）：节流零请求 + force 刷新发 --fresh ——
@@ -1456,6 +1605,7 @@ React.reset()
 const PanelReboot = byName('main').Component
 React.render(PanelReboot, { t }) // 恢复的缓存命中 → present 同步写桶 + 节流 return
 await flushat()
+clickTab(React.render(PanelReboot, { t }), '知识库') // 默认标签已是「开始解题」，KPI 在知识库屏
 const rebootHtml = htmlOf(React.render(PanelReboot, { t }))
 check('重启: 模块重载后首帧零请求上屏持久化看板（localStorage 恢复生效）',
   rebootHtml.includes('622') && !remoteCalls.some((c) => c.line === '/ctf-dashboard'),
@@ -1474,10 +1624,47 @@ remoteCalls.length = 0
 const PanelBad = byName('main').Component
 React.render(PanelBad, { t }) // 恢复失败 → 无缓存 → 发请求重新拉取
 await flushat()
-React.render(PanelBad, { t })
+clickTab(React.render(PanelBad, { t }), '知识库') // 默认标签已是「开始解题」，KPI 在知识库屏
 check('重启: 持久层损坏数据被丢弃并重新拉取（防御性归一化，不炸不污染）',
   remoteCalls.some((c) => c.line === '/ctf-dashboard') && htmlOf(React.render(PanelBad, { t })).includes('622'),
   `calls=${JSON.stringify(remoteCalls)}`)
+
+/* ------------------------------------------------------------------ *
+ * 10b. 空账本防御（2026-11-26 用户令：操作屏不被数据门槛拦住）
+ * ------------------------------------------------------------------ */
+
+dashboardEmpty = true
+lsStore.delete('ctfpilot.dashboard.v1')
+loaded.length = 0
+new Function(fs.readFileSync(CLIENT, 'utf8'))()
+const pluginEmpty = loaded[0].factory(requireShim)
+slotRegistrations.length = 0
+pluginEmpty.apply(ctx)
+React.reset()
+remoteCalls.length = 0
+const PanelEmpty = byName('main').Component
+React.render(PanelEmpty, { t })
+await flushat()
+const emptyPanel = React.render(PanelEmpty, { t })
+const emptyHtml = htmlOf(emptyPanel)
+check('空账本: 六个主标签仍渲染（数据门槛不再拦操作屏）',
+  classesOf(emptyPanel).has('ctfp-tabs') &&
+    ['开始解题', '正在解题', '工具管理', '知识库', '题库精炼', '系统演进'].every((l) => emptyHtml.includes(l)),
+  emptyHtml.slice(0, 160))
+clickTab(React.render(PanelEmpty, { t }), '工具管理')
+/** 与 9b 同款：直接渲染工具屏内部组件，flush 后再取帧（缓存命中即首帧出标题）。 */
+const openEmptyTools = () => {
+  const raw = grabComponent(React.render(PanelEmpty, { t }), (n) => /ToolsPanel/.test(n))
+  if (!raw) throw new Error('ToolsPanel missing (tab not active?)')
+  return React.render(raw.type, raw.props)
+}
+openEmptyTools()
+await flushat()
+await flushat()
+const emptyToolsHtml = htmlOf(openEmptyTools())
+check('空账本: 工具管理屏可进入并渲染（缓存命中或重新拉取均可，不依赖台账）',
+  emptyToolsHtml.includes('CTF 工具管理'),
+  `html=${emptyToolsHtml.slice(0, 200)}`)
 
 /* ------------------------------------------------------------------ *
  * 汇总

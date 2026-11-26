@@ -46,15 +46,15 @@ window.__ModuleLoader__.load({
       // —— 侧栏面板入口 ——
       'sidePanelLabel': 'CTFPilot',
       // —— 看板头部 ——
-      'panelTitle': 'CTFPilot 解题看板',
-      'panelSub': '本地引擎记忆：题目、方法与成绩来自离线 SQLite 账本',
+      'panelTitle': 'CTFPilot 解题工作台',
+      'panelSub': '题库、经验与工装一屏；本地引擎离线运行，记忆落在 SQLite 账本',
       'refresh': '刷新',
       'refreshing': '正在刷新…',
       // —— KPI ——
       'totalChalls': '总挑战',
       'solved': '已解',
       'rate': '通过率',
-      'lessons': '经验教训',
+      'lessons': '经验卡',
       'unitChalls': '题',
       // —— 分类进度 ——
       'catsTitle': '分类进度',
@@ -83,10 +83,25 @@ window.__ModuleLoader__.load({
       'learnBadge': '学习导入',
       'learnOnlyTitle': '仅学 writeup 的导入记录，未真实解题',
       'noChallenges': '暂无题目',
-      'tabOverview': '概览',
-      'tabLedger': '题目台账',
-      'tabDetectors': '探测器',
-      'tabLessons': '经验卡',
+      // —— 知识库（合并原概览/台账/探测器/经验卡四屏）——
+      'tabKnowledge': '知识库',
+      'knowledgeTitle': '知识库',
+      'knowledgeSub': '题库、经验卡与探测器命中——解题记忆都在这里',
+      'knowledgeTabChalls': '题目',
+      'knowledgeTabLessons': '经验卡',
+      'knowledgeTabObserve': '引擎观察',
+      'knowledgeLessonsSub': '按技术 / 分类 / 来源检索历史经验',
+      'lessonSearchPh': '搜索经验卡 / 技术 / 分类 / 来源…',
+      'lessonsCount': '共 {n} 张',
+      'noLessonsMatch': '没有匹配的经验卡',
+      'knowledgeObserveSub': '引擎内部信号：探测器命中、失败画像与解题模式；用于判断题库质量与下一轮重刷方向',
+      'obsDetectorsSub': '快通道与深通道探测器的尝试 / 命中；命中率高说明该技术已可秒解',
+      'obsErrorsSub': '失败归因（semantic:* 为可行动信号）',
+      'obsModesSub': '引擎实际使用的运行模式分布',
+      'tabBadgeRunning': '{n} 个会话运行中',
+      'tabBadgeMissing': '{n} 个工具未安装',
+      'tabBadgeRedrill': '考核进行中',
+      'tabBadgeRsi': '{n} 条提案待审',
       'ledgerCount': '共 {n} 条',
       // —— 题目详情页 ——
       'detailBack': '← 返回看板',
@@ -113,9 +128,14 @@ window.__ModuleLoader__.load({
       // —— 经验卡 ——
       'lessonsTitle': '经验卡',
       'noLessons': '暂无经验卡',
-      // —— 训练场（竞技场）——
-      'tabArena': '训练场',
-      'arenaTitle': '竞技演练',
+      // —— 题库精炼（原训练场：用存量题库做闭环演练）——
+      'tabRefinery': '题库精炼',
+      'refineryTitle': '题库精炼',
+      'refinerySub': '用存量题库做闭环演练：交叉重刷（闭卷考核）与批量重刷，沉淀更可信的经验卡与更优解法——只动题库资产，不动插件本身。',
+      'refineryRoleNote': '分工：这里优化「题库 / 经验卡 / 探测器」；插件、对话预设等工装本身在「系统演进」。',
+      'arenaTitle': '演练台账',
+      'arenaFormTitle': '手工记练',
+      'arenaFormSub': '补记一次演练（引擎要求题目名 + 分类）',
       'arenaSub': '练兵台账独立于生产账本，只记录刻意的演练结果',
       'arenaNamePh': '题目名',
       'arenaCatPh': '分类（crypto / web / misc …）',
@@ -132,15 +152,57 @@ window.__ModuleLoader__.load({
       'arenaColTier': '档位(e/n/h)',
       'arenaRecordOk': '已记入练兵台账，排行榜自动刷新',
       // —— 批量重刷（2026-11-25 用户令：重解历史题→自验→记练→更优解法入库的自动化闭环）——
-      'arenaDrillTitle': '批量重刷',
+      'arenaDrillTitle': '批量重刷（重解 → 自验 → 入库）',
       'arenaDrillSub': '把台账已解题逐题重解（快通道优先）、与历史 flag 自验、自动记练；更优解法写 writeup 入库',
       'arenaDrillBtn': '批量重刷题库（新对话）',
       'arenaDrillBusy': '正在派发批量重刷…',
       'arenaDrillHint': '新开一个快解对话执行重刷协议：逐题定位→引擎快通道重解→与历史 flag 比对→arena 记练→更优解法 learn-writeup 入库→末尾 rebuild-knowledge 与汇总（默认最近 10 道，更多用 /ctf-drill-start --limit）',
       'arenaDrillFailed': '批量重刷派发失败：请查看下方信息',
-      // —— 自进化：研究队列 + RSI 提案流（第六标签）——
-      'tabSelfEvo': '自进化',
-      'researchTitle': '研究队列',
+      // —— 交叉重刷（k-fold 闭卷考核，2026-11-26）——
+      'redrillTitle': '交叉重刷考核（k-fold 闭卷）',
+      'redrillSub': '从已解题池抽折重考：题目匿名化（slot）、flag 经引擎私有裁判验证、记分需引擎证据；考批知识闭卷隔离，审计器扫描解题过程',
+      'redrillStartBtn': '🔄 开始交叉重刷',
+      'redrillResumeBtn': '🔄 恢复/继续考核',
+      'redrillBusy': '正在规划…',
+      'redrillHint': '新开专用考核对话：盲副本已复制进工作区，agent 只能通过 redrill 工具与引擎交互（ctfpilot 工具锁定）；逐题 begin→fast-try/recall→自解→verify→record，折内全 record 后 fold-done',
+      'redrillFailed': '交叉重刷动作失败：请查看下方信息',
+      'redrillNoWsDir': '未找到 CTF-redrill-worker 工作区目录（稍后再试或检查工作区列表）',
+      'redrillProgressFold': '折进度',
+      'redrillPass': '通过',
+      'redrillSuspicious': '待复核',
+      'redrillColSlot': 'slot',
+      'redrillColCat': '折/分类',
+      'redrillColState': '状态',
+      'redrillColVia': '记分路径',
+      'redrillNoCampaign': '尚无考核记录：点上方按钮开始（从已解题池抽折）',
+      'redrillPauseBtn': '⏸ 暂停',
+      'redrillContinueBtn': '▶ 继续',
+      'redrillAbortBtn': '⏹ 中止',
+      'redrillAuditBtn': '🛡 审计本考核',
+      'redrillAuditHint': '扫描考核会话事件流：答案串溯源 / 禁区路径 / 搜题解检测，发现直接进训练报告',
+      'redrillFinalizeBtn': '📊 收尾出报告',
+      'redrillDiagBtn': '🩺 诊断',
+      'redrillDiagHint': '一键运维快照：引擎环境/state/沙箱/ops 日志尾部/最近错误 + Host 侧 staging 与注入事件',
+      'redrillRecentErrors': '最近引擎错误',
+      // —— 系统演进：工装诊断 + 研究队列 + RSI 提案流（第六标签）——
+      'tabEvolution': '系统演进',
+      'evolutionTitle': '系统演进',
+      'evolutionSub': '演进工装本身：插件与对话预设的健康诊断，研究队列与 RSI 提案的人审采纳。',
+      'evolutionRoleNote': '分工：题库、经验卡与探测器的优化在「题库精炼」；这里只管插件 / 预设 / 运行时接线。',
+      'opsTitle': '工装体检',
+      'opsSub': '只读诊断：引擎 / 解释器 / 账本 / 预设 / 日志一屏看清；输出可直接交给 AI 运维。',
+      'opsBtnDoctor': '一键体检',
+      'opsBtnLogs': '错误日志',
+      'opsBtnPreset': '预设审计',
+      'opsBtnCopy': '复制结果',
+      'opsCopied': '已复制',
+      'opsEmpty': '点上方按钮运行一次诊断（只读，不改任何状态）。',
+      'opsBusy': '诊断中…',
+      'opsFailed': '诊断失败：',
+      'opsDoctorHint': '检查引擎目录、Python、账本、网关、预设与最近错误；失败项以 ✗ 标记。',
+      'opsLogHint': '读取 ctfpilot-errors.log 尾部；完整机器可读事件在 ctfpilot-ops.log。',
+      'opsPresetHint': '检查 agentPresets 服务、roster 与三个 CTF 预设的 resolve 结果。',
+      'researchTitle': '知识研究队列',
       'researchSub': '人引导的学习专题：两条证据指针且草稿通过校验后才入知识库',
       'researchEmpty': '暂无研究专题：与助手对话，让引擎 add 一个专题',
       'researchEvidence': '证据',
@@ -259,8 +321,8 @@ window.__ModuleLoader__.load({
     /** 英文副语言字典（与 zh 键集完全一致）。 */
     const en = {
       'sidePanelLabel': 'CTFPilot',
-      'panelTitle': 'CTFPilot Solving Board',
-      'panelSub': 'Local engine memory: challenges, methods, and results come from the offline SQLite ledger',
+      'panelTitle': 'CTFPilot Solving Workbench',
+      'panelSub': 'Library, experience and harness in one place; the local engine runs offline with SQLite memory',
       'refresh': 'Refresh',
       'refreshing': 'Refreshing…',
       'totalChalls': 'Challenges',
@@ -293,10 +355,25 @@ window.__ModuleLoader__.load({
       'learnBadge': 'Learn import',
       'learnOnlyTitle': 'writeup import only, never actually solved',
       'noChallenges': 'No challenges yet',
-      'tabOverview': 'Overview',
-      'tabLedger': 'Challenges',
-      'tabDetectors': 'Detectors',
-      'tabLessons': 'Lessons',
+      // —— Knowledge (merged overview / ledger / detectors / lessons) ——
+      'tabKnowledge': 'Knowledge',
+      'knowledgeTitle': 'Knowledge',
+      'knowledgeSub': 'Challenges, lesson cards and detector hits — all solving memory in one place',
+      'knowledgeTabChalls': 'Challenges',
+      'knowledgeTabLessons': 'Lessons',
+      'knowledgeTabObserve': 'Engine Signals',
+      'knowledgeLessonsSub': 'Search past lessons by technique / category / source',
+      'lessonSearchPh': 'Search lesson / technique / category / source…',
+      'lessonsCount': '{n} cards',
+      'noLessonsMatch': 'No matching lessons',
+      'knowledgeObserveSub': 'Engine internals: detector hits, failure profile and run modes — use them to judge library quality and the next re-drill direction',
+      'obsDetectorsSub': 'Fast/deep detector attempts vs hits; a high hit rate means the technique is already one-shot solvable',
+      'obsErrorsSub': 'Failure attribution (semantic:* classes are actionable signals)',
+      'obsModesSub': 'Run-mode distribution actually used by the engine',
+      'tabBadgeRunning': '{n} sessions running',
+      'tabBadgeMissing': '{n} tools missing',
+      'tabBadgeRedrill': 'exam running',
+      'tabBadgeRsi': '{n} proposals pending',
       'ledgerCount': '{n} total',
       // —— 题目详情页 ——
       'detailBack': '← Back to board',
@@ -321,10 +398,15 @@ window.__ModuleLoader__.load({
       'noHitRate': '—',
       'lessonsTitle': 'Lesson Cards',
       'noLessons': 'No lesson cards yet',
-      // —— 训练场（竞技场）——
-      'tabArena': 'Training',
-      'arenaTitle': 'Arena drill ground',
-      'arenaSub': 'A practice ledger kept separate from the production ledger',
+      // —— Library refinery (formerly Training: closed-loop practice over the existing library) ——
+      'tabRefinery': 'Library Refinery',
+      'refineryTitle': 'Library Refinery',
+      'refinerySub': 'Closed-loop practice over the existing library: cross re-drill (closed-book exam) and batch re-drill to distil more trustworthy lesson cards and better solutions — library assets only, never the plugin itself.',
+      'refineryRoleNote': 'Division of labour: this tab refines challenges / lesson cards / detectors; plugin, presets and runtime wiring live in System Evolution.',
+      'arenaTitle': 'Practice Ledger',
+      'arenaSub': 'Practice data is kept separate from the production ledger; only deliberate drill results land here',
+      'arenaFormTitle': 'Manual drill entry',
+      'arenaFormSub': 'Backfill one drill (the engine requires both challenge name and category)',
       'arenaNamePh': 'challenge name',
       'arenaCatPh': 'category (crypto / web / misc …)',
       'arenaRecFail': 'solved this attempt: no',
@@ -338,16 +420,58 @@ window.__ModuleLoader__.load({
       'arenaColRate': 'win rate',
       'arenaColTier': 'tier(e/n/h)',
       'arenaRecordOk': 'Logged into the practice ledger; the leaderboard refreshes automatically',
+      // —— k-fold closed-book redrill (2026-11-26) ——
+      'redrillTitle': 'Cross re-drill exam (k-fold, closed-book)',
+      'redrillSub': 'Exam folds drawn from the solved pool: anonymized slots, private verifier for flags, engine-evidence-gated credit; exam-fold knowledge is isolated, sessions audited',
+      'redrillStartBtn': '🔄 Start cross re-drill',
+      'redrillResumeBtn': '🔄 Resume / continue exam',
+      'redrillBusy': 'Planning…',
+      'redrillHint': 'Open a dedicated exam chat: blind copies staged into the workspace, the agent talks to the engine ONLY through the redrill tool (raw ctfpilot locked); per slot begin → fast-try/recall → own analysis → verify → record; fold-done closes the fold',
+      'redrillFailed': 'Cross re-drill action failed: see below',
+      'redrillNoWsDir': 'CTF-redrill-worker workspace dir not found (retry or check the workspace list)',
+      'redrillProgressFold': 'Fold progress',
+      'redrillPass': 'Passed',
+      'redrillSuspicious': 'Suspicious',
+      'redrillColSlot': 'slot',
+      'redrillColCat': 'fold/cat',
+      'redrillColState': 'state',
+      'redrillColVia': 'via',
+      'redrillNoCampaign': 'No campaign yet: press the button above (folds draw from the solved pool)',
+      'redrillPauseBtn': '⏸ Pause',
+      'redrillContinueBtn': '▶ Continue',
+      'redrillAbortBtn': '⏹ Abort',
+      'redrillAuditBtn': '🛡 Audit campaign',
+      'redrillAuditHint': 'Scan the exam session event stream: ground-truth provenance / banned paths / solution search; findings land in the training report',
+      'redrillFinalizeBtn': '📊 Finalize + report',
+      'redrillDiagBtn': '🩺 Diagnose',
+      'redrillDiagHint': 'One-shot ops snapshot: engine env/state/sandbox/ops-log tail/recent errors + host-side staging & injection events',
+      'redrillRecentErrors': 'recent engine errors',
       // —— Batch re-drill (2026-11-25): re-solve → self-verify → arena record → learn improved writeups ——
-      'arenaDrillTitle': 'Batch re-drill',
+      'arenaDrillTitle': 'Batch re-drill (re-solve → self-verify → learn)',
       'arenaDrillSub': 'Re-solve ledger challenges one by one (fast path first), self-verify against historical flags, auto-record drills, learn improved writeups',
       'arenaDrillBtn': 'Batch re-drill ledger (new chat)',
       'arenaDrillBusy': 'Dispatching batch re-drill…',
       'arenaDrillHint': 'Open one quick-mode chat running the drill protocol: locate each challenge → re-solve via the engine fast path → verify against the historical flag → arena record → learn-writeup for improved solutions → rebuild-knowledge and a summary at the end (latest 10 by default; more via /ctf-drill-start --limit)',
       'arenaDrillFailed': 'Batch re-drill dispatch failed: see the info below',
-      // —— Self-evolution: research queue + RSI proposal stream (6th tab) ——
-      'tabSelfEvo': 'Self-Evolution',
-      'researchTitle': 'Research Queue',
+      // —— System Evolution: harness diagnostics + research queue + RSI proposal stream (6th tab) ——
+      'tabEvolution': 'System Evolution',
+      'evolutionTitle': 'System Evolution',
+      'evolutionSub': 'Evolve the harness itself: health diagnostics for plugin and presets, plus human-reviewed research and RSI proposals.',
+      'evolutionRoleNote': 'Division of labour: library / lesson-card / detector refinement lives in Library Refinery; this tab only covers plugin, presets and runtime wiring.',
+      'opsTitle': 'Harness Health',
+      'opsSub': 'Read-only diagnostics: engine / interpreter / ledger / presets / logs at a glance; the output is ready to hand to an AI operator.',
+      'opsBtnDoctor': 'Run checkup',
+      'opsBtnLogs': 'Error log',
+      'opsBtnPreset': 'Preset audit',
+      'opsBtnCopy': 'Copy result',
+      'opsCopied': 'Copied',
+      'opsEmpty': 'Run a checkup above (read-only; changes nothing).',
+      'opsBusy': 'Checking…',
+      'opsFailed': 'Checkup failed: ',
+      'opsDoctorHint': 'Checks engine dir, Python, ledger, gateway, presets and recent errors; failures are marked ✗.',
+      'opsLogHint': 'Tails ctfpilot-errors.log; full machine-readable events live in ctfpilot-ops.log.',
+      'opsPresetHint': 'Checks the agentPresets service, roster, and resolve results for the three CTF presets.',
+      'researchTitle': 'Knowledge Research Queue',
       'researchSub': 'Human-guided study topics: only enter the knowledge base once two evidence pointers exist and the draft passes validation',
       'researchEmpty': 'No research topics yet: ask the assistant to have the engine add one',
       'researchEvidence': 'evidence',
@@ -355,7 +479,7 @@ window.__ModuleLoader__.load({
       'researchStDrafting': 'drafting',
       'researchStReady': 'ready-to-ingest',
       'researchStIngested': 'ingested',
-      'rsiTitle': 'RSI Proposal Stream',
+      'rsiTitle': 'Engine RSI Proposals',
       'rsiSub': 'Engine proposals await human review: adopting forces an eval-suite regression run',
       'rsiEmpty': 'No proposals yet: trigger an rsi cycle so the engine generates new ones',
       'rsiBtnApprove': 'Approve',
@@ -680,6 +804,26 @@ window.__ModuleLoader__.load({
 .ctfp-tab{font:inherit;font-size:13px;font-weight:500;cursor:pointer;color:var(--dsw-alias-label-secondary,#667085);background:none;border:none;border-bottom:2px solid transparent;border-radius:var(--ctfp-radius-sm) var(--ctfp-radius-sm) 0 0;padding:6px 12px;margin-bottom:-1px;transition:color .15s ease,border-color .15s ease,background-color .15s ease}
 .ctfp-tab:hover:not(.ctfp-tab--on){color:var(--dsw-alias-label-primary,#1a1a1a);background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.07))}
 .ctfp-tab--on{color:var(--dsw-alias-state-business-primary,#3b82f6);border-bottom-color:var(--dsw-alias-state-business-primary,#3b82f6);font-weight:600;background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.10))}
+/* 标签角标：运行中/缺装/待审用小圆标；考核进行中用脉冲点（不抢标题视觉） */
+.ctfp-tab__badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;margin-left:5px;border-radius:999px;font-size:10.5px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;vertical-align:1px}
+.ctfp-tab__badge--run{color:#8a4b00;background:#ffe8bf;border:1px solid #e8b665}
+.ctfp-tab__badge--warn{color:var(--dsw-alias-label-secondary,#667085);background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.14));border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.35))}
+.ctfp-tab__dot{display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;background:var(--dsw-alias-state-success-primary,#22c55e);box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-state-success-primary,#22c55e) 18%,transparent);vertical-align:1px;animation:ctfp-pulse 2.2s ease-in-out infinite}
+/* 知识库二级分段（不复用主标签下划线，避免两排 tab 视觉混淆） */
+.ctfp-seg{display:inline-flex;align-items:center;gap:4px;padding:3px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,#eef1f6);border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.22));align-self:flex-start;max-width:100%;flex-wrap:wrap}
+.ctfp-seg-btn{font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--dsw-alias-label-secondary,#667085);background:transparent;border:1px solid transparent;border-radius:999px;padding:4px 12px;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s ease,color .15s ease,box-shadow .15s ease}
+.ctfp-seg-btn:hover:not(.ctfp-seg-btn--on){color:var(--dsw-alias-label-primary,#1a1a1a);background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.10))}
+.ctfp-seg-btn--on{color:var(--dsw-alias-label-primary,#1a1a1a);background:var(--dsw-alias-bg-base,#fff);border-color:var(--dsw-alias-border-l2,rgba(128,128,128,.28));box-shadow:0 1px 2px rgba(0,0,0,.06);font-weight:600}
+.ctfp-seg-count{font-size:10.5px;font-weight:600;color:var(--dsw-alias-label-secondary,#667085);background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));border-radius:999px;padding:0 6px;font-variant-numeric:tabular-nums}
+[data-ds-dark-theme] .ctfp-seg{background:var(--dsw-alias-bg-layer-2,#18181b)}
+[data-ds-dark-theme] .ctfp-seg-btn--on{background:var(--dsw-alias-bg-layer-1,#27272a)}
+/* 说明性提示条：虚线容器里的纯说明文字（非错误/非加载） */
+.ctfp-note--hint{padding:9px 12px;border-style:dashed;border-radius:var(--ctfp-radius-sm);font-size:12.5px}
+/* 角色分工说明：两处演进标签各放一条，明确「改什么、不改什么」 */
+.ctfp-role-note{font-size:12px;line-height:1.55;color:var(--dsw-alias-label-secondary,#667085);background:var(--dsw-alias-bg-layer-1,#f7f8fa);border:1px dashed var(--dsw-alias-border-l2,rgba(128,128,128,.35));border-radius:var(--ctfp-radius-sm);padding:8px 10px;margin:0 0 10px;white-space:pre-wrap}
+/* 诊断输出：等宽、可横向滚动、有界高度（AI 运维可直接整段复制） */
+.ctfp-pre{font-family:var(--ctfp-mono);font-size:11.5px;line-height:1.55;background:var(--dsw-alias-bg-base,#fff);border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.28));border-radius:var(--ctfp-radius-sm);padding:9px 11px;margin:8px 0 0;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+[data-ds-dark-theme] .ctfp-pre{background:var(--dsw-alias-bg-base,#18181b);color:var(--dsw-alias-label-primary,#e5e7eb)}
 /* 题目详情页 */
 .ctfp-detail{display:flex;flex-direction:column;gap:14px;padding:4px 2px 8px}
 .ctfp-back{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:500;color:var(--dsw-alias-state-business-primary,#3b82f6);background:none;border:none;padding:4px 0;font-family:inherit;text-align:left}
@@ -962,6 +1106,17 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       return s
     }
 
+    /** 经验卡搜索串缓存：技术/分类/来源/摘要只拼接一次；输入时纯 includes。 */
+    const lessonSearchCache = new WeakMap()
+    function lessonSearchText(les) {
+      let s = lessonSearchCache.get(les)
+      if (s === undefined) {
+        s = [les.cat, les.tech, les.src, les.snippet].join('\n').toLowerCase()
+        lessonSearchCache.set(les, s)
+      }
+      return s
+    }
+
     // 模块加载即恢复持久化看板：UI 重启后首帧直接渲染上次数据（stale-while-
     // revalidate 首步），后台再校验由 loadPanel 节流控制。注意必须放在
     // num/str/truthy 等 const 小工具与 normalizeBlob 定义之后执行——
@@ -977,10 +1132,31 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
     const PANEL_REVALIDATE_MS = 30_000
     const PANELS_STORE_KEY = 'ctfpilot.panels.v1'
     const PERSISTED_PANEL_KEYS = new Set(['research-list', 'rsi-list', 'arena-stats', 'tools-status'])
+    /** 主标签持久化键：交付级体验——重开面板落在上次所在屏；首访默认「开始解题」。 */
+    const TAB_STORE_KEY = 'ctfpilot.tab.v1'
+    const TAB_KEYS = new Set(['solve', 'solving', 'tools', 'knowledge', 'refinery', 'evolution'])
     /** key → { data: 归一化结果, fingerprint: string, at: number }。 */
     const panelCache = readPersistedPanels()
     /** 各 key 在途请求防重入。 */
     const panelInFlight = new Set()
+    /** 面板缓存订阅者：主面板标签角标（运行中/缺装/考核/待审）据此即时刷新。 */
+    let panelCacheListeners = []
+    function notifyPanelCacheChanged() {
+      for (const fn of [...panelCacheListeners]) fn()
+    }
+    function subscribePanelCache(fn) {
+      panelCacheListeners.push(fn)
+      return () => { panelCacheListeners = panelCacheListeners.filter((x) => x !== fn) }
+    }
+    function readPersistedTab() {
+      try {
+        const v = localStorage.getItem(TAB_STORE_KEY)
+        return TAB_KEYS.has(String(v)) ? String(v) : 'solve'
+      } catch { return 'solve' }
+    }
+    function persistTab(key) {
+      try { localStorage.setItem(TAB_STORE_KEY, String(key)) } catch { /* 隐私模式：仅本次会话 */ }
+    }
 
     function readPersistedPanels() {
       try {
@@ -1029,6 +1205,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       const prev = panelCache.get(key)
       const changed = prev === undefined || prev.fingerprint !== fingerprint
       panelCache.set(key, { data, fingerprint, at: Date.now() })
+      if (changed) notifyPanelCacheChanged()
       persistPanels()
       return changed
     }
@@ -1178,6 +1355,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         { className: 'ctfp-lesson' },
         h('div', null, h('b', null, head)),
         detail ? h('div', { className: 'ctfp-lesson-dim' }, detail) : null,
+        les.snippet ? h('div', { className: 'ctfp-lesson-dim' }, les.snippet) : null,
       )
     }
 
@@ -1504,9 +1682,10 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
     }
 
     /**
-     * 自进化（第六标签）：研究队列卡 + RSI 提案流卡。
-     * 数据来自 /ctf-research list 与 /ctf-rsi list；人审决策走
-     * /ctf-rsi approve|reject|adopt PID --note ...（采纳强制附带 eval-suite 提示）。
+     * 系统演进（第六标签）：工装体检 + RSI 提案流 + 知识研究队列。
+     * 定位：只演进工装本身（插件 / 预设 / 运行时接线），题库资产的优化在
+     * 「题库精炼」。数据来自 /ctf-doctor、/ctf-rsi list、/ctf-research list；
+     * 人审决策走 /ctf-rsi approve|reject|adopt PID --note …（采纳强制附带 eval-suite 提示）。
      * 自加载组件（ArenaPanel/ChallengeDetail 同款模式），不扰动主面板拉取；
      * 决策按钮走 state+ref 双写防双击；任一数据源失败只该卡内联报错，另一卡照常渲染；
      * 决策失败显式上屏引擎返回信息并附同动作重试（lastDecision）。
@@ -1523,6 +1702,48 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       const [busy, setBusy] = useState(false)
       const busyRef = useRef(false) // 一次性守卫：state+ref 双写，不随闭包过期
       const lastDecision = useRef(null) // {action, pid}：失败后同动作重试
+      // 工装体检（只读）：doctor / 错误日志 / 预设审计三键共用一块输出区。
+      const [opsText, setOpsText] = useState('')
+      const [opsKind, setOpsKind] = useState('') // '' | 'ok' | 'bad'
+      const [opsBusy, setOpsBusy] = useState(false)
+      const [opsCopied, setOpsCopied] = useState(false)
+
+      async function runOps(cmd, label) {
+        if (opsBusy) return
+        setOpsBusy(true)
+        setOpsKind('')
+        setOpsText('')
+        setOpsCopied(false)
+        try {
+          // 带当前会话：预设审计能读到 turnBoundary 锁定态；doctor/logs 无副作用。
+          const out = await panelDataFetch(cmd, { sid: currentSessionId })
+          const oc = remoteOutcome(out)
+          if (oc.ok) {
+            setOpsText(String(oc.text || '(no output)'))
+            setOpsKind('ok')
+          } else {
+            setOpsText(`${t('opsFailed')}${String(oc.text || '(no detail)')}`)
+            setOpsKind('bad')
+          }
+        } catch (e) {
+          setOpsText(`${t('opsFailed')}${String((e && e.message) || e)}`)
+          setOpsKind('bad')
+        } finally {
+          setOpsBusy(false)
+          try { console.log('[ctfpilot] ops action:', label) } catch (_c) { /* console 不可用 */ }
+        }
+      }
+
+      async function copyOps() {
+        if (!opsText) return
+        try {
+          if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await navigator.clipboard.writeText(opsText)
+            setOpsCopied(true)
+            setTimeout(() => { try { setOpsCopied(false) } catch (_e) { /* 已卸载 */ } }, 2000)
+          }
+        } catch (_e) { /* 剪贴板不可用：文本仍可直接选中复制 */ }
+      }
 
       async function loadCard(cmd, setRows, setErr, force) {
         const key = cmd === '/ctf-research list' ? 'research-list'
@@ -1620,32 +1841,46 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         h(
           'section',
           { className: 'ctfp-section' },
-          h('h2', null, t('researchTitle')),
-          h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('researchSub')),
-          researchErr
-            ? h('div', { className: 'ctfp-note', role: 'alert' }, [
-                h('div', null, researchErr),
-                h('button', {
-                  className: 'ctfp-btn',
-                  style: { marginLeft: '10px' },
-                  type: 'button',
-                  onClick: () => { void loadBoth(true) },
-                }, t('retry')),
-              ])
-            : null,
-          researchRows.length === 0
-            ? h('div', { className: 'ctfp-empty' }, t('researchEmpty'))
-            : h(
-                'div',
-                { className: 'ctfp-sev-rows' },
-                researchRows.map((row) =>
-                  h('div', { key: `sev-r-${row.id}`, className: 'ctfp-sev-row' }, [
-                    h('b', null, row.topic),
-                    h('span', { className: 'ctfp-catcount' }, t('researchEvidence') + ' ' + row.evidence + '/' + row.evidenceNeed),
-                    h('span', { className: 'ctfp-badge' }, t(RESEARCH_STATUSES[row.status] || row.status)),
-                  ]),
-                ),
-              ),
+          h('h2', null, t('evolutionTitle')),
+          h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('evolutionSub')),
+          h('p', { className: 'ctfp-role-note' }, t('evolutionRoleNote')),
+        ),
+        // —— 工装体检：只读诊断，三键共用输出区（AI 运维可直接复制）——
+        h(
+          'section',
+          { className: 'ctfp-section' },
+          h('h2', null, t('opsTitle')),
+          h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('opsSub')),
+          h('div', { className: 'ctfp-actions', style: { marginTop: '0' } }, [
+            h('button', {
+              className: 'ctfp-btn', type: 'button', disabled: opsBusy,
+              onClick: () => { void runOps('/ctf-doctor', t('opsBtnDoctor')) },
+              title: t('opsDoctorHint'),
+            }, opsBusy ? t('opsBusy') : t('opsBtnDoctor')),
+            h('button', {
+              className: 'ctfp-btn', type: 'button', disabled: opsBusy,
+              onClick: () => { void runOps('/ctf-logs tail 40', t('opsBtnLogs')) },
+              title: t('opsLogHint'),
+            }, t('opsBtnLogs')),
+            h('button', {
+              className: 'ctfp-btn', type: 'button', disabled: opsBusy,
+              onClick: () => { void runOps('/ctf-preset-audit', t('opsBtnPreset')) },
+              title: t('opsPresetHint'),
+            }, t('opsBtnPreset')),
+            opsText
+              ? h('button', {
+                  className: 'ctfp-btn', type: 'button', disabled: opsBusy,
+                  onClick: () => { void copyOps() },
+                }, opsCopied ? t('opsCopied') : t('opsBtnCopy'))
+              : null,
+          ]),
+          opsText
+            ? h('pre', {
+                className: 'ctfp-pre',
+                role: 'status',
+                style: opsKind === 'bad' ? { color: 'var(--dsw-alias-state-error-primary, #dc2626)' } : undefined,
+              }, opsText)
+            : h('div', { className: 'ctfp-empty' }, t('opsEmpty')),
         ),
         okMsg ? h('div', { className: 'ctfc-status ctfc-status--ok', role: 'status' }, okMsg) : null,
         adoptedNote ? h('div', { className: 'ctfc-status ctfc-status--wait', role: 'alert' }, adoptedNote) : null,
@@ -1692,6 +1927,36 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
                       : null,
                   ])
                 }),
+              ),
+        ),
+        h(
+          'section',
+          { className: 'ctfp-section' },
+          h('h2', null, t('researchTitle')),
+          h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('researchSub')),
+          researchErr
+            ? h('div', { className: 'ctfp-note', role: 'alert' }, [
+                h('div', null, researchErr),
+                h('button', {
+                  className: 'ctfp-btn',
+                  style: { marginLeft: '10px' },
+                  type: 'button',
+                  onClick: () => { void loadBoth(true) },
+                }, t('retry')),
+              ])
+            : null,
+          researchRows.length === 0
+            ? h('div', { className: 'ctfp-empty' }, t('researchEmpty'))
+            : h(
+                'div',
+                { className: 'ctfp-sev-rows' },
+                researchRows.map((row) =>
+                  h('div', { key: `sev-r-${row.id}`, className: 'ctfp-sev-row' }, [
+                    h('b', null, row.topic),
+                    h('span', { className: 'ctfp-catcount' }, t('researchEvidence') + ' ' + row.evidence + '/' + row.evidenceNeed),
+                    h('span', { className: 'ctfp-badge' }, t(RESEARCH_STATUSES[row.status] || row.status)),
+                  ]),
+                ),
               ),
         ),
       )
@@ -1835,12 +2100,157 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         }
       }
 
+      /** 面板动作（审计/收尾）：独立命令，不经 control。 */
+      async function redrillMisc(cmd, label) {
+        if (rdBusyRef.current) return
+        rdBusyRef.current = true
+        setRdMsg('')
+        try {
+          const out = await panelDataFetch(`/ctf-redrill-${cmd}`, { method: 'POST' })
+          const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
+          const result = value && value.result && typeof value.result === 'object' ? value.result : null
+          if (result && result.kind === 'success') {
+            setRdMsg(`${label} ✓\n${String(result.text || '').slice(0, 1500)}`)
+            setRdKind('ok')
+          } else {
+            setRdMsg(`${label} 失败：${result ? String(result.text || '').slice(0, 600) : '无响应'}`)
+            setRdKind('bad')
+          }
+          await loadRedrill()
+        } catch (e) {
+          setRdMsg(`${label} 失败：${String((e && e.message) || e).slice(0, 120)}`)
+          setRdKind('bad')
+        } finally {
+          rdBusyRef.current = false
+        }
+      }
+
       const disabledBtn = busy
+
+      // —— 交叉重刷（k-fold 闭卷，2026-11-26）：campaign 状态轮询 + 干预。 ——
+      const [rdState, setRdState] = useState(null) // status blob（null = 无）
+      const [rdMsg, setRdMsg] = useState('')
+      const [rdKind, setRdKind] = useState('')
+      const [rdErr, setRdErr] = useState('')
+      const rdBusyRef = useRef(false)
+
+      async function loadRedrill() {
+        // 缓存先行：切回标签页立刻显示上次状态；后台仍会刷新。
+        const cached = panelCacheGet('redrill-status')
+        if (cached !== null) {
+          setRdState((prev) => (JSON.stringify(prev) === JSON.stringify(cached.data) ? prev : cached.data))
+        }
+        try {
+          const out = await panelDataFetch('/ctf-redrill-status', { method: 'POST' })
+          const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
+          const result = value && value.result && typeof value.result === 'object' ? value.result : null
+          if (!result || result.kind !== 'success' || !isNonEmptyString(result.text)) {
+            if (cached === null) setRdErr(result && isNonEmptyString(result.text) ? String(result.text).slice(0, 200) : t('errorState'))
+            return
+          }
+          const blob = JSON.parse(result.text)
+          setRdErr('')
+          panelCacheSet('redrill-status', blob)
+          setRdState((prev) => (JSON.stringify(prev) === result.text ? prev : blob))
+        } catch (e) {
+          // 后台轮询失败不闪屏，但状态面上必须可见（AI 运维可据此定位网关/引擎）。
+          if (cached === null) setRdErr(String((e && e.message) || e).slice(0, 200))
+          else { try { console.error('[ctfpilot] redrill status revalidate failed:', e) } catch (_c) { /* console 不可用 */ } }
+        }
+      }
+
+      useEffect(() => {
+        void loadRedrill()
+        const iv = setInterval(() => { void loadRedrill() }, 30000)
+        return () => { clearInterval(iv) }
+      }, [])
+
+      async function redrillControl(flag, label) {
+        if (rdBusyRef.current) return
+        rdBusyRef.current = true
+        setRdMsg('')
+        try {
+          const out = await panelDataFetch(`/ctf-redrill-control ${flag}`, { method: 'POST' })
+          const value = out && out.ok === true && out.value && typeof out.value === 'object' ? out.value : null
+          const result = value && value.result && typeof value.result === 'object' ? value.result : null
+          if (result && result.kind === 'success') setRdMsg(`${label} ✓ ${String(result.text || '').slice(0, 120)}`)
+          else setRdMsg(`${label} 失败：${result ? String(result.text || '').slice(0, 160) : '无响应'}`)
+          await loadRedrill()
+        } catch (e) {
+          setRdMsg(`${label} 失败：${String((e && e.message) || e).slice(0, 120)}`)
+        } finally {
+          rdBusyRef.current = false
+        }
+      }
+
+      /** 开始/恢复交叉重刷：三层链（新开 CTF-redrill-worker 会话 → stage 盲副本→
+       *  切预设+注入协议）。与 startDrill 同款：成功才跳新对话。 */
+      /** 从工作区快照推导 CTF-redrill-worker 目录（ensure 刚建过，快照可查）。
+      *  浏览器环境无 os/path 模块——与 ensureSolveSession 同源不引入新依赖。 */
+      function redrillWorkspacePath() {
+        try {
+          const wssvc = workspacesHolder
+          const snap = wssvc && wssvc.list && typeof wssvc.list.getSnapshot === 'function' ? wssvc.list.getSnapshot() : null
+          const items = snap && Array.isArray(snap.items) ? snap.items : []
+          const hit = items.find((it) => isNonEmptyString(it && it.path) && /[\\/]CTF-redrill-worker$/i.test(String(it.path).trim()))
+          return hit ? String(hit.path).trim() : ''
+        } catch { return '' }
+      }
+
+      async function startRedrill(resume) {
+        if (busyRef.current) return
+        busyRef.current = true
+        setBusy(true)
+        setRdMsg('')
+        try {
+          let targetSid = ''
+          let wsNote = ''
+          let wsDirHint = ''
+          try {
+            const ensured = await ensureSolveSession(currentSessionId, t, 'CTF-redrill-worker')
+            targetSid = ensured.sid
+            wsNote = ensured.note
+            wsDirHint = isNonEmptyString(ensured.dir) ? ensured.dir : ''
+          } catch (e2) {
+            targetSid = ''
+            wsNote = t('formWsFallback', { err: String((e2 && e2.message) || e2).slice(0, 120) })
+          }
+          const routeSid = isNonEmptyString(targetSid) ? targetSid : currentSessionId
+          // ensure 返回的目录优先（建区后快照可能有毫秒级时序空窗）；旧快照推导兜底。
+          const wsDir = wsDirHint || redrillWorkspacePath()
+          if (!wsDir) {
+            setRdMsg(t('redrillNoWsDir'))
+            setRdKind('bad')
+            return
+          }
+          const out = await panelDataFetch(`/ctf-redrill-start ${resume ? '--resume' : ''} --workspace ${shellArg(wsDir)}`, { method: 'POST', sid: routeSid })
+          const oc = remoteOutcome(out)
+          if (oc.ok) {
+            setRdMsg(wsNote ? `${oc.text}\n（降级备注：${wsNote}）` : oc.text)
+            setRdKind(wsNote ? 'bad' : 'ok')
+            if (isNonEmptyString(targetSid) && targetSid !== currentSessionId) {
+              currentSessionId = targetSid
+              notifySessionChanged()
+              void openTargetSession(targetSid)
+            }
+          } else {
+            setRdMsg(oc.text || t('redrillFailed'))
+            setRdKind('bad')
+          }
+        } catch (_err) {
+          setRdMsg(t('redrillFailed'))
+          setRdKind('bad')
+        } finally {
+          busyRef.current = false
+          setBusy(false)
+          void loadRedrill()
+        }
+      }
       const formCard = h(
         'section',
         { className: 'ctfp-section' },
-        h('h2', null, t('arenaTitle')),
-        h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('arenaSub')),
+        h('h2', null, t('arenaFormTitle')),
+        h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('arenaFormSub')),
         h(
           'div',
           { className: 'ctfp-arena-form' },
@@ -1928,6 +2338,103 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           : null,
       )
 
+      const rd = rdState
+      const rdActive = rd && rd.status === 'active'
+      const rdSlots = (rd && Array.isArray(rd.slots)) ? rd.slots : []
+      const rdPass = rdSlots.filter((s) => s.via === 'fast' || s.via === 'manual').length
+      const rdSusp = rdSlots.filter((s) => s.suspicious).length
+      const SLOT_SYM = { recorded: '✔', verified: '⊙', running: '✏', pending: '·', missing: '⊘', skipped: '⏭', failed: '✖' }
+      const redrillCard = h(
+        'section',
+        { className: 'ctfp-section' },
+        h('h2', null, t('redrillTitle')),
+        h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('redrillSub')),
+        h('div', { className: 'ctfp-arena-form' },
+          h('button', {
+            className: 'ctfp-btn',
+            type: 'button',
+            // 2026-11-26 修正：rdActive 时按钮是「恢复考核」，必须带 --resume。
+            // 此前传 !rdActive，active 时走 plan 分支被引擎拒（campaign already active），
+            // 表现为点按钮无任何反应。
+            onClick: () => { void startRedrill(rdActive) },
+            disabled: busy,
+            title: t('redrillHint'),
+          }, busy ? t('redrillBusy') : (rdActive ? t('redrillResumeBtn') : t('redrillStartBtn'))),
+          rdActive || (rd && rd.status === 'done')
+            ? h('button', {
+                className: 'ctfp-btn', type: 'button',
+                onClick: () => { void redrillControl(rdActive ? '--pause' : '--continue', t(rdActive ? 'redrillPauseBtn' : 'redrillContinueBtn')) },
+              }, rdActive ? t('redrillPauseBtn') : t('redrillContinueBtn'))
+            : null,
+          rdActive
+            ? h('button', {
+                className: 'ctfp-btn', type: 'button',
+                onClick: () => { void redrillControl('--abort', t('redrillAbortBtn')) },
+              }, t('redrillAbortBtn'))
+            : null,
+        ),
+        rd && (rd.status === 'active' || rd.status === 'done')
+          ? h('div', { className: 'ctfp-kpis', style: { margin: '10px 0' } }, [
+              { label: t('redrillProgressFold'), value: `${rd.fold}/${rd.folds}`, unit: '' },
+              { label: t('redrillPass'), value: `${rdPass}/${rdSlots.length}`, unit: '' },
+              { label: t('redrillSuspicious'), value: String(rdSusp), unit: '' },
+            ].map((kpi, idx) => h(KpiCard, { key: `rdk-${idx}`, label: kpi.label, value: kpi.value, unit: kpi.unit })))
+          : null,
+        // 运维（2026-11-26）：引擎 ops 日志的最近错误直接上屏，无需进日志目录。
+        rd && Array.isArray(rd.last_errors) && rd.last_errors.length > 0
+          ? h('div', { className: 'ctfc-status ctfc-status--bad', role: 'status', style: { marginTop: '6px', fontSize: '12px', whiteSpace: 'pre-wrap' } },
+              `${t('redrillRecentErrors')}（${rd.last_errors.length}）：` + rd.last_errors.slice(-2).map((e) => `[${e.action}] ${String((e.detail && e.detail.error) || e.ts || '').slice(0, 160)}`).join(' · '))
+          : null,
+        rdSlots.length > 0
+          ? h('div', null,
+              h('div', { className: 'ctfp-arena-head' },
+                h('span', null, t('redrillColSlot')),
+                h('span', null, t('redrillColCat')),
+                h('span', null, t('redrillColState')),
+                h('span', null, t('redrillColVia')),
+              ),
+              h('div', { className: 'ctfp-arena-rows' },
+                rdSlots.map((s) =>
+                  h('div', { key: `rd-${s.slot}`, className: 'ctfp-arena-row' }, [
+                    h('b', null, `${SLOT_SYM[s.state] || '?'} ${s.slot}`),
+                    h('span', null, `F${s.fold} ${s.category || ''}`),
+                    h('span', null, String(s.state) + (s.suspicious ? ' ⚠' : '')),
+                    h('span', null, s.via || '—'),
+                  ]))))
+          : h('div', { className: 'ctfp-empty' }, t('redrillNoCampaign')),
+        h('div', { className: 'ctfp-arena-form', style: { marginTop: '8px' } },
+          h('button', {
+            className: 'ctfp-btn', type: 'button',
+            onClick: () => { void redrillMisc('audit', t('redrillAuditBtn')) },
+            title: t('redrillAuditHint'),
+          }, t('redrillAuditBtn')),
+          h('button', {
+            className: 'ctfp-btn', type: 'button',
+            onClick: () => { void redrillMisc('diag', t('redrillDiagBtn')) },
+            title: t('redrillDiagHint'),
+          }, t('redrillDiagBtn')),
+          rd && rd.status !== 'active'
+            ? h('button', {
+                className: 'ctfp-btn', type: 'button',
+                onClick: () => { void redrillMisc('finalize', t('redrillFinalizeBtn')) },
+              }, t('redrillFinalizeBtn'))
+            : null,
+        ),
+        rdErr
+          ? h('div', {
+              className: 'ctfc-status ctfc-status--bad',
+              role: 'status',
+              style: { marginTop: '6px', fontSize: '12px' },
+            }, `${t('errorState')} · ${rdErr}`)
+          : null,
+        rdMsg
+          ? h('div', {
+              className: rdKind === 'ok' ? 'ctfc-status ctfc-status--ok' : 'ctfc-status ctfc-status--bad',
+              role: rdKind === 'ok' ? 'status' : 'alert',
+            }, rdMsg)
+          : null,
+      )
+
       if (status === 'loading' && !board) {
         return h('div', { className: 'ctfp-note ctfp-note--loading', role: 'status' }, t('loadingState'))
       }
@@ -1941,66 +2448,343 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         tierTotals.hard += num(r.hard, 0)
       }
       return h(
-        'section',
-        { className: 'ctfp-section' },
-        h('h2', null, t('tabArena')),
-        status === 'error'
-          ? h(
-              'div',
-              { className: 'ctfp-note', role: 'alert' },
-              h('div', null, t('errorState')),
-              h(
-                'button',
-                { className: 'ctfp-btn', style: { marginLeft: '10px' }, type: 'button', onClick: () => { void loadBoard(false) } },
-                t('retry'),
-              ),
-            )
-          : null,
-        board && board.overall
-          ? h('div', { className: 'ctfp-kpis', style: { marginBottom: '12px' } }, [
-              { label: t('arenaOverall'), value: `${board.overall.solved}/${board.overall.attempted}`, unit: t('unitChalls') },
-              { label: t('arenaColRate'), value: fmtPercent(board.overall.rate), unit: '' },
-              { label: t('arenaColTier'), value: `${tierTotals.easy}/${tierTotals.normal}/${tierTotals.hard}`, unit: '' },
-            ].map((kpi, idx) =>
-              h(KpiCard, { key: `kpi-${idx}`, label: kpi.label, value: kpi.value, unit: kpi.unit }),
-            ))
-          : null,
-        status === 'error'
-          ? null
-          : rows.length === 0
-            ? h('div', { className: 'ctfp-empty' }, t('arenaNoBoard'))
-          : h(
-              'div',
-              null,
-              h(
+        React.Fragment,
+        null,
+        h(
+          'section',
+          { className: 'ctfp-section' },
+          h('h2', null, t('refineryTitle')),
+          h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('refinerySub')),
+          h('p', { className: 'ctfp-role-note' }, t('refineryRoleNote')),
+        ),
+        // 考核优先：题库精炼的主入口（有证据守门、结果直接回写经验卡）。
+        redrillCard,
+        drillCard,
+        h(
+          'section',
+          { className: 'ctfp-section' },
+          h('h2', null, t('arenaTitle')),
+          h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('arenaSub')),
+          status === 'error'
+            ? h(
                 'div',
-                { className: 'ctfp-arena-head' },
-                h('span', null, t('colCat')),
-                h('span', null, t('arenaColStat')),
-                h('span', null, t('arenaColRate')),
-                h('span', null, t('arenaColTier')),
-              ),
-              h(
+                { className: 'ctfp-note', role: 'alert' },
+                h('div', null, t('errorState')),
+                h(
+                  'button',
+                  { className: 'ctfp-btn', style: { marginLeft: '10px' }, type: 'button', onClick: () => { void loadBoard(false) } },
+                  t('retry'),
+                ),
+              )
+            : null,
+          board && board.overall
+            ? h('div', { className: 'ctfp-kpis', style: { marginBottom: '12px' } }, [
+                { label: t('arenaOverall'), value: `${board.overall.solved}/${board.overall.attempted}`, unit: t('unitChalls') },
+                { label: t('arenaColRate'), value: fmtPercent(board.overall.rate), unit: '' },
+                { label: t('arenaColTier'), value: `${tierTotals.easy}/${tierTotals.normal}/${tierTotals.hard}`, unit: '' },
+              ].map((kpi, idx) =>
+                h(KpiCard, { key: `kpi-${idx}`, label: kpi.label, value: kpi.value, unit: kpi.unit }),
+              ))
+            : null,
+          status === 'error'
+            ? null
+            : rows.length === 0
+              ? h('div', { className: 'ctfp-empty' }, t('arenaNoBoard'))
+            : h(
                 'div',
-                { className: 'ctfp-arena-rows' },
-                rows.map((r) =>
-                  h('div', { key: `ar-${r.category}`, className: 'ctfp-arena-row' }, [
-                    h('b', null, r.category),
-                    h('span', null, `${num(r.solved, 0)}/${num(r.attempted, 0)}`),
-                    h('span', null, fmtPercent(r.rate)),
-                    h('span', null, `${num(r.easy,0)}/${num(r.normal,0)}/${num(r.hard,0)}`),
-                  ]),
+                null,
+                h(
+                  'div',
+                  { className: 'ctfp-arena-head' },
+                  h('span', null, t('colCat')),
+                  h('span', null, t('arenaColStat')),
+                  h('span', null, t('arenaColRate')),
+                  h('span', null, t('arenaColTier')),
+                ),
+                h(
+                  'div',
+                  { className: 'ctfp-arena-rows' },
+                  rows.map((r) =>
+                    h('div', { key: `ar-${r.category}`, className: 'ctfp-arena-row' }, [
+                      h('b', null, r.category),
+                      h('span', null, `${num(r.solved, 0)}/${num(r.attempted, 0)}`),
+                      h('span', null, fmtPercent(r.rate)),
+                      h('span', null, `${num(r.easy,0)}/${num(r.normal,0)}/${num(r.hard,0)}`),
+                    ]),
+                  ),
                 ),
               ),
-            ),
-        drillCard,
+        ),
         formCard,
       )
     }
 
     /**
-     * 看板页：KPI / 分类进度 / 题目台账（下拉预选 + 搜索 + 分页） / 探测器命中 / 经验卡，
-     * 点击题目行进详情页；显式 loading / error / empty / 需要会话 状态面。
+     * 知识库屏（合并原「概览 / 题目台账 / 探测器 / 经验卡」四屏）：
+     * 顶部保留 KPI 与分类覆盖（一眼看题库家底），主体用二级分段：
+     *   题目     —— 搜索 + 分类过滤 + 点击进详情（原台账，交付最常用）
+     *   经验卡   —— 按技术/分类/来源检索历史经验
+     *   引擎观察 —— 探测器命中、失败画像、解题模式（原概览的诊断信息）
+     * 数据全部来自同一份看板 blob，不额外拉取。
+     */
+    function KnowledgePanel(props) {
+      const t = props.t
+      const blob = props.blob
+      const sub = props.sub
+      const setSub = props.setSub
+      const query = props.query
+      const setQuery = props.setQuery
+      const catFilter = props.catFilter
+      const setCatFilter = props.setCatFilter
+      const showLearned = props.showLearned
+      const setShowLearned = props.setShowLearned
+      const lessonQuery = props.lessonQuery
+      const setLessonQuery = props.setLessonQuery
+      const onOpenChallenge = props.onOpenChallenge
+
+      // Top-12：单遍插入有序小数组（O(n·12)），避免全量 slice+sort
+      // （O(n log n) + 两次数组复制）；detectors 随账本增长时可感知。
+      const detSorted = useMemo(() => {
+        const arr = blob === null || !Array.isArray(blob.detectors) ? [] : blob.detectors
+        const top = []
+        for (const d of arr) {
+          let i = 0
+          while (i < top.length &&
+            (top[i].hits > d.hits || (top[i].hits === d.hits && top[i].attempts >= d.attempts))) i++
+          if (i >= 12) continue
+          top.splice(i, 0, d)
+          if (top.length > 12) top.pop()
+        }
+        return top
+      }, [blob])
+
+      const filtered = useMemo(() => {
+        if (!blob) return []
+        const q = query.trim().toLowerCase()
+        const cat = catFilter
+        return blob.challs.filter((c) =>
+          // kind='learn' 只有学 writeup 的导入记录，非真实解题：默认隐藏。
+          (!showLearned && c.kind === 'learn' ? false :
+            (!cat || c.cat === cat) &&
+            (!q || challSearchText(c).includes(q))),
+        )
+      }, [blob, query, catFilter, showLearned])
+
+      const lessonFiltered = useMemo(() => {
+        if (!blob) return []
+        const q = lessonQuery.trim().toLowerCase()
+        if (!q) return blob.lessons
+        return blob.lessons.filter((les) => lessonSearchText(les).includes(q))
+      }, [blob, lessonQuery])
+
+      const kpis = useMemo(
+        () =>
+          blob
+            ? [
+                { label: t('totalChalls'), value: blob.stats.total, unit: t('unitChalls') },
+                { label: t('solved'), value: blob.stats.solved, unit: t('unitChalls') },
+                { label: t('rate'), value: fmtPercent(blob.stats.rate), unit: '' },
+                { label: t('attemptsTotal'), value: blob.stats.attempts, unit: t('unitAttempts') },
+                { label: t('lessons'), value: blob.stats.lessons, unit: t('unitChalls') },
+              ]
+            : [],
+        [blob, t],
+      )
+
+      const segBtn = (key, label, count) =>
+        h('button', {
+          key: `seg-${key}`,
+          type: 'button',
+          role: 'tab',
+          'aria-selected': sub === key,
+          className: sub === key ? 'ctfp-seg-btn ctfp-seg-btn--on' : 'ctfp-seg-btn',
+          onClick: () => { setSub(key) },
+        }, label, count !== null && count !== undefined ? h('span', { className: 'ctfp-seg-count' }, String(count)) : null)
+
+      const catCount = Array.isArray(blob.bycat) ? blob.bycat.length : 0
+      const lessonCount = Array.isArray(blob.lessons) ? blob.lessons.length : 0
+      const detCount = Array.isArray(blob.detectors) ? blob.detectors.length : 0
+
+      return h(React.Fragment, null,
+        h('div', { className: 'ctfp-kpis' }, kpis.map((k, i) => h(KpiCard, { key: `kpi-${i}`, label: k.label, value: k.value, unit: k.unit }))),
+
+        h(
+          'section',
+          { className: 'ctfp-section' },
+          h('h2', null, t('catsTitle'), h('span', { className: 'ctfp-catcount' }, `${catCount}`)),
+          blob.bycat.length === 0
+            ? h('div', { className: 'ctfp-empty' }, t('noCategory'))
+            : h(
+                'div',
+                { className: 'ctfp-cats' },
+                blob.bycat.map((row) => h(CategoryRow, { key: `cat-${row.cat || '?'}`, row, t })),
+              ),
+        ),
+
+        h(
+          'div',
+          { className: 'ctfp-seg', role: 'tablist', 'aria-label': t('knowledgeTitle') },
+          [
+            segBtn('challs', t('knowledgeTabChalls'), filtered.length),
+            segBtn('lessons', t('knowledgeTabLessons'), lessonCount),
+            segBtn('observe', t('knowledgeTabObserve'), detCount),
+          ],
+        ),
+
+        // —— 题目：分类下拉预选 + 搜索；点击行进入详情页 ——
+        sub === 'challs' && h(
+          'section',
+          { className: 'ctfp-section' },
+          h('h2', null, t('knowledgeTabChalls'), h('span', { className: 'ctfp-catcount' }, t('ledgerCount', { n: filtered.length }))),
+          h('div', { className: 'ctfp-filterbar' },
+            h('select', {
+              className: 'ctfp-filter-sel',
+              value: catFilter,
+              onChange: (e) => { setCatFilter(e.target.value) },
+              'aria-label': t('colCat'),
+            }, [
+              h('option', { value: '' }, t('filterAll')),
+              ...[...new Set(blob.challs.map((c) => c.cat).filter(Boolean))]
+                .sort()
+                .map((cat) => h('option', { key: `opt-${cat}`, value: cat }, cat)),
+            ]),
+            blob.challs.some((c) => c.kind === 'learn')
+              ? h('label', { className: 'ctfp-learn-toggle' },
+                  h('input', {
+                    type: 'checkbox',
+                    checked: showLearned,
+                    onChange: (e) => { setShowLearned(e.target.checked) },
+                  }),
+                  t('showLearned'))
+              : null,
+          ),
+          h('input', {
+            className: 'ctfp-search',
+            type: 'search',
+            placeholder: t('searchPlaceholder'),
+            value: query,
+            onChange: (e) => { setQuery(e.target.value) },
+            'aria-label': t('searchPlaceholder'),
+          }),
+          filtered.length === 0
+            ? h('div', { className: 'ctfp-empty' }, t('noLedgerMatch'))
+            : h(
+                'div',
+                { className: 'ctfp-ledger' },
+                filtered.map((ch) =>
+                  h(LedgerRow, {
+                    key: `ledger-${ch.id || ch.name || 'x'}`,
+                    ch,
+                    t,
+                    onClick: () => { onOpenChallenge(ch) },
+                  }),
+                ),
+              ),
+        ),
+
+        // —— 经验卡：按技术 / 分类 / 来源检索 ——
+        sub === 'lessons' && h(
+          'section',
+          { className: 'ctfp-section' },
+          h('h2', null, t('knowledgeTabLessons'), h('span', { className: 'ctfp-catcount' }, t('lessonsCount', { n: lessonFiltered.length }))),
+          h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('knowledgeLessonsSub')),
+          h('input', {
+            className: 'ctfp-search',
+            type: 'search',
+            placeholder: t('lessonSearchPh'),
+            value: lessonQuery,
+            onChange: (e) => { setLessonQuery(e.target.value) },
+            'aria-label': t('lessonSearchPh'),
+          }),
+          lessonFiltered.length === 0
+            ? h('div', { className: 'ctfp-empty' }, blob.lessons.length === 0 ? t('noLessons') : t('noLessonsMatch'))
+            : h(
+                'div',
+                { className: 'ctfp-lessons' },
+                lessonFiltered.slice(0, 60).map((les) =>
+                  h(LessonItem, { key: `les-${les.cat}:${les.tech}:${les.time}`, les, t }),
+                ),
+              ),
+        ),
+
+        // —— 引擎观察：探测器命中 + 失败画像 + 解题模式（诊断信息集中一处）——
+        sub === 'observe' && h(React.Fragment, null,
+          h('p', { className: 'ctfp-note ctfp-note--hint' }, t('knowledgeObserveSub')),
+          h(
+            'section',
+            { className: 'ctfp-section' },
+            h('h2', null, t('detectorsTitle'), h('span', { className: 'ctfp-catcount' }, `${detCount}`)),
+            h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('obsDetectorsSub')),
+            blob.detectors.length === 0
+              ? h('div', { className: 'ctfp-empty' }, t('noDetectors'))
+              : h(
+                  'div',
+                  { className: 'ctfp-dets' },
+                  h(
+                    'div',
+                    { className: 'ctfp-detrow ctfp-dethead' },
+                    h('span', null, t('colDetector')),
+                    h('span', null, t('colPhase')),
+                    h('span', null, t('colAttempts')),
+                    h('span', null, t('colHits')),
+                    h('span', null, t('colHitRate')),
+                  ),
+                  detSorted.map((det) => h(DetectorRow, { key: `det-${det.detector || det.phase || '?'}`, det, t })),
+                ),
+          ),
+          h(
+            'section',
+            { className: 'ctfp-section' },
+            h('h2', null,
+              t('errorsTitle'),
+              h('span', { className: 'ctfp-catcount' }, t('errClasses', { n: blob.errors.length }))),
+            h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('obsErrorsSub')),
+            blob.errors.length === 0
+              ? h('div', { className: 'ctfp-empty' }, t('noErrors'))
+              : h(
+                  'div',
+                  { className: 'ctfp-dets' },
+                  h(
+                    'div',
+                    { className: 'ctfp-detrow ctfp-dethead' },
+                    h('span', null, t('colErrClass')),
+                    h('span', null, t('colErrCount')),
+                    h('span', null, t('colErrSuc')),
+                  ),
+                  blob.errors.slice(0, 12).map((er) => h(ErrorRow, { key: `err-${er.cls}`, er, t })),
+                ),
+          ),
+          h(
+            'section',
+            { className: 'ctfp-section' },
+            h('h2', null, t('modesTitle')),
+            h('p', { className: 'ctfp-sub', style: { marginBottom: '8px' } }, t('obsModesSub')),
+            blob.modes.length === 0
+              ? h('div', { className: 'ctfp-empty' }, t('noModes'))
+              : h(
+                  'div',
+                  { className: 'ctfp-cats' },
+                  blob.modes.slice(0, 6).map((row) =>
+                    h(ModeRow, {
+                      key: `mode-${row.mode || '?'}`,
+                      row,
+                      t,
+                      total: blob.stats.total,
+                    }),
+                  ),
+                ),
+          ),
+        ),
+      )
+    }
+
+    /**
+     * 主面板：标签顺序按日常动线固定——
+     *   开始解题 → 正在解题 → 工具管理 → 知识库 → 题库精炼 → 系统演进。
+     * 前三个是操作面；知识库是记忆面；题库精炼与系统演进分别只动
+     * 「题库资产」与「工装本身」，文案互相指路，杜绝名称混淆。
+     * 标签持久化（重开回上次所在屏）；解题/工具/考核/提案角标由模块级
+     * 订阅驱动（零额外轮询）。
      */
     function CtfpilotPanel(props) {
       const t = typeof props.t === 'function' ? props.t : boundTranslator || identityT
@@ -2013,8 +2797,25 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
       const [catFilter, setCatFilter] = useState('')
       /** 是否在台账中展示「只有学习导入记录」的题（默认隐藏）。 */
       const [showLearned, setShowLearned] = useState(false)
-      /** 功能标签（分页）：overview | ledger | detectors | lessons | arena。 */
-      const [tab, setTab] = useState('overview')
+      /** 知识库二级分段：challs | lessons | observe。 */
+      const [knowledgeSub, setKnowledgeSub] = useState('challs')
+      /** 经验卡检索词（与题目检索分开，互不干扰）。 */
+      const [lessonQuery, setLessonQuery] = useState('')
+      /** 主标签：solve | solving | tools | knowledge | refinery | evolution；首访默认开始解题。 */
+      const [tab, setTabRaw] = useState(() => readPersistedTab())
+      /** 模块级订阅（看板缓存/解题板）驱动的角标刷新计数。 */
+      const [, setBadgeTick] = useState(0)
+
+      const selectTab = (key) => {
+        setTabRaw(key)
+        persistTab(key)
+      }
+
+      useEffect(() => {
+        const a = subscribeSolveBoard(() => setBadgeTick((n) => n + 1))
+        const b = subscribePanelCache(() => setBadgeTick((n) => n + 1))
+        return () => { a(); if (typeof b === 'function') b() }
+      }, [])
 
       // 数据上屏与状态面判定（拉取结果与缓存命中共用）。
       // setBlob 用函数式更新：sessions.list 每次快照变更都会触发一次 loadPanel，
@@ -2098,47 +2899,6 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         })
       }, [])
 
-      const filtered = useMemo(() => {
-        if (!blob) return []
-        const q = query.trim().toLowerCase()
-        const cat = catFilter
-        return blob.challs.filter((c) =>
-          // kind='learn' 只有学 writeup 的导入记录，非真实解题：默认隐藏。
-          (!showLearned && c.kind === 'learn' ? false :
-            (!cat || c.cat === cat) &&
-            (!q || challSearchText(c).includes(q))),
-        )
-      }, [blob, query, catFilter, showLearned])
-      // Top-12：单遍插入有序小数组（O(n·12)），避免全量 slice+sort
-      // （O(n log n) + 两次数组复制）；detectors 随账本增长时可感知。
-      const detSorted = useMemo(() => {
-        const arr = blob === null || !Array.isArray(blob.detectors) ? [] : blob.detectors
-        const top = []
-        for (const d of arr) {
-          let i = 0
-          while (i < top.length &&
-            (top[i].hits > d.hits || (top[i].hits === d.hits && top[i].attempts >= d.attempts))) i++
-          if (i >= 12) continue
-          top.splice(i, 0, d)
-          if (top.length > 12) top.pop()
-        }
-        return top
-      }, [blob])
-
-      const kpis = useMemo(
-        () =>
-          blob
-            ? [
-                { label: t('totalChalls'), value: blob.stats.total, unit: t('unitChalls') },
-                { label: t('solved'), value: blob.stats.solved, unit: t('unitChalls') },
-                { label: t('rate'), value: fmtPercent(blob.stats.rate), unit: '' },
-                { label: t('attemptsTotal'), value: blob.stats.attempts, unit: t('unitAttempts') },
-                { label: t('lessons'), value: blob.stats.lessons, unit: t('unitChalls') },
-              ]
-            : [],
-        [blob, t],
-      )
-
       const refreshButton = h(
         'button',
         {
@@ -2153,11 +2913,40 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         [h('span', null, '↻'), h('span', null, t('refresh'))],
       )
 
+      // —— 标签角标：只读模块级缓存，不额外发请求 ——
+      const board = readSolveBoard()
+      let runningCount = 0
+      for (const entry of Object.values(board)) {
+        if (entry && typeof entry === 'object' && entry.running) runningCount++
+      }
+      const toolsCache = panelCacheGet('tools-status')
+      const toolsRows = toolsCache && Array.isArray(toolsCache.data) ? toolsCache.data : []
+      const missingTools = toolsRows.filter((r) => r && !r.ok && r.kind !== 'mcp').length
+      const rdCache = panelCacheGet('redrill-status')
+      const redrillActive = Boolean(rdCache && rdCache.data && rdCache.data.status === 'active')
+      const rsiCache = panelCacheGet('rsi-list')
+      const rsiRows = rsiCache && Array.isArray(rsiCache.data) ? rsiCache.data : []
+      const rsiPending = rsiRows.filter((r) => r && r.status === 'proposed').length
+
+      const badge = (text, kind, title) =>
+        text
+          ? h('span', { className: 'ctfp-tab__badge' + (kind ? ` ctfp-tab__badge--${kind}` : ''), title: title || text }, String(text))
+          : null
+
+      const tabDefs = [
+        { key: 'solve', label: t('tabSolve') },
+        { key: 'solving', label: t('solvingTab'), badgeNode: runningCount > 0 ? badge(runningCount, 'run', t('tabBadgeRunning', { n: runningCount })) : null },
+        { key: 'tools', label: t('tabTools'), badgeNode: missingTools > 0 ? badge(missingTools, 'warn', t('tabBadgeMissing', { n: missingTools })) : null },
+        { key: 'knowledge', label: t('tabKnowledge') },
+        { key: 'refinery', label: t('tabRefinery'), badgeNode: redrillActive ? h('span', { className: 'ctfp-tab__dot', title: t('tabBadgeRedrill') }) : null },
+        { key: 'evolution', label: t('tabEvolution'), badgeNode: rsiPending > 0 ? badge(rsiPending, 'warn', t('tabBadgeRsi', { n: rsiPending })) : null },
+      ]
+
       return h(
         'div',
         { className: 'ctfp-root' },
         Styles(),
-        // 详情页优先：选中题目后整屏渲染该题（返回看板时清空恢复）。
+        // 详情页优先：选中题目后整屏渲染该题（返回时保留知识库分段与检索词）。
         detailCh
           ? h(ChallengeDetail, {
               challenge: detailCh,
@@ -2166,206 +2955,74 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           : h(React.Fragment, null,
               h(
                 'header',
-          { className: 'ctfp-head' },
-          h('div', null, h('h1', { className: 'ctfp-title' }, t('panelTitle')), h('p', { className: 'ctfp-sub' }, t('panelSub'))),
-          refreshButton,
-        ),
+                { className: 'ctfp-head' },
+                h('div', null, h('h1', { className: 'ctfp-title' }, t('panelTitle')), h('p', { className: 'ctfp-sub' }, t('panelSub'))),
+                refreshButton,
+              ),
 
-        // 状态面：加载中 / 失败 / 空态（数据读取走 HTTP 网关，无会话要求）
-        status === 'loading' && !blob
-            ? h('div', { className: 'ctfp-note ctfp-note--loading', role: 'status' }, t('loadingState'))
-            : status === 'error'
-              ? h(
-                  'div',
-                  { className: 'ctfp-note', role: 'alert' },
-                  h('span', null, t('errorState')),
-                  h(
-                    'button',
-                    { className: 'ctfp-btn', style: { marginLeft: '10px' }, onClick: () => { void loadPanel() } },
-                    t('retry'),
-                  ),
-                )
-              : status === 'empty'
-                ? h('div', { className: 'ctfp-note', role: 'status' }, t('emptyState'))
-                : null,
-
-        blob && status === 'ok' && h(React.Fragment, null,
-          // 功能标签栏：概览 / 题目台账 / 探测器 / 经验（四屏互斥）。
-          h('div', { className: 'ctfp-tabs', role: 'tablist' }, [
-            h('button', { key: 'tab-overview', role: 'tab', 'aria-selected': tab === 'overview', className: tab === 'overview' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('overview') }, t('tabOverview')),
-            h('button', { key: 'tab-ledger', role: 'tab', 'aria-selected': tab === 'ledger', className: tab === 'ledger' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('ledger') }, t('tabLedger')),
-            h('button', { key: 'tab-detectors', role: 'tab', 'aria-selected': tab === 'detectors', className: tab === 'detectors' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('detectors') }, t('tabDetectors')),
-            h('button', { key: 'tab-lessons', role: 'tab', 'aria-selected': tab === 'lessons', className: tab === 'lessons' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('lessons') }, t('tabLessons')),
-            h('button', { key: 'tab-arena', role: 'tab', 'aria-selected': tab === 'arena', className: tab === 'arena' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('arena') }, t('tabArena')),
-            h('button', { key: 'tab-selfEvo', role: 'tab', 'aria-selected': tab === 'selfEvo', className: tab === 'selfEvo' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('selfEvo') }, t('tabSelfEvo')),
-            h('button', { key: 'tab-solving', role: 'tab', 'aria-selected': tab === 'solving', className: tab === 'solving' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('solving') }, t('solvingTab')),
-            h('button', { key: 'tab-solve', role: 'tab', 'aria-selected': tab === 'solve', className: tab === 'solve' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('solve') }, t('tabSolve')),
-            h('button', { key: 'tab-tools', role: 'tab', 'aria-selected': tab === 'tools', className: tab === 'tools' ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab', type: 'button', onClick: () => setTab('tools') }, t('tabTools')),
-          ]),
-
-          // —— 概览（KPI + 分类进度 + 解题模式 + 失败画像）——
-          tab === 'overview' && h(React.Fragment, null,
-            // KPI 条
-            h('div', { className: 'ctfp-kpis' }, kpis.map((k, i) => h(KpiCard, { key: `kpi-${i}`, label: k.label, value: k.value, unit: k.unit }))),
-
-          // 分类进度
-          h(
-            'section',
-            { className: 'ctfp-section' },
-            h('h2', null, t('catsTitle')),
-            blob.bycat.length === 0
-              ? h('div', { className: 'ctfp-empty' }, t('noCategory'))
-              : h(
-                  'div',
-                  { className: 'ctfp-cats' },
-                  blob.bycat.map((row) => h(CategoryRow, { key: `cat-${row.cat || '?'}`, row, t })),
-                ),
-          ),
-          // 解题模式（引擎 run mode 分布：auto / fast / deep / manual …）
-          h(
-            'section',
-            { className: 'ctfp-section' },
-            h('h2', null, t('modesTitle')),
-            blob.modes.length === 0
-              ? h('div', { className: 'ctfp-empty' }, t('noModes'))
-              : h(
-                  'div',
-                  { className: 'ctfp-cats' },
-                  blob.modes.slice(0, 6).map((row) =>
-                    h(ModeRow, {
-                      key: `mode-${row.mode || '?'}`,
-                      row,
-                      t,
-                      total: blob.stats.total,
-                    }),
-                  ),
-                ),
-          ),
-          // 失败画像（taxonomy v2：语义类 = 可行动信号，琥珀色；按次数排序）
-          h(
-            'section',
-            { className: 'ctfp-section' },
-            h('h2', null,
-              t('errorsTitle'),
-              h('span', { className: 'ctfp-catcount' }, t('errClasses', { n: blob.errors.length }))),
-            blob.errors.length === 0
-              ? h('div', { className: 'ctfp-empty' }, t('noErrors'))
-              : h(
-                  'div',
-                  { className: 'ctfp-dets' },
-                  h(
+              // 状态面：失败时全局横幅（带重试）。加载/空态不再霸占整屏——
+              // 工具管理/题库精炼/系统演进不依赖账本数据，账本为空或读取失败
+              // 时用户仍必须能进入这三屏；知识库自己的提示落在屏内。
+              status === 'error'
+                ? h(
                     'div',
-                    { className: 'ctfp-detrow ctfp-dethead' },
-                    h('span', null, t('colErrClass')),
-                    h('span', null, t('colErrCount')),
-                    h('span', null, t('colErrSuc')),
-                  ),
-                  blob.errors.slice(0, 12).map((er) => h(ErrorRow, { key: `err-${er.cls}`, er, t })),
-                ),
-          ),
-          ),
-
-          // —— 题目台账屏：分类下拉预选 + 搜索；点击行进入详情页 ——
-          tab === 'ledger' && h(
-            'section',
-            { className: 'ctfp-section' },
-            h('h2', null, t('ledgerTitle')),
-            h('div', { className: 'ctfp-filterbar' },
-              h('select', {
-                className: 'ctfp-filter-sel',
-                value: catFilter,
-                onChange: (e) => { setCatFilter(e.target.value) },
-                'aria-label': t('colCat'),
-              }, [
-                h('option', { value: '' }, t('filterAll')),
-                ...[...new Set(blob.challs.map((c) => c.cat).filter(Boolean))]
-                  .sort()
-                  .map((cat) => h('option', { key: `opt-${cat}`, value: cat }, cat)),
-              ]),
-              h('span', { className: 'ctfp-count' }, t('ledgerCount', { n: filtered.length })),
-              blob.challs.some((c) => c.kind === 'learn')
-                ? h('label', { className: 'ctfp-learn-toggle' },
-                    h('input', {
-                      type: 'checkbox',
-                      checked: showLearned,
-                      onChange: (e) => { setShowLearned(e.target.checked) },
-                    }),
-                    t('showLearned'))
+                    { className: 'ctfp-note', role: 'alert' },
+                    h('span', null, t('errorState')),
+                    h(
+                      'button',
+                      { className: 'ctfp-btn', style: { marginLeft: '10px' }, onClick: () => { void loadPanel() } },
+                      t('retry'),
+                    ),
+                  )
                 : null,
+
+              h(React.Fragment, null,
+                // 主标签栏：操作三屏在前，记忆与两类演进在后（顺序是用户动线）。
+                h('div', { className: 'ctfp-tabs', role: 'tablist' },
+                  tabDefs.map((def) =>
+                    h('button', {
+                      key: `tab-${def.key}`,
+                      role: 'tab',
+                      type: 'button',
+                      'aria-selected': tab === def.key,
+                      className: tab === def.key ? 'ctfp-tab ctfp-tab--on' : 'ctfp-tab',
+                      onClick: () => { selectTab(def.key) },
+                    }, def.label, def.badgeNode || null),
+                  ),
+                ),
+
+                // 知识库依赖看板数据：仅在无数据时于屏内提示，不拦其他标签。
+                tab === 'knowledge'
+                  ? (blob
+                      ? h(KnowledgePanel, {
+                          blob,
+                          t,
+                          sub: knowledgeSub,
+                          setSub: setKnowledgeSub,
+                          query,
+                          setQuery,
+                          catFilter,
+                          setCatFilter,
+                          showLearned,
+                          setShowLearned,
+                          lessonQuery,
+                          setLessonQuery,
+                          onOpenChallenge: (ch) => { setDetailCh(ch) },
+                        })
+                      : status === 'loading'
+                        ? h('div', { className: 'ctfp-note ctfp-note--loading', role: 'status' }, t('loadingState'))
+                        : null)
+                  : null,
+                // —— 题库精炼：交叉重刷 + 批量重刷 + 演练台账（只动题库资产）——
+                tab === 'refinery' ? h(ArenaPanel, { t }) : null,
+                // —— 系统演进：工装体检 + RSI 提案 + 研究队列（只动插件/预设）——
+                tab === 'evolution' ? h(SelfEvoPanel, { t }) : null,
+                tab === 'solving' ? h(SolvingBoard, { t }) : null,
+                tab === 'solve' ? h(SolveFormPanel, { t }) : null,
+                tab === 'tools' ? h(ToolsPanel, { t }) : null,
+              ),
             ),
-            h('input', {
-              className: 'ctfp-search',
-              type: 'search',
-              placeholder: t('searchPlaceholder'),
-              value: query,
-              onChange: (e) => { setQuery(e.target.value) },
-              'aria-label': t('searchPlaceholder'),
-            }),
-            filtered.length === 0
-              ? h('div', { className: 'ctfp-empty' }, t('noLedgerMatch'))
-              : h(
-                  'div',
-                  { className: 'ctfp-ledger' },
-                  filtered.map((ch) =>
-                    h(LedgerRow, {
-                      key: `ledger-${ch.id || ch.name || 'x'}`,
-                      ch,
-                      t,
-                      onClick: () => { setDetailCh(ch) },
-                    }),
-                  ),
-                ),
-          ),
-
-          // —— 探测器屏：按命中排序（前 12 行）——
-          tab === 'detectors' && h(
-            'section',
-            { className: 'ctfp-section' },
-            h('h2', null, t('detectorsTitle')),
-            blob.detectors.length === 0
-              ? h('div', { className: 'ctfp-empty' }, t('noDetectors'))
-              : h(
-                  'div',
-                  { className: 'ctfp-dets' },
-                  h(
-                    'div',
-                    { className: 'ctfp-detrow ctfp-dethead' },
-                    h('span', null, t('colDetector')),
-                    h('span', null, t('colPhase')),
-                    h('span', null, t('colAttempts')),
-                    h('span', null, t('colHits')),
-                    h('span', null, t('colHitRate')),
-                  ),
-                  detSorted.map((det) => h(DetectorRow, { key: `det-${det.detector || det.phase || '?'}`, det, t })),
-                ),
-          ),
-
-          // —— 经验屏：最近 30 张经验卡 ——
-          tab === 'lessons' && h(
-            'section',
-            { className: 'ctfp-section' },
-            h('h2', null, t('lessonsTitle')),
-            blob.lessons.length === 0
-              ? h('div', { className: 'ctfp-empty' }, t('noLessons'))
-              : h(
-                  'div',
-                  { className: 'ctfp-lessons' },
-                  blob.lessons.slice(0, 30).map((les) =>
-                    h(LessonItem, { key: `les-${les.cat}:${les.tech}:${les.time}`, les, t }),
-                  ),
-                ),
-          ),
-
-          // —— 训练场：竞技演练排行榜（只读）+ 一键「记练」（自加载组件）——
-          tab === 'arena' ? h(ArenaPanel, { t }) : null,
-          // —— 自进化：研究队列卡 + RSI 提案流卡（自加载组件）——
-          tab === 'selfEvo' ? h(SelfEvoPanel, { t }) : null,
-          tab === 'solving' ? h(SolvingBoard, { t }) : null,
-          tab === 'solve' ? h(SolveFormPanel, { t }) : null,
-          tab === 'tools' ? h(ToolsPanel, { t }) : null,
-        ),
-      ),
-    )
+      )
     }
 
     /* ============================================================
@@ -3140,10 +3797,15 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
      * 返回 { sid, note }：note 非空 = 非致命降级需上屏提示。
      * ============================================================ */
 
-    async function ensureSolveSession(currentSid, t) {
+    async function ensureSolveSession(currentSid, t, workerKind = 'CTF-worker') {
+      // 层1 解析出的工作区目录（复用或新建）。调用方（交叉重刷 staging）直接
+      // 使用，不再二次依赖 workspaces 快照的时序（2026-11-26 resume 无反应根因之二）。
+      let resolvedDir = ''
       const wsvc = uiWorkspaceHolder
-      const wssvc = workspacesHolder
       const ssvc = sessionsHolder
+      const wssvc = workspacesHolder
+      const pathRx = new RegExp(`[\\\\/]${workerKind}$`, 'i')
+      const titleRx = new RegExp(`^${workerKind}$`, 'i')
       // 建会话的服务是硬依赖（workspaces/uiWorkspace 缺失自动降层2/层3）。
       if (!(ssvc && typeof ssvc.create === 'function')) {
         return { sid: currentSid, note: t('formWsNoService') }
@@ -3191,18 +3853,19 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
           const snap = wssvc.list.getSnapshot()
           const items = snap && Array.isArray(snap.items) ? snap.items : []
           const worker = items.find((it) => it && isNonEmptyString(it.workspaceId) &&
-            ((isNonEmptyString(it.path) && /[\\/]CTF-worker$/i.test(String(it.path).trim())) ||
-             (isNonEmptyString(it.title) && /^CTF-worker$/i.test(String(it.title).trim()))))
+            ((isNonEmptyString(it.path) && pathRx.test(String(it.path).trim())) ||
+             (isNonEmptyString(it.title) && titleRx.test(String(it.title).trim()))))
           if (worker) {
             wid = String(worker.workspaceId)
             reusedWorker = true
+            if (isNonEmptyString(worker.path)) resolvedDir = String(worker.path).trim()
           } else {
             const withPath = items.find((it) => it && isNonEmptyString(it.workspaceId) && isNonEmptyString(it.path))
             const parent = withPath
               ? String(withPath.path).replace(/[\\/][^\\/]+$/, '')
               : ''
             if (!isNonEmptyString(parent)) throw new Error('无法推导工作区根目录（既有工作区列表为空或无 path）')
-            const wantDir = `${parent}\\CTF-worker`
+            const wantDir = `${parent}\\${workerKind}`
             const out = await panelDataFetch(`/ctf-ensure-workspace --dir ${shellArg(wantDir)}`, { method: 'POST' })
             const oc = remoteOutcome(out)
             if (!oc.ok) throw new Error(oc.text)
@@ -3211,6 +3874,7 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
             const dir = payload && isNonEmptyString(payload.dir) ? String(payload.dir) : ''
             if (!isNonEmptyString(dir)) throw new Error(`ctf-ensure-workspace 未返回目录（${String(oc.text).slice(0, 120)}）`)
             const wv = await wssvc.create({ path: dir })
+            resolvedDir = dir
             wid = wv && isNonEmptyString(wv.workspaceId) ? String(wv.workspaceId) : ''
             if (!isNonEmptyString(wid)) throw new Error(`workspaces.create(${dir}) 未返回 workspaceId`)
           }
@@ -3224,9 +3888,9 @@ body[data-ds-dark-theme] .ctfc-btn--primary{color:var(--dsw-static-neutral-bluis
         try {
           const nsid = await createSessionIn(wid)
           if (isNonEmptyString(nsid)) {
-            return { sid: nsid, note: reusedWorker ? t('formWsWorkerReused') : '' }
+            return { sid: nsid, note: reusedWorker ? t('formWsWorkerReused') : '', dir: resolvedDir }
           }
-          return { sid: currentSid, note: t('formWsFallback', { err: `sessions.create(CTF-worker ${wid}) 未返回会话 id` }) }
+          return { sid: currentSid, note: t('formWsFallback', { err: `sessions.create(${workerKind} ${wid}) 未返回会话 id` }) }
         } catch (e) {
           const reused = await reuseExistingWorkspace()
           if (isNonEmptyString(reused.sid)) {

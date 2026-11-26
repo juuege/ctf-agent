@@ -1,0 +1,14 @@
+{
+  "name": "04_xor_token",
+  "category": "reverse",
+  "solved": true,
+  "flag": "flag{t0k3n_k3y_x0r_l34rn}",
+  "time_seconds": 0.066,
+  "attempts": 10,
+  "mode": "auto",
+  "provenance": {
+    "require_derived": true,
+    "status": "derived",
+    "raw_file": null
+  }
+}

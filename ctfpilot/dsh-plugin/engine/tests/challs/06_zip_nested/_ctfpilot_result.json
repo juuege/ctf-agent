@@ -1,0 +1,14 @@
+{
+  "name": "06_zip_nested",
+  "category": "misc",
+  "solved": true,
+  "flag": "flag{d33p_p4th_mult1_l4y3r}",
+  "time_seconds": 0.325,
+  "attempts": 10,
+  "mode": "auto",
+  "provenance": {
+    "require_derived": true,
+    "status": "derived",
+    "raw_file": null
+  }
+}

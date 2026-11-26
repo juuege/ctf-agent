@@ -490,8 +490,8 @@ async function main() {
   // 验证落盘内容 + /ctf-logs tail 读回 + clear 清空。
   const errLogFile = path.join(dst, 'ctfpilot-errors.log')
   const logRaw = existsSync(errLogFile) ? readFileSync(errLogFile, 'utf8') : ''
-  check('错误落盘: registerCommand 包装层把 error 写入 ctfpilot-errors.log（via=error-result）',
-    logRaw.includes('[cmd:ctf-solve-start]') && logRaw.includes('via=error-result'),
+  check('错误落盘: registerCommand 包装层把 error 写入 ctfpilot-errors.log（via=error-result + rid）',
+    logRaw.includes('[cmd:ctf-solve-start]') && logRaw.includes('via=error-result') && logRaw.includes('rid='),
     `exists=${existsSync(errLogFile)} len=${logRaw.length} head=${logRaw.slice(0, 160)}`)
 
   // /ctf-logs tail 读回刚才的落盘记录；clear 清空。（tail 按行取，条目含
@@ -501,6 +501,11 @@ async function main() {
     logsTail.kind === 'success' && /ctfpilot-errors\.log/.test(String(logsTail.text || '')) &&
       /cmd:ctf-solve-start/.test(String(logsTail.text || '')) && /via=error-result/.test(String(logsTail.text || '')),
     String(logsTail.text || '').slice(0, 200))
+  const logsOps = await byName['ctf-logs'].handler({ rawInput: 'ops 5' })
+  check('ctf-logs ops: 读回结构化 JSONL 事件尾部（含 ctfpilot-ops.log 路径）',
+    logsOps.kind === 'success' && /ctfpilot-ops\.log/.test(String(logsOps.text || '')) &&
+      /(event|尚无 ops 事件)/.test(String(logsOps.text || '')),
+    String(logsOps.text || '').slice(0, 200))
   const logsBad = await byName['ctf-logs'].handler({ rawInput: 'bogus' })
   check('ctf-logs: 未知子动作 error 且给出用法',
     logsBad.kind === 'error' && /用法/.test(String(logsBad.text || '')),
@@ -1050,6 +1055,56 @@ async function main() {
   check('网关: GET 白名单命令直通（ctf-logs → CommandResult JSON）',
     gwLogs.status === 200 && gwLogs.json && gwLogs.json.kind === 'success',
     `status=${gwLogs.status} body=${String(gwLogs.raw).slice(0, 120)}`)
+
+  // —— ctf-doctor：交付运维体检（文本 + --json）——
+  const doctorCmd = gwCmds.find((c) => c.name === 'ctf-doctor')
+  check('doctor: 命令已注册', Boolean(doctorCmd))
+  if (doctorCmd) {
+    const docText = await doctorCmd.handler({ rawInput: '' })
+    check('doctor 文本: 结论/引擎/Python/预设/网关五段可见',
+      docText.kind === 'success' && /CTFPilot 体检/.test(String(docText.text || '')) &&
+        /结论：(PASS|FAIL)/.test(String(docText.text || '')) &&
+        /engine-dir/.test(String(docText.text || '')) &&
+        /python/.test(String(docText.text || '')) &&
+        /presets/.test(String(docText.text || '')) &&
+        /gateway/.test(String(docText.text || '')),
+      String(docText.text || '').slice(0, 260))
+    const docJsonOut = await doctorCmd.handler({ rawInput: '--json' })
+    let docJson = null
+    try { docJson = JSON.parse(String(docJsonOut.text || '')) } catch { /* 下方断言显形 */ }
+    check('doctor --json: 机器可读结构（checks / engine / python / presets / logs）',
+      docJsonOut.kind === 'success' && docJson && Array.isArray(docJson.checks) &&
+        docJson.engine && docJson.engine.dir === dst &&
+        docJson.python && docJson.python.ok === true &&
+        docJson.presets && docJson.presets.service === true &&
+        docJson.logs && docJson.logs.ops,
+      JSON.stringify(docJson && { ok: docJson.ok, checks: docJson.checks.length, py: docJson.python && docJson.python.ok }))
+    check('doctor --json: 预设三项 resolve 全 ok（ctf-quick/deep/redrill）',
+      docJson && Array.isArray(docJson.presets.results) &&
+        ['ctf-quick', 'ctf-deep', 'ctf-redrill'].every((id) => docJson.presets.results.some((r) => r.id === id && r.ok)),
+      JSON.stringify(docJson && docJson.presets.results))
+    check('doctor --json: checks 含 engine/file/python/presets/gateway 五项核心',
+      docJson && ['engine-dir', 'engine-file', 'python', 'presets', 'gateway'].every((id) => docJson.checks.some((c) => c.id === id)),
+      JSON.stringify(docJson && docJson.checks.map((c) => c.id)))
+  }
+
+  const gwDoctor = await gwHit({ url: '/ctfpilot/data/ctf-doctor' })
+  check('网关: GET ctf-doctor 只读白名单直通（运维体检无需 POST）',
+    gwDoctor.status === 200 && gwDoctor.json && gwDoctor.json.kind === 'success' &&
+      /CTFPilot 体检/.test(String((gwDoctor.json || {}).text || '')),
+    `status=${gwDoctor.status} body=${String(gwDoctor.raw).slice(0, 120)}`)
+
+  // —— ops 日志（AI 运维机读通道）：JSONL 一行一事件，含 rid/ms/name ——
+  const opsFile = path.join(dst, 'ctfpilot-ops.log')
+  const opsEvents = existsSync(opsFile)
+    ? readFileSync(opsFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
+    : []
+  check('ops 日志: 命令事件已落盘且为 JSONL（event/name/rid/ms）',
+    existsSync(opsFile) && opsEvents.some((e) => e.event === 'command' && e.name && e.rid && typeof e.ms === 'number'),
+    `exists=${existsSync(opsFile)} n=${opsEvents.length}`)
+  check('ops 日志: 失败事件带 level=error 与 status/rid（可关联错误日志）',
+    opsEvents.some((e) => e.level === 'error' && (e.event === 'command' || e.event === 'gateway-reject' || e.event === 'gateway-throw') && e.rid),
+    JSON.stringify(opsEvents.slice(-3)))
 
   const gwEnsureDir = path.join(dst, 'CTF-worker')
   const gwEnsure = await gwHit({ method: 'POST', url: '/ctfpilot/data/ctf-ensure-workspace', body: `--dir "${gwEnsureDir}"` })

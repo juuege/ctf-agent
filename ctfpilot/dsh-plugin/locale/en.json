@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "CTFPilot CTF solving tool",
-    "description": "Local dual-channel CTF solving engine as a DSH plugin: a deterministic fast path solves encoding chains, classical ciphers, XOR, archives and PNG LSB stego in seconds; misses fall through to the deep strategy loop. Includes experience recall, writeup learning, stats, a human-confirmed submit gate (propose → card → record), the CTFPilot solve form (pick 快解/深度解析, attach challenge folder, auto-injected mode brief sends a new dsh conversation under the unified CTF preset), a live solve-status board with real-time flag capture, and a CTF tool manager (health check + install/update/uninstall). Tool entry: /ctfpilot; sidebar icon opens the dashboard.",
+    "title": "CTFPilot CTF Solving Workbench",
+    "description": "Local dual-channel CTF solving engine as a DSH plugin. The main panel has six fixed tabs: Start Solving / Solving / Tools / Knowledge / Library Refinery / System Evolution. Knowledge merges the old overview, challenge ledger, detectors and lesson cards (sub-tabs: Challenges / Lessons / Engine Signals); Library Refinery only refines library assets (cross re-drill exam, batch re-drill, practice ledger); System Evolution only evolves the harness itself (plugin & preset checkup, RSI proposals, research queue). Ops additions: /ctf-doctor one-shot checkup and the structured ctfpilot-ops.log.",
     "detail": "docs/DETAIL.md"
   }
 }

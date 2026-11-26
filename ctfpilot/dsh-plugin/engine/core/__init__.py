@@ -1,0 +1,1 @@
+"""CTFPilot core package."""

@@ -1,0 +1,120 @@
+{
+  "generated": "2026-11-17 20:50:07",
+  "overall": {
+    "total": 6,
+    "solved": 6,
+    "rate": 100.0
+  },
+  "efficiency": {
+    "median_time_to_solve_s": 0.01,
+    "durations_n": 6,
+    "fast_path_solved": 5,
+    "fast_path_share": 83.3,
+    "cost_tokens_total": 0,
+    "cost_per_solve": 0.0,
+    "attempts_on_solved": 35,
+    "attempts_per_solve": 5.83,
+    "zero_cost_solved": 6,
+    "zero_cost_share": 100.0
+  },
+  "coverage": {
+    "distinct": 6,
+    "categories": 2,
+    "bycat": [
+      {
+        "cat": "misc",
+        "total": 4,
+        "solved": 4
+      },
+      {
+        "cat": "reverse",
+        "total": 2,
+        "solved": 2
+      }
+    ]
+  },
+  "health": {
+    "detectors": [
+      {
+        "phase": "exec",
+        "detector": "read+strings all files",
+        "attempts": 1,
+        "hits": 1
+      },
+      {
+        "phase": "fast",
+        "detector": "chain-decode",
+        "attempts": 11,
+        "hits": 2
+      },
+      {
+        "phase": "fast",
+        "detector": "xor-token",
+        "attempts": 2,
+        "hits": 1
+      },
+      {
+        "phase": "fast",
+        "detector": "xor-single",
+        "attempts": 6,
+        "hits": 1
+      },
+      {
+        "phase": "fast",
+        "detector": "decompress+chain",
+        "attempts": 1,
+        "hits": 1
+      },
+      {
+        "phase": "fast",
+        "detector": "mz-xor-key-recovery",
+        "attempts": 3,
+        "hits": 0
+      },
+      {
+        "phase": "fast",
+        "detector": "js-unicode-escape",
+        "attempts": 4,
+        "hits": 0
+      },
+      {
+        "phase": "fast",
+        "detector": "decompress",
+        "attempts": 2,
+        "hits": 0
+      },
+      {
+        "phase": "fast",
+        "detector": "caesar",
+        "attempts": 5,
+        "hits": 0
+      }
+    ],
+    "errors": [],
+    "attempts": 35,
+    "lessons": 6
+  },
+  "knowledge": {
+    "cases": 143,
+    "solved": 83,
+    "with_signals": 131,
+    "with_pitfalls": 65,
+    "with_transferable": 71,
+    "with_failure": 123,
+    "generated": "2026-11-17 19:27:39",
+    "writeups_dir": "writeups",
+    "mode": "production",
+    "excluded": 0
+  },
+  "capability": {
+    "smoke_total": 6,
+    "smoke_pass_rate": 1.0
+  },
+  "retrieval": {
+    "top1": 0.5789,
+    "top3": 0.8421,
+    "mrr": 0.6949
+  },
+  "_saved_ts": 1794919807,
+  "smoke_total": 6
+}
