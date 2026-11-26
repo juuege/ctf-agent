@@ -60,17 +60,20 @@ cd CTFPilot-v0.1
 
 双击 `一键打包CTFPilot.bat`：脚本会自动定位 `skill/ctfpilot`、`CTFPilot-v0.1` 与看板，生成带时间戳的 ZIP，内含 `manifest.json`（逐文件 SHA256）与 `打包说明.txt`。默认排除 `__pycache__`、轨迹库与 `challs_incoming` 题目原始数据。
 
-## DSH 插件
+## DSH 插件（v0.4.1 · 引擎随包，开箱即用）
 
-[`dsh-plugin/`](dsh-plugin/) 把引擎接入 DeepSeek 的 DSH（deepseek-harness）运行时：一个模型可见的 `ctfpilot` 工具，暴露 solve / recall / learn-writeup / stats / selftest / fixations 六个子命令，进程桥接本地引擎，零 LLM 依赖、离线运行。
+[`dsh-plugin/`](dsh-plugin/) 把引擎接入 DeepSeek 的 DSH（deepseek-harness）运行时：一个模型可见的 `ctfpilot` 工具（solve / recall / learn-writeup / rebuild-knowledge / eval-retrieval / stats / selftest / rsi / arena / research / redrill / dashboard…），外加六标签工作台面板。
 
-挂载（patch overlay 示例）：
+- **引擎随包分发**：`dsh-plugin/engine/` 内置可移植引擎（纯 Python 标准库，约 2.5MB）——分发插件目录即可，**无需**另外 clone 或配置绝对路径。
+- **唯一前提**：Python 3.10+。插件按 `config.engineDir`（可选）→ `CTFPILOT_HOME` → `<plugin>/engine` → 仓库 sibling 的顺序解析；Python 自动探测 `python3` / `python`（Windows 另含 `py -3`）。
+- **安装**：
 
-```yaml
-- insert:
-    - id: ctfpilot
-      name: '/abs/path/to/ctf-agent/ctfpilot/dsh-plugin/lib/index.js'
+```bash
+dsh plugin --profile desktop add "file:<插件目录>/ctfpilot/dsh-plugin"
+# 然后完全退出并重启 DSH
 ```
+
+- **自检**：面板「系统演进 → 工装体检」或 `/ctf-doctor --json`，`engine.dir` 字段即最终解析目录。
 
 详见 [`dsh-plugin/README.md`](dsh-plugin/README.md)。
 
