@@ -3034,12 +3034,16 @@ def do_selftest(args, cfg):
         # encoded the then-true assumption that the repo was unseen; the
         # no-false-kill semantics stay guarded by the _yr assertions above
         # (_h3/_h9: a 2025 repo must not be fuzzy-killed by 2024 rows).
-        assert _hp and _rp.startswith("exact(lanqiao/2025/cupfinals"), \
-            "live prod: pulled 2025 whole-repo must be an exact dup: %r" \
-            % _rp
-        _hq, _rq = DDX.is_dup(
-            _prod, "CTF-Archives/2024-LanqiaoCup-Finals::0x100")
-        assert _hq, "live prod: 2024 single 0x100 must stay a dup"
+        # 干净安装（随包引擎/他人机器）没有作者的 ctf-feed 拉取历史：
+        # live known-answer 只在夹具存在时校验，否则跳过（纯逻辑去重语义已由
+        # 上面的 _yr 断言覆盖）。新机器 selftest 不应因缺历史数据报红。
+        if any("lanqiao" in str(_k).lower() for _k in (_prod.get("pairs") or {})):
+            assert _hp and _rp.startswith("exact(lanqiao/2025/cupfinals"), \
+                "live prod: pulled 2025 whole-repo must be an exact dup: %r" \
+                % _rp
+            _hq, _rq = DDX.is_dup(
+                _prod, "CTF-Archives/2024-LanqiaoCup-Finals::0x100")
+            assert _hq, "live prod: 2024 single 0x100 must stay a dup"
         # --- evolve-20261116-20: skip history never blocks a re-pull ------
         # (dup 7th hole; live lock evidence pre-fix: three repos whose only
         # pickable candidate sat in persisted skipped_keys returned
@@ -3106,9 +3110,10 @@ def do_selftest(args, cfg):
         assert not _h13, "short alias must be length-gated: %r" % _r13
         # production-index known-answer: the live slip must now precheck-
         # block at the name layer (it slipped on 2026-11-17 02:0x)
-        _ha, _ra = DDX.is_dup(_prod, _wc, whole_repo=True)
-        assert _ha and "exact-alias" in _ra and "done.json" in _ra, \
-            "live prod index must exact-alias the slipped repo: %r" % _ra
+        if any("myerrorlearn" in str(_k).lower() for _k in (_prod.get("pairs") or {})):
+            _ha, _ra = DDX.is_dup(_prod, _wc, whole_repo=True)
+            assert _ha and "exact-alias" in _ra and "done.json" in _ra, \
+                "live prod index must exact-alias the slipped repo: %r" % _ra
         mod_results.append(True)
     except Exception:
         log("selftest dedup-fp failed:"); traceback.print_exc()
